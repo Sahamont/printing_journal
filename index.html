@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Press Setup Doc — Screen Print Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Bebas Neue', 'sans-serif'],
+            mono: ['IBM Plex Mono', 'monospace'],
+            sans: ['IBM Plex Sans', 'sans-serif'],
+          },
+          colors: {
+            ink: '#0a0a0a',
+            press: '#f5f0e8',
+            mesh: '#1a1a2e',
+            flash: '#e8500a',
+            cyan: { press: '#00b4d8' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0a0a0a; color: #f5f0e8; font-family: 'IBM Plex Sans', sans-serif; }
+    .grid-bg {
+      background-image: linear-gradient(rgba(245,240,232,0.04) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(245,240,232,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    .card { background: #111118; border: 1px solid rgba(245,240,232,0.1); border-radius: 2px; }
+    .card-highlight { background: #14141e; border: 1px solid rgba(232,80,10,0.4); border-radius: 2px; }
+    input, select, textarea {
+      background: #0a0a0a;
+      border: 1px solid rgba(245,240,232,0.15);
+      color: #f5f0e8;
+      border-radius: 2px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85rem;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #e8500a;
+      box-shadow: 0 0 0 2px rgba(232,80,10,0.15);
+    }
+    label { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(245,240,232,0.5); display: block; margin-bottom: 4px; }
+    .btn-primary { background: #e8500a; color: #f5f0e8; font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.1em; font-size: 1.1rem; padding: 0.6rem 1.5rem; border: none; border-radius: 2px; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+    .btn-primary:hover { background: #ff6a28; transform: translateY(-1px); }
+    .btn-secondary { background: transparent; color: #f5f0e8; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; padding: 0.5rem 1rem; border: 1px solid rgba(245,240,232,0.2); border-radius: 2px; cursor: pointer; transition: all 0.15s; }
+    .btn-secondary:hover { border-color: rgba(245,240,232,0.5); }
+    .btn-ghost { background: transparent; color: rgba(245,240,232,0.5); font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; padding: 0.35rem 0.75rem; border: 1px solid rgba(245,240,232,0.1); border-radius: 2px; cursor: pointer; transition: all 0.15s; }
+    .btn-ghost:hover { color: #f5f0e8; border-color: rgba(245,240,232,0.3); }
+    .status-badge { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 1px; }
+    .status-active { background: rgba(0,180,80,0.15); color: #00c853; border: 1px solid rgba(0,200,83,0.3); }
+    .status-archived { background: rgba(245,240,232,0.07); color: rgba(245,240,232,0.4); border: 1px solid rgba(245,240,232,0.1); }
+    .status-approved { background: rgba(0,180,216,0.12); color: #00b4d8; border: 1px solid rgba(0,180,216,0.3); }
+    .tab { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.12em; font-size: 1rem; padding: 0.5rem 1.25rem; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; color: rgba(245,240,232,0.4); }
+    .tab.active { color: #e8500a; border-bottom-color: #e8500a; }
+    .tab:hover:not(.active) { color: rgba(245,240,232,0.7); }
+    .head-row { display: grid; gap: 8px; align-items: end; }
+    .section-label { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.12em; font-size: 1.2rem; color: #e8500a; border-bottom: 1px solid rgba(232,80,10,0.3); padding-bottom: 4px; margin-bottom: 12px; }
+    .divider { border: none; border-top: 1px solid rgba(245,240,232,0.07); margin: 20px 0; }
+    select option { background: #111118; }
+    .toast { position: fixed; bottom: 24px; right: 24px; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; padding: 0.75rem 1.25rem; border-radius: 2px; z-index: 1000; transform: translateY(80px); opacity: 0; transition: all 0.3s; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { background: rgba(0,200,83,0.15); border: 1px solid rgba(0,200,83,0.4); color: #00c853; }
+    .toast.error { background: rgba(232,80,10,0.15); border: 1px solid rgba(232,80,10,0.4); color: #ff6a28; }
+    .job-card { border: 1px solid rgba(245,240,232,0.08); background: #0e0e15; border-radius: 2px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .job-card:hover { border-color: rgba(232,80,10,0.4); background: #111118; }
+    #imagePreview img { max-height: 160px; border-radius: 2px; border: 1px solid rgba(245,240,232,0.1); }
+    .loader { width: 18px; height: 18px; border: 2px solid rgba(245,240,232,0.15); border-top-color: #e8500a; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="grid-bg min-h-screen">
+
+  <!-- CONFIG MODAL -->
+  <div id="configModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+    <div class="card w-full max-w-md p-8">
+      <div class="font-display text-3xl text-flash mb-1">PRESS SETUP DOC</div>
+      <div class="font-mono text-xs text-white/40 mb-6">CONNECT YOUR SUPABASE PROJECT</div>
+      <div class="space-y-4">
+        <div>
+          <label>Supabase Project URL</label>
+          <input type="text" id="cfgUrl" placeholder="https://xxxxxxxxxxxx.supabase.co" />
+        </div>
+        <div>
+          <label>Supabase Anon Key</label>
+          <input type="text" id="cfgKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+        </div>
+        <div class="font-mono text-xs text-white/30 leading-relaxed">
+          Find these in your Supabase dashboard → Project Settings → API.<br>
+          These are saved in your browser only.
+        </div>
+        <button class="btn-primary w-full mt-2" onclick="saveConfig()">CONNECT &amp; LAUNCH</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="border-b border-white/8 px-6 py-4 flex items-center justify-between sticky top-0 z-40" style="background:#0a0a0a;">
+    <div class="flex items-center gap-4">
+      <div class="font-display text-2xl text-flash tracking-widest">PRESS SETUP DOC</div>
+      <div class="hidden sm:flex items-center gap-1 font-mono text-xs text-white/30">
+        <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> CONNECTED
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="btn-ghost" onclick="showConfig()">⚙ CONFIG</button>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="border-b border-white/8 px-6 flex gap-0" style="background:#0a0a0a;">
+    <div class="tab active" id="tab-new" onclick="switchTab('new')">NEW SETUP</div>
+    <div class="tab" id="tab-search" onclick="switchTab('search')">SEARCH JOBS</div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <main class="max-w-5xl mx-auto px-4 py-8">
+
+    <!-- ===== NEW SETUP TAB ===== -->
+    <div id="pane-new">
+      <form id="setupForm" onsubmit="submitForm(event)">
+
+        <!-- JOB / ORDER INFO -->
+        <div class="card p-6 mb-4">
+          <div class="section-label">JOB / ORDER INFO</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <label>Job Name</label>
+              <input type="text" name="job_name" required placeholder="Varsity Tee Run" />
+            </div>
+            <div>
+              <label>Order #</label>
+              <input type="text" name="order_number" placeholder="ORD-2024-001" />
+            </div>
+            <div>
+              <label>Date</label>
+              <input type="date" name="job_date" required />
+            </div>
+            <div>
+              <label>Operator</label>
+              <input type="text" name="operator" placeholder="Your name" />
+            </div>
+            <div class="col-span-2 sm:col-span-2">
+              <label>Customer / Client</label>
+              <input type="text" name="customer" placeholder="Customer name" />
+            </div>
+            <div>
+              <label>Garment Style</label>
+              <input type="text" name="garment_style" placeholder="Gildan 5000" />
+            </div>
+            <div>
+              <label>Garment Color</label>
+              <input type="text" name="garment_color" placeholder="Black" />
+            </div>
+            <div>
+              <label>Print Location</label>
+              <input type="text" name="print_location" placeholder="Left chest, full back..." />
+            </div>
+            <div>
+              <label>Quantity</label>
+              <input type="number" name="quantity" placeholder="144" />
+            </div>
+            <div>
+              <label>Status</label>
+              <select name="status">
+                <option value="active">Active</option>
+                <option value="approved">Approved</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div>
+              <label>Notes</label>
+              <input type="text" name="notes" placeholder="Any special instructions..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- PRESS SETTINGS -->
+        <div class="card p-6 mb-4">
+          <div class="section-label">PRESS SETTINGS</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <label>Print Speed</label>
+              <input type="text" name="press_speed" placeholder="e.g. 6 / 10" />
+            </div>
+            <div>
+              <label>Stroke Length (in)</label>
+              <input type="number" step="0.25" name="stroke_length" placeholder="14" />
+            </div>
+            <div>
+              <label>Off-Contact (in)</label>
+              <input type="number" step="0.0625" name="off_contact" placeholder="0.0625" />
+            </div>
+            <div>
+              <label>Print Strokes</label>
+              <select name="print_strokes">
+                <option value="1">1 stroke</option>
+                <option value="2">2 strokes</option>
+                <option value="3">3 strokes</option>
+              </select>
+            </div>
+            <div>
+              <label>Flash Temp (°F)</label>
+              <input type="number" name="flash_temp" placeholder="310" />
+            </div>
+            <div>
+              <label>Flash Dwell (sec)</label>
+              <input type="number" name="flash_dwell" placeholder="4" />
+            </div>
+            <div>
+              <label>Dryer Temp (°F)</label>
+              <input type="number" name="dryer_temp" placeholder="320" />
+            </div>
+            <div>
+              <label>Belt Speed</label>
+              <input type="text" name="belt_speed" placeholder="e.g. 4 / 10" />
+            </div>
+          </div>
+        </div>
+
+        <!-- HEAD LOCATIONS -->
+        <div class="card p-6 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="section-label mb-0">HEAD / STATION LOCATIONS</div>
+            <button type="button" class="btn-ghost text-xs" onclick="addHeadRow()">+ ADD HEAD</button>
+          </div>
+          <div class="font-mono text-xs text-white/30 mb-4">Assign each print head / flash station. Example: Head 1 = Blue, Head 2 = Flash, Head 3 = Red</div>
+          <div id="headRows" class="space-y-3">
+            <!-- dynamically generated -->
+          </div>
+        </div>
+
+        <!-- INK COLORS -->
+        <div class="card p-6 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="section-label mb-0">INK COLORS &amp; TYPES</div>
+            <button type="button" class="btn-ghost text-xs" onclick="addInkRow()">+ ADD COLOR</button>
+          </div>
+          <div id="inkRows" class="space-y-3">
+            <!-- dynamically generated -->
+          </div>
+        </div>
+
+        <!-- SCREEN / MESH SPECS -->
+        <div class="card p-6 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="section-label mb-0">SCREEN / MESH SPECS</div>
+            <button type="button" class="btn-ghost text-xs" onclick="addScreenRow()">+ ADD SCREEN</button>
+          </div>
+          <div id="screenRows" class="space-y-3">
+            <!-- dynamically generated -->
+          </div>
+        </div>
+
+        <!-- SQUEEGEE SETTINGS -->
+        <div class="card p-6 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="section-label mb-0">SQUEEGEE SETTINGS</div>
+            <button type="button" class="btn-ghost text-xs" onclick="addSqRow()">+ ADD SQUEEGEE</button>
+          </div>
+          <div id="sqRows" class="space-y-3">
+            <!-- dynamically generated -->
+          </div>
+        </div>
+
+        <!-- PHOTO UPLOAD -->
+        <div class="card p-6 mb-4">
+          <div class="section-label">PHOTO / REFERENCE IMAGE</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label>Upload Image (garment, screen, setup)</label>
+              <input type="file" id="photoInput" accept="image/*" onchange="previewImage(event)" style="padding:6px;" />
+            </div>
+            <div id="imagePreview" class="flex items-center"></div>
+          </div>
+          <div class="font-mono text-xs text-white/30 mt-2">Image is stored in Supabase Storage and linked to this job.</div>
+        </div>
+
+        <!-- SUBMIT -->
+        <div class="flex gap-3 justify-end">
+          <button type="button" class="btn-secondary" onclick="resetForm()">CLEAR FORM</button>
+          <button type="submit" class="btn-primary" id="submitBtn">SAVE SETUP</button>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ===== SEARCH TAB ===== -->
+    <div id="pane-search" class="hidden">
+      <div class="card p-5 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div class="sm:col-span-2">
+            <label>Search Job Name / Order #</label>
+            <input type="text" id="searchQuery" placeholder="Type to search..." oninput="searchJobs()" />
+          </div>
+          <div>
+            <label>Status Filter</label>
+            <select id="statusFilter" onchange="searchJobs()">
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="approved">Approved</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div>
+            <label>Sort By</label>
+            <select id="sortBy" onchange="searchJobs()">
+              <option value="job_date">Date</option>
+              <option value="job_name">Job Name</option>
+              <option value="order_number">Order #</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="searchResults" class="space-y-3">
+        <div class="font-mono text-xs text-white/30 text-center py-8">Search results will appear here</div>
+      </div>
+
+      <!-- JOB DETAIL MODAL -->
+      <div id="jobDetail" class="hidden fixed inset-0 bg-black/80 z-50 overflow-y-auto p-4">
+        <div class="max-w-4xl mx-auto card p-8 my-8" id="jobDetailContent">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast"></div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+let supabase = null;
+
+function saveConfig() {
+  const url = document.getElementById('cfgUrl').value.trim();
+  const key = document.getElementById('cfgKey').value.trim();
+  if (!url || !key) { alert('Both fields required.'); return; }
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  initSupabase(url, key);
+  document.getElementById('configModal').style.display = 'none';
+}
+
+function showConfig() {
+  document.getElementById('cfgUrl').value = localStorage.getItem('sb_url') || '';
+  document.getElementById('cfgKey').value = localStorage.getItem('sb_key') || '';
+  document.getElementById('configModal').style.display = 'flex';
+}
+
+function initSupabase(url, key) {
+  supabase = window.supabase.createClient(url, key);
+}
+
+// On load
+window.addEventListener('DOMContentLoaded', () => {
+  const url = localStorage.getItem('sb_url');
+  const key = localStorage.getItem('sb_key');
+  if (url && key) {
+    initSupabase(url, key);
+    document.getElementById('configModal').style.display = 'none';
+  }
+  // Init default rows
+  addHeadRow(); addHeadRow(); addHeadRow();
+  addInkRow(); addInkRow();
+  addScreenRow(); addScreenRow();
+  addSqRow(); addSqRow();
+  // Default date
+  document.querySelector('[name=job_date]').value = new Date().toISOString().split('T')[0];
+});
+
+// ─── TABS ─────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('pane-new').classList.toggle('hidden', tab !== 'new');
+  document.getElementById('pane-search').classList.toggle('hidden', tab !== 'search');
+  document.getElementById('tab-new').classList.toggle('active', tab === 'new');
+  document.getElementById('tab-search').classList.toggle('active', tab === 'search');
+  if (tab === 'search') searchJobs();
+}
+
+// ─── DYNAMIC ROWS ─────────────────────────────────────────
+let headCount = 0, inkCount = 0, screenCount = 0, sqCount = 0;
+
+function addHeadRow() {
+  headCount++;
+  const i = headCount;
+  const div = document.createElement('div');
+  div.id = `head-row-${i}`;
+  div.className = 'grid gap-3 items-end';
+  div.style.gridTemplateColumns = '80px 1fr 1fr 1fr 80px 36px';
+  div.innerHTML = `
+    <div><label>Head #</label><input type="number" name="head_num_${i}" value="${i}" min="1" max="20" /></div>
+    <div><label>Station Type</label>
+      <select name="head_type_${i}">
+        <option>Print Head</option><option>Flash Unit</option><option>Preheat</option><option>Specialty</option>
+      </select>
+    </div>
+    <div><label>Color / Label</label><input type="text" name="head_color_${i}" placeholder="Blue, Red, Flash..." /></div>
+    <div><label>Ink Color Code</label><input type="text" name="head_ink_${i}" placeholder="PMS 286 C" /></div>
+    <div><label>Active</label>
+      <select name="head_active_${i}">
+        <option value="yes">Yes</option><option value="no">No</option>
+      </select>
+    </div>
+    <div class="pb-1"><button type="button" class="btn-ghost w-full" onclick="document.getElementById('head-row-${i}').remove()">✕</button></div>
+  `;
+  document.getElementById('headRows').appendChild(div);
+}
+
+function addInkRow() {
+  inkCount++;
+  const i = inkCount;
+  const div = document.createElement('div');
+  div.id = `ink-row-${i}`;
+  div.className = 'grid gap-3 items-end';
+  div.style.gridTemplateColumns = '1fr 1fr 1fr 1fr 80px 36px';
+  div.innerHTML = `
+    <div><label>Color Name</label><input type="text" name="ink_color_${i}" placeholder="Bright Red" /></div>
+    <div><label>PMS / Code</label><input type="text" name="ink_pms_${i}" placeholder="PMS 485 C" /></div>
+    <div><label>Ink Brand / Line</label><input type="text" name="ink_brand_${i}" placeholder="Union Inks / Superstar" /></div>
+    <div><label>Ink Type</label>
+      <select name="ink_type_${i}">
+        <option>Plastisol</option><option>Water-Based</option><option>Discharge</option><option>HSA</option><option>Specialty</option>
+      </select>
+    </div>
+    <div><label>Mesh #</label><input type="number" name="ink_mesh_${i}" placeholder="160" /></div>
+    <div class="pb-1"><button type="button" class="btn-ghost w-full" onclick="document.getElementById('ink-row-${i}').remove()">✕</button></div>
+  `;
+  document.getElementById('inkRows').appendChild(div);
+}
+
+function addScreenRow() {
+  screenCount++;
+  const i = screenCount;
+  const div = document.createElement('div');
+  div.id = `screen-row-${i}`;
+  div.className = 'grid gap-3 items-end';
+  div.style.gridTemplateColumns = '60px 80px 80px 1fr 1fr 80px 36px';
+  div.innerHTML = `
+    <div><label>Screen #</label><input type="number" name="scr_num_${i}" value="${i}" /></div>
+    <div><label>Mesh Count</label><input type="number" name="scr_mesh_${i}" placeholder="160" /></div>
+    <div><label>Tension (N/cm)</label><input type="number" step="0.5" name="scr_tension_${i}" placeholder="25" /></div>
+    <div><label>Emulsion</label><input type="text" name="scr_emulsion_${i}" placeholder="Murakami S-Series" /></div>
+    <div><label>EOM / Stencil Thickness</label><input type="text" name="scr_eom_${i}" placeholder="12-15μm" /></div>
+    <div><label>Frame Size</label><input type="text" name="scr_frame_${i}" placeholder='23"x31"' /></div>
+    <div class="pb-1"><button type="button" class="btn-ghost w-full" onclick="document.getElementById('screen-row-${i}').remove()">✕</button></div>
+  `;
+  document.getElementById('screenRows').appendChild(div);
+}
+
+function addSqRow() {
+  sqCount++;
+  const i = sqCount;
+  const div = document.createElement('div');
+  div.id = `sq-row-${i}`;
+  div.className = 'grid gap-3 items-end';
+  div.style.gridTemplateColumns = '60px 1fr 80px 80px 1fr 36px';
+  div.innerHTML = `
+    <div><label>Head #</label><input type="number" name="sq_head_${i}" value="${i}" /></div>
+    <div><label>Blade Type</label>
+      <select name="sq_blade_${i}">
+        <option>Durometer 70</option><option>Durometer 75</option><option>Durometer 80</option>
+        <option>Durometer 65/90/65 Triple</option><option>Durometer 70/90/70 Triple</option>
+      </select>
+    </div>
+    <div><label>Angle (°)</label><input type="number" name="sq_angle_${i}" placeholder="15" min="5" max="45" /></div>
+    <div><label>Pressure</label>
+      <select name="sq_pressure_${i}">
+        <option>Light</option><option>Medium-Light</option><option>Medium</option><option>Medium-Heavy</option><option>Heavy</option>
+      </select>
+    </div>
+    <div><label>Blade Condition</label>
+      <select name="sq_condition_${i}">
+        <option>New</option><option>Good</option><option>Fair</option><option>Needs Sharpening</option>
+      </select>
+    </div>
+    <div class="pb-1"><button type="button" class="btn-ghost w-full" onclick="document.getElementById('sq-row-${i}').remove()">✕</button></div>
+  `;
+  document.getElementById('sqRows').appendChild(div);
+}
+
+// ─── IMAGE PREVIEW ────────────────────────────────────────
+function previewImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('imagePreview').innerHTML = `<img src="${ev.target.result}" alt="Preview" />`;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ─── COLLECT DYNAMIC ROWS ─────────────────────────────────
+function collectHeads() {
+  const rows = document.querySelectorAll('[id^="head-row-"]');
+  return Array.from(rows).map(r => {
+    const i = r.id.split('-')[2];
+    return {
+      head_num: r.querySelector(`[name=head_num_${i}]`)?.value,
+      head_type: r.querySelector(`[name=head_type_${i}]`)?.value,
+      head_color: r.querySelector(`[name=head_color_${i}]`)?.value,
+      head_ink: r.querySelector(`[name=head_ink_${i}]`)?.value,
+      head_active: r.querySelector(`[name=head_active_${i}]`)?.value,
+    };
+  }).filter(r => r.head_num);
+}
+
+function collectInks() {
+  const rows = document.querySelectorAll('[id^="ink-row-"]');
+  return Array.from(rows).map(r => {
+    const i = r.id.split('-')[2];
+    return {
+      color: r.querySelector(`[name=ink_color_${i}]`)?.value,
+      pms: r.querySelector(`[name=ink_pms_${i}]`)?.value,
+      brand: r.querySelector(`[name=ink_brand_${i}]`)?.value,
+      type: r.querySelector(`[name=ink_type_${i}]`)?.value,
+      mesh: r.querySelector(`[name=ink_mesh_${i}]`)?.value,
+    };
+  }).filter(r => r.color);
+}
+
+function collectScreens() {
+  const rows = document.querySelectorAll('[id^="screen-row-"]');
+  return Array.from(rows).map(r => {
+    const i = r.id.split('-')[2];
+    return {
+      screen_num: r.querySelector(`[name=scr_num_${i}]`)?.value,
+      mesh: r.querySelector(`[name=scr_mesh_${i}]`)?.value,
+      tension: r.querySelector(`[name=scr_tension_${i}]`)?.value,
+      emulsion: r.querySelector(`[name=scr_emulsion_${i}]`)?.value,
+      eom: r.querySelector(`[name=scr_eom_${i}]`)?.value,
+      frame: r.querySelector(`[name=scr_frame_${i}]`)?.value,
+    };
+  }).filter(r => r.screen_num);
+}
+
+function collectSqueegees() {
+  const rows = document.querySelectorAll('[id^="sq-row-"]');
+  return Array.from(rows).map(r => {
+    const i = r.id.split('-')[2];
+    return {
+      head_num: r.querySelector(`[name=sq_head_${i}]`)?.value,
+      blade: r.querySelector(`[name=sq_blade_${i}]`)?.value,
+      angle: r.querySelector(`[name=sq_angle_${i}]`)?.value,
+      pressure: r.querySelector(`[name=sq_pressure_${i}]`)?.value,
+      condition: r.querySelector(`[name=sq_condition_${i}]`)?.value,
+    };
+  }).filter(r => r.head_num);
+}
+
+// ─── FORM SUBMIT ──────────────────────────────────────────
+async function submitForm(e) {
+  e.preventDefault();
+  if (!supabase) { showToast('Not connected to Supabase. Check config.', 'error'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.innerHTML = '<span class="loader"></span>';
+  btn.disabled = true;
+
+  const fd = new FormData(e.target);
+  const jobData = Object.fromEntries(fd.entries());
+
+  // Upload image if any
+  const fileInput = document.getElementById('photoInput');
+  let imageUrl = null;
+  if (fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const ext = file.name.split('.').pop();
+    const path = `job-photos/${Date.now()}.${ext}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('press-setups')
+      .upload(path, file, { upsert: true });
+    if (!uploadError) {
+      const { data: urlData } = supabase.storage.from('press-setups').getPublicUrl(path);
+      imageUrl = urlData.publicUrl;
+    }
+  }
+
+  // Build main record
+  const record = {
+    job_name: jobData.job_name,
+    order_number: jobData.order_number,
+    job_date: jobData.job_date,
+    operator: jobData.operator,
+    customer: jobData.customer,
+    garment_style: jobData.garment_style,
+    garment_color: jobData.garment_color,
+    print_location: jobData.print_location,
+    quantity: jobData.quantity ? parseInt(jobData.quantity) : null,
+    status: jobData.status,
+    notes: jobData.notes,
+    press_speed: jobData.press_speed,
+    stroke_length: jobData.stroke_length ? parseFloat(jobData.stroke_length) : null,
+    off_contact: jobData.off_contact ? parseFloat(jobData.off_contact) : null,
+    print_strokes: jobData.print_strokes ? parseInt(jobData.print_strokes) : null,
+    flash_temp: jobData.flash_temp ? parseInt(jobData.flash_temp) : null,
+    flash_dwell: jobData.flash_dwell ? parseInt(jobData.flash_dwell) : null,
+    dryer_temp: jobData.dryer_temp ? parseInt(jobData.dryer_temp) : null,
+    belt_speed: jobData.belt_speed,
+    head_locations: collectHeads(),
+    ink_colors: collectInks(),
+    screen_specs: collectScreens(),
+    squeegee_settings: collectSqueegees(),
+    image_url: imageUrl,
+  };
+
+  const { data, error } = await supabase.from('print_setups').insert([record]).select();
+
+  btn.innerHTML = 'SAVE SETUP';
+  btn.disabled = false;
+
+  if (error) {
+    console.error(error);
+    showToast(`Error: ${error.message}`, 'error');
+  } else {
+    showToast('Setup saved successfully!', 'success');
+    resetForm();
+  }
+}
+
+function resetForm() {
+  document.getElementById('setupForm').reset();
+  document.getElementById('headRows').innerHTML = '';
+  document.getElementById('inkRows').innerHTML = '';
+  document.getElementById('screenRows').innerHTML = '';
+  document.getElementById('sqRows').innerHTML = '';
+  document.getElementById('imagePreview').innerHTML = '';
+  headCount = 0; inkCount = 0; screenCount = 0; sqCount = 0;
+  addHeadRow(); addHeadRow(); addHeadRow();
+  addInkRow(); addInkRow();
+  addScreenRow(); addScreenRow();
+  addSqRow(); addSqRow();
+  document.querySelector('[name=job_date]').value = new Date().toISOString().split('T')[0];
+}
+
+// ─── SEARCH ───────────────────────────────────────────────
+let searchTimeout = null;
+function searchJobs() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(_doSearch, 300);
+}
+
+async function _doSearch() {
+  if (!supabase) return;
+  const q = document.getElementById('searchQuery').value.trim();
+  const status = document.getElementById('statusFilter').value;
+  const sort = document.getElementById('sortBy').value;
+
+  let query = supabase.from('print_setups')
+    .select('id, job_name, order_number, job_date, operator, customer, status, garment_style, garment_color, quantity, image_url')
+    .order(sort, { ascending: false })
+    .limit(50);
+
+  if (q) query = query.or(`job_name.ilike.%${q}%,order_number.ilike.%${q}%,customer.ilike.%${q}%`);
+  if (status) query = query.eq('status', status);
+
+  const { data, error } = await query;
+  const container = document.getElementById('searchResults');
+
+  if (error) { container.innerHTML = `<div class="font-mono text-xs text-red-400 p-4">Error: ${error.message}</div>`; return; }
+  if (!data.length) { container.innerHTML = `<div class="font-mono text-xs text-white/30 text-center py-8">No jobs found</div>`; return; }
+
+  container.innerHTML = data.map(job => `
+    <div class="job-card" onclick="openJobDetail('${job.id}')">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-3 mb-1">
+            <span class="font-display text-lg text-press tracking-wide">${job.job_name}</span>
+            <span class="status-badge status-${job.status}">${job.status}</span>
+          </div>
+          <div class="font-mono text-xs text-white/40 flex flex-wrap gap-x-4 gap-y-1">
+            ${job.order_number ? `<span># ${job.order_number}</span>` : ''}
+            ${job.job_date ? `<span>📅 ${job.job_date}</span>` : ''}
+            ${job.customer ? `<span>👤 ${job.customer}</span>` : ''}
+            ${job.garment_style ? `<span>👕 ${job.garment_style} / ${job.garment_color || ''}</span>` : ''}
+            ${job.quantity ? `<span>QTY: ${job.quantity}</span>` : ''}
+            ${job.operator ? `<span>OP: ${job.operator}</span>` : ''}
+          </div>
+        </div>
+        ${job.image_url ? `<img src="${job.image_url}" class="w-16 h-16 object-cover rounded-sm border border-white/10 flex-shrink-0" />` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── JOB DETAIL ───────────────────────────────────────────
+async function openJobDetail(id) {
+  if (!supabase) return;
+  const { data, error } = await supabase.from('print_setups').select('*').eq('id', id).single();
+  if (error || !data) return;
+
+  const statusBadge = `<span class="status-badge status-${data.status}">${data.status}</span>`;
+
+  const headsHtml = (data.head_locations || []).map(h => `
+    <tr class="border-b border-white/5">
+      <td class="py-1 pr-4 font-mono text-xs text-white/50">Head ${h.head_num}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${h.head_type}</td>
+      <td class="py-1 pr-4 font-mono text-xs text-flash">${h.head_color || '—'}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${h.head_ink || '—'}</td>
+      <td class="py-1 font-mono text-xs">${h.head_active}</td>
+    </tr>`).join('');
+
+  const inksHtml = (data.ink_colors || []).map(k => `
+    <tr class="border-b border-white/5">
+      <td class="py-1 pr-4 font-mono text-xs text-flash">${k.color}</td>
+      <td class="py-1 pr-4 font-mono text-xs text-white/50">${k.pms || '—'}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${k.brand || '—'}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${k.type}</td>
+      <td class="py-1 font-mono text-xs">${k.mesh || '—'}</td>
+    </tr>`).join('');
+
+  const screensHtml = (data.screen_specs || []).map(s => `
+    <tr class="border-b border-white/5">
+      <td class="py-1 pr-4 font-mono text-xs text-white/50">#${s.screen_num}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${s.mesh || '—'}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${s.tension ? s.tension + ' N/cm' : '—'}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${s.emulsion || '—'}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${s.eom || '—'}</td>
+      <td class="py-1 font-mono text-xs">${s.frame || '—'}</td>
+    </tr>`).join('');
+
+  const sqHtml = (data.squeegee_settings || []).map(q => `
+    <tr class="border-b border-white/5">
+      <td class="py-1 pr-4 font-mono text-xs text-white/50">Head ${q.head_num}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${q.blade}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${q.angle ? q.angle + '°' : '—'}</td>
+      <td class="py-1 pr-4 font-mono text-xs">${q.pressure}</td>
+      <td class="py-1 font-mono text-xs">${q.condition}</td>
+    </tr>`).join('');
+
+  document.getElementById('jobDetailContent').innerHTML = `
+    <div class="flex items-start justify-between mb-6">
+      <div>
+        <div class="font-display text-4xl text-press mb-1">${data.job_name}</div>
+        <div class="flex items-center gap-3 font-mono text-xs text-white/40">
+          ${data.order_number ? `<span># ${data.order_number}</span>` : ''}
+          <span>${data.job_date || ''}</span>
+          ${statusBadge}
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn-secondary" onclick="exportPDF('${id}')">⬇ PDF</button>
+        <button class="btn-ghost" onclick="closeJobDetail()">✕ CLOSE</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 p-4" style="background:#0a0a0a;border-radius:2px;">
+      <div><div class="font-mono text-xs text-white/30 mb-1">CUSTOMER</div><div class="font-mono text-sm">${data.customer || '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">GARMENT</div><div class="font-mono text-sm">${data.garment_style || '—'} / ${data.garment_color || '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">QTY</div><div class="font-mono text-sm">${data.quantity || '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">OPERATOR</div><div class="font-mono text-sm">${data.operator || '—'}</div></div>
+    </div>
+
+    ${data.image_url ? `<div class="mb-6"><img src="${data.image_url}" class="max-h-48 rounded-sm border border-white/10" /></div>` : ''}
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div><div class="font-mono text-xs text-white/30 mb-1">SPEED</div><div class="font-mono text-sm text-flash">${data.press_speed || '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">STROKE</div><div class="font-mono text-sm">${data.stroke_length ? data.stroke_length + '"' : '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">OFF-CONTACT</div><div class="font-mono text-sm">${data.off_contact ? data.off_contact + '"' : '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">STROKES</div><div class="font-mono text-sm">${data.print_strokes || '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">FLASH TEMP</div><div class="font-mono text-sm">${data.flash_temp ? data.flash_temp + '°F' : '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">FLASH DWELL</div><div class="font-mono text-sm">${data.flash_dwell ? data.flash_dwell + 's' : '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">DRYER TEMP</div><div class="font-mono text-sm">${data.dryer_temp ? data.dryer_temp + '°F' : '—'}</div></div>
+      <div><div class="font-mono text-xs text-white/30 mb-1">BELT SPEED</div><div class="font-mono text-sm">${data.belt_speed || '—'}</div></div>
+    </div>
+
+    ${headsHtml ? `<div class="mb-5"><div class="section-label">HEAD LOCATIONS</div><table class="w-full"><thead><tr class="text-white/30"><th class="text-left font-mono text-xs pb-2 pr-4">HEAD</th><th class="text-left font-mono text-xs pb-2 pr-4">TYPE</th><th class="text-left font-mono text-xs pb-2 pr-4">COLOR</th><th class="text-left font-mono text-xs pb-2 pr-4">INK CODE</th><th class="text-left font-mono text-xs pb-2">ACTIVE</th></tr></thead><tbody>${headsHtml}</tbody></table></div>` : ''}
+    ${inksHtml ? `<div class="mb-5"><div class="section-label">INK COLORS</div><table class="w-full"><thead><tr class="text-white/30"><th class="text-left font-mono text-xs pb-2 pr-4">COLOR</th><th class="text-left font-mono text-xs pb-2 pr-4">PMS</th><th class="text-left font-mono text-xs pb-2 pr-4">BRAND</th><th class="text-left font-mono text-xs pb-2 pr-4">TYPE</th><th class="text-left font-mono text-xs pb-2">MESH</th></tr></thead><tbody>${inksHtml}</tbody></table></div>` : ''}
+    ${screensHtml ? `<div class="mb-5"><div class="section-label">SCREEN SPECS</div><table class="w-full"><thead><tr class="text-white/30"><th class="text-left font-mono text-xs pb-2 pr-4">SCREEN</th><th class="text-left font-mono text-xs pb-2 pr-4">MESH</th><th class="text-left font-mono text-xs pb-2 pr-4">TENSION</th><th class="text-left font-mono text-xs pb-2 pr-4">EMULSION</th><th class="text-left font-mono text-xs pb-2 pr-4">EOM</th><th class="text-left font-mono text-xs pb-2">FRAME</th></tr></thead><tbody>${screensHtml}</tbody></table></div>` : ''}
+    ${sqHtml ? `<div class="mb-5"><div class="section-label">SQUEEGEE SETTINGS</div><table class="w-full"><thead><tr class="text-white/30"><th class="text-left font-mono text-xs pb-2 pr-4">HEAD</th><th class="text-left font-mono text-xs pb-2 pr-4">BLADE</th><th class="text-left font-mono text-xs pb-2 pr-4">ANGLE</th><th class="text-left font-mono text-xs pb-2 pr-4">PRESSURE</th><th class="text-left font-mono text-xs pb-2">CONDITION</th></tr></thead><tbody>${sqHtml}</tbody></table></div>` : ''}
+
+    ${data.notes ? `<div class="p-4 mt-2" style="background:#0a0a0a;border-radius:2px;"><div class="font-mono text-xs text-white/30 mb-1">NOTES</div><div class="font-mono text-sm text-white/70">${data.notes}</div></div>` : ''}
+  `;
+
+  document.getElementById('jobDetail').classList.remove('hidden');
+  window._currentDetailData = data;
+}
+
+function closeJobDetail() {
+  document.getElementById('jobDetail').classList.add('hidden');
+}
+
+// ─── PDF EXPORT ───────────────────────────────────────────
+async function exportPDF(id) {
+  const data = window._currentDetailData;
+  if (!data) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+
+  let y = 40;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text('PRESS SETUP DOC', 40, y);
+
+  y += 20;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Job: ${data.job_name}   |   Order #: ${data.order_number || '—'}   |   Date: ${data.job_date || '—'}   |   Status: ${data.status}`, 40, y);
+
+  y += 14;
+  doc.text(`Customer: ${data.customer || '—'}   |   Garment: ${data.garment_style || '—'} / ${data.garment_color || '—'}   |   Qty: ${data.quantity || '—'}   |   Operator: ${data.operator || '—'}`, 40, y);
+
+  y += 24;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('PRESS SETTINGS', 40, y);
+  y += 14;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Speed: ${data.press_speed || '—'}   Stroke: ${data.stroke_length || '—'}"   Off-Contact: ${data.off_contact || '—'}"   Strokes: ${data.print_strokes || '—'}`, 40, y);
+  y += 12;
+  doc.text(`Flash Temp: ${data.flash_temp || '—'}°F   Flash Dwell: ${data.flash_dwell || '—'}s   Dryer Temp: ${data.dryer_temp || '—'}°F   Belt Speed: ${data.belt_speed || '—'}`, 40, y);
+
+  const sections = [
+    { title: 'HEAD LOCATIONS', rows: data.head_locations || [], cols: ['head_num','head_type','head_color','head_ink','head_active'], headers: ['HEAD','TYPE','COLOR','INK CODE','ACTIVE'] },
+    { title: 'INK COLORS', rows: data.ink_colors || [], cols: ['color','pms','brand','type','mesh'], headers: ['COLOR','PMS','BRAND','TYPE','MESH'] },
+    { title: 'SCREEN SPECS', rows: data.screen_specs || [], cols: ['screen_num','mesh','tension','emulsion','eom','frame'], headers: ['#','MESH','TENSION','EMULSION','EOM','FRAME'] },
+    { title: 'SQUEEGEE', rows: data.squeegee_settings || [], cols: ['head_num','blade','angle','pressure','condition'], headers: ['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'] },
+  ];
+
+  for (const sec of sections) {
+    if (!sec.rows.length) continue;
+    y += 24;
+    if (y > 680) { doc.addPage(); y = 40; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text(sec.title, 40, y); y += 14;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    let x = 40;
+    const colW = 510 / sec.cols.length;
+    sec.headers.forEach(h => { doc.text(h, x, y); x += colW; });
+    y += 10;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    sec.rows.forEach(row => {
+      x = 40;
+      sec.cols.forEach(c => { doc.text(String(row[c] || '—'), x, y); x += colW; });
+      y += 12;
+    });
+  }
+
+  if (data.notes) {
+    y += 16;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text('NOTES', 40, y); y += 13;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    const lines = doc.splitTextToSize(data.notes, 520);
+    doc.text(lines, 40, y);
+  }
+
+  doc.save(`${data.job_name || 'setup'}-${data.job_date || 'nodate'}.pdf`);
+}
+
+// ─── TOAST ────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
