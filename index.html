@@ -188,6 +188,44 @@
           </div>
         </div>
 
+        <!-- SIZE BREAKDOWN -->
+        <div class="card p-6 mb-4">
+          <div class="section-label">SIZE BREAKDOWN</div>
+          <div class="font-mono text-xs text-white/30 mb-4">Enter quantity per size. Total updates automatically.</div>
+          <div class="mb-4">
+            <div class="font-mono text-xs text-white/40 uppercase tracking-widest mb-2">Adult</div>
+            <div class="grid grid-cols-4 sm:grid-cols-8 gap-3">
+              <div><label>XS</label><input type="number" name="sz_xs" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>S</label><input type="number" name="sz_s" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>M</label><input type="number" name="sz_m" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>L</label><input type="number" name="sz_l" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>XL</label><input type="number" name="sz_xl" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>XXL</label><input type="number" name="sz_2xl" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>3XL</label><input type="number" name="sz_3xl" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>4XL</label><input type="number" name="sz_4xl" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <div class="font-mono text-xs text-white/40 uppercase tracking-widest mb-2">Extended</div>
+            <div class="grid grid-cols-4 sm:grid-cols-8 gap-3">
+              <div><label>5XL</label><input type="number" name="sz_5xl" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+            </div>
+          </div>
+          <div class="mb-2">
+            <div class="font-mono text-xs text-white/40 uppercase tracking-widest mb-2">Youth</div>
+            <div class="grid grid-cols-4 sm:grid-cols-8 gap-3">
+              <div><label>YS</label><input type="number" name="sz_ys" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>YM</label><input type="number" name="sz_ym" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+              <div><label>YL</label><input type="number" name="sz_yl" min="0" placeholder="0" oninput="updateSizeTotal()" /></div>
+            </div>
+          </div>
+          <div class="mt-4 flex items-center gap-4 p-3" style="background:#0a0a0a;border-radius:2px;border:1px solid rgba(232,80,10,0.2);">
+            <div class="font-mono text-xs text-white/40 uppercase tracking-widest">Total Pieces</div>
+            <div class="font-display text-2xl text-flash" id="sizeTotal">0</div>
+            <div class="font-mono text-xs text-white/20 ml-auto">auto-calculated</div>
+          </div>
+        </div>
+
         <!-- PRESS SETTINGS -->
         <div class="card p-6 mb-4">
           <div class="section-label">PRESS SETTINGS</div>
@@ -505,6 +543,26 @@ function previewImage(e) {
   reader.readAsDataURL(file);
 }
 
+// ─── SIZE BREAKDOWN ──────────────────────────────────────────
+const SIZE_KEYS = ['sz_xs','sz_s','sz_m','sz_l','sz_xl','sz_2xl','sz_3xl','sz_4xl','sz_5xl','sz_ys','sz_ym','sz_yl'];
+
+function updateSizeTotal() {
+  const form = document.getElementById('setupForm');
+  const total = SIZE_KEYS.reduce((sum, k) => {
+    const el = form.querySelector('[name=' + k + ']');
+    return sum + (parseInt(el?.value) || 0);
+  }, 0);
+  document.getElementById('sizeTotal').textContent = total;
+  const qtyEl = form.querySelector('[name=quantity]');
+  if (qtyEl) qtyEl.value = total || '';
+}
+
+function collectSizes(fd) {
+  const sizes = {};
+  SIZE_KEYS.forEach(k => { const v = fd.get(k); if (v && parseInt(v) > 0) sizes[k] = parseInt(v); });
+  return sizes;
+}
+
 // ─── COLLECT DYNAMIC ROWS ─────────────────────────────────
 function collectHeads() {
   const rows = document.querySelectorAll('[id^="head-row-"]');
@@ -612,6 +670,7 @@ async function submitForm(e) {
     flash_dwell: jobData.flash_dwell ? parseInt(jobData.flash_dwell) : null,
     dryer_temp: jobData.dryer_temp ? parseInt(jobData.dryer_temp) : null,
     belt_speed: jobData.belt_speed,
+    size_breakdown: collectSizes(fd),
     head_locations: collectHeads(),
     ink_colors: collectInks(),
     screen_specs: collectScreens(),
@@ -784,6 +843,21 @@ async function openJobDetail(id) {
     ${screensHtml ? `<div class="mb-5"><div class="section-label">SCREEN SPECS</div><table class="w-full"><thead><tr class="text-white/30"><th class="text-left font-mono text-xs pb-2 pr-4">SCREEN</th><th class="text-left font-mono text-xs pb-2 pr-4">MESH</th><th class="text-left font-mono text-xs pb-2 pr-4">TENSION</th><th class="text-left font-mono text-xs pb-2 pr-4">EMULSION</th><th class="text-left font-mono text-xs pb-2 pr-4">EOM</th><th class="text-left font-mono text-xs pb-2">FRAME</th></tr></thead><tbody>${screensHtml}</tbody></table></div>` : ''}
     ${sqHtml ? `<div class="mb-5"><div class="section-label">SQUEEGEE SETTINGS</div><table class="w-full"><thead><tr class="text-white/30"><th class="text-left font-mono text-xs pb-2 pr-4">HEAD</th><th class="text-left font-mono text-xs pb-2 pr-4">BLADE</th><th class="text-left font-mono text-xs pb-2 pr-4">ANGLE</th><th class="text-left font-mono text-xs pb-2 pr-4">PRESSURE</th><th class="text-left font-mono text-xs pb-2">CONDITION</th></tr></thead><tbody>${sqHtml}</tbody></table></div>` : ''}
 
+    ${data.size_breakdown && Object.keys(data.size_breakdown).length ? `
+    <div class="mb-5">
+      <div class="section-label">SIZE BREAKDOWN</div>
+      <div class="grid grid-cols-6 sm:grid-cols-12 gap-2 mt-2">
+        ${['sz_xs','sz_s','sz_m','sz_l','sz_xl','sz_2xl','sz_3xl','sz_4xl','sz_5xl','sz_ys','sz_ym','sz_yl']
+          .filter(k => data.size_breakdown[k] > 0)
+          .map(k => `<div style="background:#0a0a0a;border:1px solid rgba(245,240,232,0.08);border-radius:2px;padding:8px 4px;text-align:center;">
+            <div class="font-mono text-xs text-white/30 mb-1">${k.replace('sz_','').toUpperCase()}</div>
+            <div class="font-display text-xl text-flash">${data.size_breakdown[k]}</div>
+          </div>`).join('')}
+      </div>
+      <div class="mt-2 p-2 font-mono text-xs text-white/40" style="background:#0a0a0a;border-radius:2px;">
+        TOTAL: <span class="text-flash font-bold">${Object.values(data.size_breakdown).reduce((a,b)=>a+b,0)}</span> pcs
+      </div>
+    </div>` : ''}
     ${data.notes ? `<div class="p-4 mt-2" style="background:#0a0a0a;border-radius:2px;"><div class="font-mono text-xs text-white/30 mb-1">NOTES</div><div class="font-mono text-sm text-white/70">${data.notes}</div></div>` : ''}
   `;
 
@@ -850,6 +924,21 @@ async function exportPDF(id) {
       sec.cols.forEach(c => { doc.text(String(row[c] || '—'), x, y); x += colW; });
       y += 12;
     });
+  }
+
+  if (data.size_breakdown && Object.keys(data.size_breakdown).length) {
+    y += 24;
+    if (y > 680) { doc.addPage(); y = 40; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text('SIZE BREAKDOWN', 40, y); y += 14;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    const sizeLabels = {sz_xs:'XS',sz_s:'S',sz_m:'M',sz_l:'L',sz_xl:'XL',sz_2xl:'2XL',sz_3xl:'3XL',sz_4xl:'4XL',sz_5xl:'5XL',sz_ys:'YS',sz_ym:'YM',sz_yl:'YL'};
+    const sizeStr = Object.entries(data.size_breakdown).filter(([,v])=>v>0).map(([k,v])=>`${sizeLabels[k]}: ${v}`).join('   ');
+    const total = Object.values(data.size_breakdown).reduce((a,b)=>a+b,0);
+    doc.text(sizeStr, 40, y); y += 12;
+    doc.setFont('helvetica','bold');
+    doc.text(`TOTAL: ${total} pcs`, 40, y);
+    doc.setFont('helvetica','normal');
   }
 
   if (data.notes) {
