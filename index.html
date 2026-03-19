@@ -345,7 +345,7 @@
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────
-let supabase = null;
+let sbClient = null;
 
 function saveConfig() {
   const url = document.getElementById('cfgUrl').value.trim();
@@ -364,7 +364,7 @@ function showConfig() {
 }
 
 function initSupabase(url, key) {
-  supabase = window.supabase.createClient(url, key);
+  sbClient = window.supabase.createClient(url, key);
 }
 
 // On load
@@ -566,7 +566,7 @@ function collectSqueegees() {
 // ─── FORM SUBMIT ──────────────────────────────────────────
 async function submitForm(e) {
   e.preventDefault();
-  if (!supabase) { showToast('Not connected to Supabase. Check config.', 'error'); return; }
+  if (!sbClient) { showToast('Not connected to Supabase. Check config.', 'error'); return; }
 
   const btn = document.getElementById('submitBtn');
   btn.innerHTML = '<span class="loader"></span>';
@@ -582,11 +582,11 @@ async function submitForm(e) {
     const file = fileInput.files[0];
     const ext = file.name.split('.').pop();
     const path = `job-photos/${Date.now()}.${ext}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await sbClient.storage
       .from('press-setups')
       .upload(path, file, { upsert: true });
     if (!uploadError) {
-      const { data: urlData } = supabase.storage.from('press-setups').getPublicUrl(path);
+      const { data: urlData } = sbClient.storage.from('press-setups').getPublicUrl(path);
       imageUrl = urlData.publicUrl;
     }
   }
@@ -619,7 +619,7 @@ async function submitForm(e) {
     image_url: imageUrl,
   };
 
-  const { data, error } = await supabase.from('print_setups').insert([record]).select();
+  const { data, error } = await sbClient.from('print_setups').insert([record]).select();
 
   btn.innerHTML = 'SAVE SETUP';
   btn.disabled = false;
@@ -656,12 +656,12 @@ function searchJobs() {
 }
 
 async function _doSearch() {
-  if (!supabase) return;
+  if (!sbClient) return;
   const q = document.getElementById('searchQuery').value.trim();
   const status = document.getElementById('statusFilter').value;
   const sort = document.getElementById('sortBy').value;
 
-  let query = supabase.from('print_setups')
+  let query = sbClient.from('print_setups')
     .select('id, job_name, order_number, job_date, operator, customer, status, garment_style, garment_color, quantity, image_url')
     .order(sort, { ascending: false })
     .limit(50);
@@ -700,8 +700,8 @@ async function _doSearch() {
 
 // ─── JOB DETAIL ───────────────────────────────────────────
 async function openJobDetail(id) {
-  if (!supabase) return;
-  const { data, error } = await supabase.from('print_setups').select('*').eq('id', id).single();
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('print_setups').select('*').eq('id', id).single();
   if (error || !data) return;
 
   const statusBadge = `<span class="status-badge status-${data.status}">${data.status}</span>`;
