@@ -139,6 +139,19 @@
     .maint-subtab{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.88rem;padding:.45rem .9rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;color:var(--muted);white-space:nowrap;touch-action:manipulation;}
     .maint-subtab.active{color:var(--flash);border-bottom-color:var(--flash);}
     .mach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+
+    /* ── Schedule ── */
+    .sched-row{display:grid;grid-template-columns:12px 1fr auto;gap:12px;align-items:center;padding:11px 14px;border-radius:3px;margin-bottom:7px;border:1px solid var(--border);background:var(--surface2);transition:border-color .15s;}
+    .sched-row:hover{border-color:rgba(232,80,10,.35);}
+    .sched-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+    .sched-machine{font-weight:600;font-size:.85rem;margin-bottom:2px;}
+    .sched-meta{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px 10px;}
+    .sched-due{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;text-align:right;line-height:1.1;flex-shrink:0;}
+    .sched-due-label{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);text-align:right;}
+    .due-overdue{color:#ff3333;}
+    .due-soon{color:var(--yellow);}
+    .due-ok{color:var(--green);}
+    .mach-due-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle;flex-shrink:0;}
   </style>
 </head>
 <body class="grid-bg">
@@ -171,7 +184,7 @@
   <div class="tab active" id="tab-new" onclick="switchTab('new')">NEW SETUP</div>
   <div class="tab" id="tab-search" onclick="switchTab('search')">SEARCH</div>
   <div class="tab" id="tab-pipeline" onclick="switchTab('pipeline')">PIPELINE</div>
-  <div class="tab" id="tab-maint" onclick="switchTab('maint')">MAINTENANCE</div>
+  <div class="tab" id="tab-maint" onclick="switchTab('maint')">MAINTENANCE <span id="maintTabBadge" style="display:none;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
 </div>
 
 <!-- MAIN -->
@@ -333,6 +346,7 @@
     <div style="display:flex;gap:0;border-bottom:1px solid rgba(245,240,232,.07);margin-bottom:14px;">
       <div class="maint-subtab active" id="mst-machines" onclick="switchMaintTab('machines')">MACHINES</div>
       <div class="maint-subtab" id="mst-log" onclick="switchMaintTab('log')">LOG EVENT</div>
+      <div class="maint-subtab" id="mst-schedule" onclick="switchMaintTab('schedule')">SCHEDULE <span id="schedBadge" style="display:none;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:3px;vertical-align:middle;"></span></div>
     </div>
 
     <!-- MACHINES view -->
@@ -375,6 +389,26 @@
           <button class="btn-primary" onclick="saveMaintenanceEvent()">SAVE EVENT</button>
         </div>
       </div>
+
+    <!-- SCHEDULE view -->
+    <div id="mpane-schedule" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">UPCOMING MAINTENANCE <span style="font-size:.9rem;color:var(--muted);">— next 90 days</span></div>
+        <div style="display:flex;gap:7px;align-items:center;">
+          <button class="btn-ghost" id="notifBtn" onclick="requestNotifPermission()">🔔 ENABLE ALERTS</button>
+          <button class="btn-ghost" onclick="loadSchedule()">↺ REFRESH</button>
+        </div>
+      </div>
+      <!-- Legend -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);"><span style="width:10px;height:10px;border-radius:50%;background:#ff3333;display:inline-block;"></span>OVERDUE</div>
+        <div style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);"><span style="width:10px;height:10px;border-radius:50%;background:var(--yellow);display:inline-block;"></span>DUE WITHIN 30 DAYS</div>
+        <div style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);"><span style="width:10px;height:10px;border-radius:50%;background:var(--green);display:inline-block;"></span>30+ DAYS OUT</div>
+      </div>
+      <div id="scheduleList">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:24px 0;text-align:center;">Loading schedule…</div>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -484,7 +518,15 @@ function initSupabase(url,key){ sbClient=window.supabase.createClient(url,key); 
 
 window.addEventListener('DOMContentLoaded',()=>{
   const url=localStorage.getItem('sb_url'), key=localStorage.getItem('sb_key');
-  if(url&&key){initSupabase(url,key);document.getElementById('configModal').style.display='none';}
+  if(url&&key){
+    initSupabase(url,key);
+    document.getElementById('configModal').style.display='none';
+    // Update notification button state
+    if('Notification' in window && Notification.permission === 'granted') {
+      const nb = document.getElementById('notifBtn');
+      if (nb) { nb.textContent = '🔔 ALERTS ON'; nb.style.color = 'var(--green)'; nb.style.borderColor = 'rgba(0,200,83,.3)'; }
+    }
+  }
   initForm();
 });
 
@@ -1038,11 +1080,12 @@ function closeCountModal(){
 let _editMachineId = null;
 
 function switchMaintTab(tab) {
-  ['machines','log'].forEach(t => {
+  ['machines','log','schedule'].forEach(t => {
     document.getElementById('mpane-'+t).classList.toggle('hidden', tab !== t);
     document.getElementById('mst-'+t).classList.toggle('active', tab === t);
   });
   if (tab === 'log') populateMachineSelect();
+  if (tab === 'schedule') loadSchedule();
 }
 
 // ── Load machines grid ──────────────────────────────
@@ -1057,6 +1100,28 @@ async function loadMachines() {
   }
   grid.innerHTML = '';
   data.forEach(m => grid.appendChild(buildMachCard(m)));
+  // Refresh badge count silently
+  _refreshMaintBadge(data);
+}
+
+async function _refreshMaintBadge(machines) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const soon = (machines||[]).filter(m => {
+    if (!m.next_maintenance) return false;
+    const days = Math.ceil((new Date(m.next_maintenance + 'T00:00:00') - today) / 86400000);
+    return days <= 30;
+  }).length;
+  const tabBadge = document.getElementById('maintTabBadge');
+  const schedBadge = document.getElementById('schedBadge');
+  if (soon > 0) {
+    tabBadge.textContent = soon; tabBadge.style.display = 'inline';
+    if (schedBadge) { schedBadge.textContent = soon; schedBadge.style.display = 'inline'; }
+  } else {
+    tabBadge.style.display = 'none';
+    if (schedBadge) schedBadge.style.display = 'none';
+  }
+  // Auto-notify once on load
+  checkAndNotify(machines, today);
 }
 
 function buildMachCard(m) {
@@ -1071,7 +1136,7 @@ function buildMachCard(m) {
       : `<div class="mach-photo-placeholder">NO PHOTO</div>`}
     <div class="mach-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:6px;">
-        <div class="mach-name">${m.name}</div>
+        <div class="mach-name">${m.name}${getDueIndicator(m.next_maintenance)}</div>
         <span class="badge ${statusClass}" style="flex-shrink:0;">${statusLabel}</span>
       </div>
       <div class="mach-meta" style="display:flex;flex-direction:column;gap:2px;">
@@ -1275,6 +1340,133 @@ async function saveMaintenanceEvent() {
 
 // Set default date on log form when switching to it
 const _origSwitchMaintTab = switchMaintTab;
+
+// ── SCHEDULE & ALERTS ─────────────────────────────────────
+async function loadSchedule() {
+  if (!sbClient) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const cutoff = new Date(today); cutoff.setDate(today.getDate() + 90);
+  const todayStr = today.toISOString().split('T')[0];
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+
+  // Get all machines with a next_maintenance date
+  const { data: machines, error } = await sbClient
+    .from('machines_2')
+    .select('id,name,location,status,next_maintenance,last_maintenance')
+    .not('next_maintenance', 'is', null)
+    .order('next_maintenance', { ascending: true });
+
+  const list = document.getElementById('scheduleList');
+  if (error) { list.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#ff4444;">Error: ${error.message}</div>`; return; }
+
+  // Filter to overdue + within 90 days
+  const relevant = (machines||[]).filter(m => m.next_maintenance <= cutoffStr);
+
+  // Update badges
+  const overdueOrSoon = relevant.filter(m => {
+    const days = Math.ceil((new Date(m.next_maintenance) - today) / 86400000);
+    return days <= 30;
+  });
+  const badgeCount = overdueOrSoon.length;
+  const tabBadge = document.getElementById('maintTabBadge');
+  const schedBadge = document.getElementById('schedBadge');
+  if (badgeCount > 0) {
+    tabBadge.textContent = badgeCount; tabBadge.style.display = 'inline';
+    schedBadge.textContent = badgeCount; schedBadge.style.display = 'inline';
+  } else {
+    tabBadge.style.display = 'none';
+    schedBadge.style.display = 'none';
+  }
+
+  if (!relevant.length) {
+    list.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">No upcoming maintenance in the next 90 days.</div>`;
+    return;
+  }
+
+  list.innerHTML = relevant.map(m => {
+    const due = new Date(m.next_maintenance + 'T00:00:00');
+    const days = Math.ceil((due - today) / 86400000);
+    const isOverdue = days < 0;
+    const isSoon = days >= 0 && days <= 30;
+    const dotColor = isOverdue ? '#ff3333' : isSoon ? 'var(--yellow)' : 'var(--green)';
+    const dueClass = isOverdue ? 'due-overdue' : isSoon ? 'due-soon' : 'due-ok';
+    const dueLabel = isOverdue ? `${Math.abs(days)}d OVERDUE` : days === 0 ? 'DUE TODAY' : `IN ${days}d`;
+    const typeClass = { preventive:'evt-preventive', repair:'evt-repair', cleaning:'evt-cleaning' };
+
+    return `<div class="sched-row" style="${isOverdue ? 'border-color:rgba(255,51,51,.35);background:rgba(255,51,51,.04);' : ''}">
+      <span class="sched-dot" style="background:${dotColor};"></span>
+      <div>
+        <div class="sched-machine">${m.name}</div>
+        <div class="sched-meta">
+          ${m.location ? `<span>📍 ${m.location}</span>` : ''}
+          <span>Next: ${m.next_maintenance}</span>
+          ${m.last_maintenance ? `<span>Last svc: ${m.last_maintenance}</span>` : ''}
+          <span class="${m.status==='down'?'due-overdue':m.status==='maintenance'?'due-soon':''}">● ${m.status||'operational'}</span>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div class="sched-due ${dueClass}">${dueLabel}</div>
+        <button class="kcard-btn kcard-btn-cnt" style="margin-top:5px;font-size:.6rem;" onclick="switchMaintTab('log');setTimeout(()=>{document.getElementById('evt_machine_id').value='${m.id}';populateMachineSelect().then(()=>{document.getElementById('evt_machine_id').value='${m.id}';});},150);">+ LOG</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Browser notifications for overdue items
+  checkAndNotify(relevant, today);
+}
+
+// ── Machine card due indicators ────────────────────
+function getDueIndicator(nextMaint) {
+  if (!nextMaint) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = new Date(nextMaint + 'T00:00:00');
+  const days = Math.ceil((due - today) / 86400000);
+  if (days < 0) return `<span class="mach-due-dot" style="background:#ff3333;" title="OVERDUE by ${Math.abs(days)} days"></span>`;
+  if (days <= 30) return `<span class="mach-due-dot" style="background:var(--yellow);" title="Due in ${days} days"></span>`;
+  return `<span class="mach-due-dot" style="background:var(--green);" title="Due in ${days} days"></span>`;
+}
+
+// ── Browser Notifications ──────────────────────────
+async function requestNotifPermission() {
+  if (!('Notification' in window)) { showToast('Notifications not supported in this browser.', 'error'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    showToast('Alerts enabled! You'll be notified of overdue items when the app is open.', 'success');
+    document.getElementById('notifBtn').textContent = '🔔 ALERTS ON';
+    document.getElementById('notifBtn').style.color = 'var(--green)';
+    document.getElementById('notifBtn').style.borderColor = 'rgba(0,200,83,.3)';
+  } else {
+    showToast('Notification permission denied.', 'error');
+  }
+}
+
+function checkAndNotify(machines, today) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const overdue = machines.filter(m => new Date(m.next_maintenance + 'T00:00:00') < today);
+  const dueSoon = machines.filter(m => {
+    const d = new Date(m.next_maintenance + 'T00:00:00');
+    const days = Math.ceil((d - today) / 86400000);
+    return days >= 0 && days <= 7;
+  });
+
+  // Only notify once per session
+  if (window._notifSent) return;
+  window._notifSent = true;
+
+  if (overdue.length) {
+    new Notification('⚠️ Overdue Maintenance', {
+      body: `${overdue.length} machine${overdue.length>1?'s are':' is'} overdue: ${overdue.map(m=>m.name).join(', ')}`,
+      icon: ''
+    });
+  } else if (dueSoon.length) {
+    new Notification('🔧 Maintenance Due Soon', {
+      body: `${dueSoon.length} machine${dueSoon.length>1?'s are':' is'} due within 7 days: ${dueSoon.map(m=>m.name).join(', ')}`,
+      icon: ''
+    });
+  }
+}
+
+// Run badge check whenever maintenance tab loads
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
   const t=document.getElementById('toast');
