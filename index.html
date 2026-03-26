@@ -70,6 +70,35 @@
     .head-row { display: grid; gap: 8px; align-items: end; }
     .section-label { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.12em; font-size: 1.2rem; color: #e8500a; border-bottom: 1px solid rgba(232,80,10,0.3); padding-bottom: 4px; margin-bottom: 12px; }
     .divider { border: none; border-top: 1px solid rgba(245,240,232,0.07); margin: 20px 0; }
+
+    .kanban-col { display: flex; flex-direction: column; gap: 0; }
+    .kanban-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-left: 3px solid; background: #111118; border-radius: 2px 2px 0 0; border-bottom: 1px solid rgba(245,240,232,0.06); }
+    .kanban-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .kanban-count { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; background: rgba(245,240,232,0.08); padding: 1px 7px; border-radius: 10px; }
+    .kanban-cards { background: #0d0d14; border-left: 1px solid rgba(245,240,232,0.06); border-right: 1px solid rgba(245,240,232,0.06); min-height: 400px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .kanban-add-btn { background: transparent; border: 1px dashed rgba(245,240,232,0.12); border-top: none; border-radius: 0 0 2px 2px; color: rgba(245,240,232,0.3); font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; padding: 8px; cursor: pointer; transition: all 0.15s; width: 100%; }
+    .kanban-add-btn:hover { color: rgba(245,240,232,0.6); border-color: rgba(245,240,232,0.25); }
+    .kcard { background: #14141e; border: 1px solid rgba(245,240,232,0.08); border-radius: 2px; padding: 10px 12px; cursor: pointer; transition: border-color 0.15s; }
+    .kcard:hover { border-color: rgba(232,80,10,0.5); }
+    .kcard-name { font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 0.85rem; color: #f5f0e8; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kcard-meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: rgba(245,240,232,0.35); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+    .kcard-actions { display: flex; gap: 4px; margin-top: 8px; }
+    .kcard-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; padding: 3px 8px; border-radius: 1px; cursor: pointer; border: 1px solid; transition: all 0.15s; background: transparent; }
+    .kcard-btn-advance { color: #e8500a; border-color: rgba(232,80,10,0.3); }
+    .kcard-btn-advance:hover { background: rgba(232,80,10,0.1); }
+    .kcard-btn-count { color: #00b4d8; border-color: rgba(0,180,216,0.3); }
+    .kcard-btn-count:hover { background: rgba(0,180,216,0.1); }
+    .kcard-btn-back { color: rgba(245,240,232,0.3); border-color: rgba(245,240,232,0.1); }
+    .kcard-btn-back:hover { color: rgba(245,240,232,0.6); }
+    .count-size-tile { background: #0a0a0a; border: 2px solid rgba(245,240,232,0.1); border-radius: 2px; padding: 10px 6px; text-align: center; cursor: pointer; user-select: none; transition: border-color 0.1s, transform 0.08s; }
+    .count-size-tile:active { transform: scale(0.94); }
+    .count-size-tile.ok { border-color: rgba(0,200,83,0.4); }
+    .count-size-tile.over { border-color: rgba(232,80,10,0.7); background: rgba(232,80,10,0.06); }
+    .count-size-tile.under { border-color: rgba(245,200,0,0.5); background: rgba(245,200,0,0.05); }
+    .count-tile-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: rgba(245,240,232,0.35); text-transform: uppercase; margin-bottom: 4px; }
+    .count-tile-counted { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; line-height: 1; color: #f5f0e8; }
+    .count-tile-ordered { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; margin-top: 2px; }
+    .count-tile-diff { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; font-weight: 600; margin-top: 1px; }
     select option { background: #111118; }
     .toast { position: fixed; bottom: 24px; right: 24px; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; padding: 0.75rem 1.25rem; border-radius: 2px; z-index: 1000; transform: translateY(80px); opacity: 0; transition: all 0.3s; }
     .toast.show { transform: translateY(0); opacity: 1; }
@@ -124,6 +153,7 @@
   <div class="border-b border-white/8 px-6 flex gap-0" style="background:#0a0a0a;">
     <div class="tab active" id="tab-new" onclick="switchTab('new')">NEW SETUP</div>
     <div class="tab" id="tab-search" onclick="switchTab('search')">SEARCH JOBS</div>
+    <div class="tab" id="tab-pipeline" onclick="switchTab('pipeline')">PIPELINE</div>
   </div>
 
   <!-- MAIN CONTENT -->
@@ -376,6 +406,113 @@
       </div>
     </div>
 
+
+    <!-- ===== PIPELINE TAB ===== -->
+    <div id="pane-pipeline" class="hidden">
+
+      <div class="flex items-center justify-between mb-6">
+        <div class="font-display text-2xl text-press tracking-wide">JOB PIPELINE</div>
+        <button class="btn-secondary text-xs" onclick="loadPipeline()">↺ REFRESH</button>
+      </div>
+
+      <!-- Kanban Board -->
+      <div class="overflow-x-auto pb-4">
+        <div class="flex gap-4 min-w-max">
+
+          <!-- Stage 1: Order Intake -->
+          <div class="kanban-col" style="width:260px;">
+            <div class="kanban-header" style="border-color:#6366f1;">
+              <span class="kanban-dot" style="background:#6366f1;"></span>
+              <span class="font-display tracking-widest text-sm">ORDER INTAKE</span>
+              <span class="kanban-count" id="count-intake">0</span>
+            </div>
+            <div class="kanban-cards" id="col-intake"></div>
+            <button class="kanban-add-btn" onclick="switchTab('new')">+ NEW JOB</button>
+          </div>
+
+          <!-- Stage 2: Receiving & Count -->
+          <div class="kanban-col" style="width:260px;">
+            <div class="kanban-header" style="border-color:#f59e0b;">
+              <span class="kanban-dot" style="background:#f59e0b;"></span>
+              <span class="font-display tracking-widest text-sm">RECEIVING</span>
+              <span class="kanban-count" id="count-receiving">0</span>
+            </div>
+            <div class="kanban-cards" id="col-receiving"></div>
+          </div>
+
+          <!-- Stage 3: Printing -->
+          <div class="kanban-col" style="width:260px;">
+            <div class="kanban-header" style="border-color:#e8500a;">
+              <span class="kanban-dot" style="background:#e8500a;"></span>
+              <span class="font-display tracking-widest text-sm">PRINTING</span>
+              <span class="kanban-count" id="count-printing">0</span>
+            </div>
+            <div class="kanban-cards" id="col-printing"></div>
+          </div>
+
+          <!-- Stage 4: Packaging & Count -->
+          <div class="kanban-col" style="width:260px;">
+            <div class="kanban-header" style="border-color:#00b4d8;">
+              <span class="kanban-dot" style="background:#00b4d8;"></span>
+              <span class="font-display tracking-widest text-sm">PACKAGING</span>
+              <span class="kanban-count" id="count-packaging">0</span>
+            </div>
+            <div class="kanban-cards" id="col-packaging"></div>
+          </div>
+
+          <!-- Stage 5: Complete -->
+          <div class="kanban-col" style="width:260px;">
+            <div class="kanban-header" style="border-color:#00c853;">
+              <span class="kanban-dot" style="background:#00c853;"></span>
+              <span class="font-display tracking-widest text-sm">COMPLETE</span>
+              <span class="kanban-count" id="count-complete">0</span>
+            </div>
+            <div class="kanban-cards" id="col-complete"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- COUNT TOOL MODAL -->
+    <div id="countModal" class="hidden fixed inset-0 bg-black/90 z-50 overflow-y-auto p-4">
+      <div class="max-w-3xl mx-auto card p-6 my-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="font-display text-3xl text-press" id="countModalTitle">COUNT CHECK</div>
+            <div class="font-mono text-xs text-white/40" id="countModalSubtitle"></div>
+          </div>
+          <button class="btn-ghost" onclick="closeCountModal()">✕ CLOSE</button>
+        </div>
+
+        <!-- Size count grid -->
+        <div id="countGrid" class="mb-6"></div>
+
+        <!-- Totals bar -->
+        <div class="grid grid-cols-3 gap-3 mb-6">
+          <div class="p-3 text-center" style="background:#0a0a0a;border:1px solid rgba(245,240,232,0.08);border-radius:2px;">
+            <div class="font-mono text-xs text-white/30 mb-1">ORDERED</div>
+            <div class="font-display text-2xl text-white" id="totalOrdered">0</div>
+          </div>
+          <div class="p-3 text-center" style="background:#0a0a0a;border:1px solid rgba(245,240,232,0.08);border-radius:2px;">
+            <div class="font-mono text-xs text-white/30 mb-1">COUNTED</div>
+            <div class="font-display text-2xl text-flash" id="totalCounted">0</div>
+          </div>
+          <div class="p-3 text-center" id="discrepancyBox" style="background:#0a0a0a;border:1px solid rgba(245,240,232,0.08);border-radius:2px;">
+            <div class="font-mono text-xs text-white/30 mb-1">DIFFERENCE</div>
+            <div class="font-display text-2xl" id="totalDiff">0</div>
+          </div>
+        </div>
+
+        <div class="flex gap-3 justify-between">
+          <button class="btn-ghost" onclick="resetCount()">↺ RESET COUNT</button>
+          <div class="flex gap-3">
+            <button class="btn-secondary" onclick="saveCountAndAdvance()">SAVE &amp; ADVANCE STAGE →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <!-- TOAST -->
@@ -424,11 +561,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ─── TABS ─────────────────────────────────────────────────
 function switchTab(tab) {
-  document.getElementById('pane-new').classList.toggle('hidden', tab !== 'new');
-  document.getElementById('pane-search').classList.toggle('hidden', tab !== 'search');
-  document.getElementById('tab-new').classList.toggle('active', tab === 'new');
-  document.getElementById('tab-search').classList.toggle('active', tab === 'search');
+  ['new','search','pipeline'].forEach(t => {
+    document.getElementById('pane-' + t).classList.toggle('hidden', tab !== t);
+    document.getElementById('tab-' + t).classList.toggle('active', tab === t);
+  });
   if (tab === 'search') searchJobs();
+  if (tab === 'pipeline') loadPipeline();
 }
 
 // ─── DYNAMIC ROWS ─────────────────────────────────────────
@@ -951,6 +1089,198 @@ async function exportPDF(id) {
   }
 
   doc.save(`${data.job_name || 'setup'}-${data.job_date || 'nodate'}.pdf`);
+}
+
+
+// ─── PIPELINE / KANBAN ────────────────────────────────────
+const STAGES = ['intake','receiving','printing','packaging','complete'];
+const STAGE_LABELS = { intake:'Order Intake', receiving:'Receiving & Count', printing:'Printing', packaging:'Packaging & Count', complete:'Complete' };
+const COUNT_STAGES = ['receiving','packaging'];
+
+async function loadPipeline() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient
+    .from('print_setups')
+    .select('id, job_name, order_number, job_date, customer, quantity, status, pipeline_stage, size_breakdown, count_receiving, count_packaging, garment_style, garment_color')
+    .order('job_date', { ascending: false });
+
+  if (error) { showToast('Error loading pipeline: ' + error.message, 'error'); return; }
+
+  // Clear columns
+  STAGES.forEach(s => {
+    document.getElementById('col-' + s).innerHTML = '';
+    document.getElementById('count-' + s).textContent = '0';
+  });
+
+  (data || []).forEach(job => {
+    const stage = job.pipeline_stage || 'intake';
+    const col = document.getElementById('col-' + stage);
+    if (!col) return;
+    col.appendChild(buildKCard(job, stage));
+    const countEl = document.getElementById('count-' + stage);
+    countEl.textContent = parseInt(countEl.textContent) + 1;
+  });
+}
+
+function buildKCard(job, stage) {
+  const div = document.createElement('div');
+  div.className = 'kcard';
+  div.dataset.id = job.id;
+
+  const stageIdx = STAGES.indexOf(stage);
+  const canAdvance = stageIdx < STAGES.length - 1;
+  const canGoBack = stageIdx > 0;
+  const isCountStage = COUNT_STAGES.includes(stage);
+
+  const totalOrdered = job.size_breakdown ? Object.values(job.size_breakdown).reduce((a,b)=>a+b,0) : (job.quantity || 0);
+  const countData = stage === 'receiving' ? job.count_receiving : job.count_packaging;
+  const totalCounted = countData ? Object.values(countData).reduce((a,b)=>a+b,0) : null;
+
+  let countBadge = '';
+  if (isCountStage && totalCounted !== null) {
+    const diff = totalCounted - totalOrdered;
+    const color = diff === 0 ? '#00c853' : diff > 0 ? '#e8500a' : '#f5c000';
+    countBadge = `<span style="color:${color};font-family:'IBM Plex Mono',monospace;font-size:0.65rem;">COUNT: ${totalCounted}/${totalOrdered}</span>`;
+  }
+
+  div.innerHTML = `
+    <div class="kcard-name">${job.job_name}</div>
+    <div class="kcard-meta">
+      ${job.order_number ? '<span>#' + job.order_number + '</span>' : ''}
+      ${job.job_date ? '<span>' + job.job_date + '</span>' : ''}
+      ${job.customer ? '<span>' + job.customer + '</span>' : ''}
+      ${totalOrdered ? '<span>' + totalOrdered + ' pcs</span>' : ''}
+      ${countBadge}
+    </div>
+    <div class="kcard-actions">
+      ${canGoBack ? `<button class="kcard-btn kcard-btn-back" onclick="moveStage(event,'${job.id}','${STAGES[stageIdx-1]}')">← BACK</button>` : ''}
+      ${isCountStage ? `<button class="kcard-btn kcard-btn-count" onclick="openCountModal(event,'${job.id}','${stage}')">📊 COUNT</button>` : ''}
+      ${canAdvance ? `<button class="kcard-btn kcard-btn-advance" onclick="moveStage(event,'${job.id}','${STAGES[stageIdx+1]}')">${STAGES[stageIdx+1]==='complete' ? '✓ COMPLETE' : 'ADVANCE →'}</button>` : ''}
+    </div>
+  `;
+  return div;
+}
+
+async function moveStage(e, id, newStage) {
+  e.stopPropagation();
+  if (!sbClient) return;
+  const { error } = await sbClient.from('print_setups').update({ pipeline_stage: newStage }).eq('id', id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Moved to ' + STAGE_LABELS[newStage], 'success');
+  loadPipeline();
+}
+
+// ─── COUNT TOOL ───────────────────────────────────────────
+let _countJobId = null;
+let _countStage = null;
+let _countData = {};
+let _orderedData = {};
+
+const SIZE_LABEL_MAP = {sz_xs:'XS',sz_s:'S',sz_m:'M',sz_l:'L',sz_xl:'XL',sz_2xl:'2XL',sz_3xl:'3XL',sz_4xl:'4XL',sz_5xl:'5XL',sz_ys:'YS',sz_ym:'YM',sz_yl:'YL'};
+
+async function openCountModal(e, id, stage) {
+  e.stopPropagation();
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('print_setups').select('*').eq('id', id).single();
+  if (error || !data) return;
+
+  _countJobId = id;
+  _countStage = stage;
+  _orderedData = data.size_breakdown || {};
+
+  // Load existing count if any
+  const existing = stage === 'receiving' ? data.count_receiving : data.count_packaging;
+  _countData = existing ? { ...existing } : {};
+  // Init zeros for all ordered sizes
+  Object.keys(_orderedData).forEach(k => { if (!(_countData[k] >= 0)) _countData[k] = 0; });
+
+  document.getElementById('countModalTitle').textContent = stage === 'receiving' ? 'RECEIVING COUNT' : 'PACKAGING COUNT';
+  document.getElementById('countModalSubtitle').textContent = data.job_name + (data.order_number ? '  #' + data.order_number : '');
+
+  renderCountGrid();
+  document.getElementById('countModal').classList.remove('hidden');
+}
+
+function renderCountGrid() {
+  const keys = Object.keys(_orderedData).filter(k => (_orderedData[k] || 0) > 0);
+  const grid = document.getElementById('countGrid');
+  grid.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;">` +
+    keys.map(k => {
+      const ordered = _orderedData[k] || 0;
+      const counted = _countData[k] || 0;
+      const diff = counted - ordered;
+      const tileClass = diff === 0 && counted > 0 ? 'ok' : counted > ordered ? 'over' : counted > 0 ? 'under' : '';
+      const diffColor = diff === 0 ? '#00c853' : diff > 0 ? '#e8500a' : '#f5c000';
+      const diffStr = diff === 0 ? '✓' : (diff > 0 ? '+' + diff : diff);
+      return `<div class="count-size-tile ${tileClass}" onclick="tapCount('${k}')">
+        <div class="count-tile-label">${SIZE_LABEL_MAP[k] || k}</div>
+        <div class="count-tile-counted">${counted}</div>
+        <div class="count-tile-ordered" style="color:rgba(245,240,232,0.3);">of ${ordered}</div>
+        ${counted > 0 ? `<div class="count-tile-diff" style="color:${diffColor}">${diffStr}</div>` : '<div class="count-tile-diff" style="color:transparent">-</div>'}
+      </div>`;
+    }).join('') +
+  `</div>
+  <div class="font-mono text-xs text-white/20 mt-3 text-center">TAP A SIZE TILE TO ADD 1 · LONG PRESS TO SUBTRACT 1</div>`;
+
+  updateCountTotals();
+}
+
+function tapCount(key, subtract = false) {
+  if (subtract) {
+    _countData[key] = Math.max(0, (_countData[key] || 0) - 1);
+  } else {
+    _countData[key] = (_countData[key] || 0) + 1;
+  }
+  renderCountGrid();
+}
+
+// Long press to subtract
+let _longPressTimer = null;
+document.addEventListener('mousedown', e => {
+  const tile = e.target.closest('.count-size-tile');
+  if (!tile) return;
+  _longPressTimer = setTimeout(() => {
+    const key = tile.getAttribute('onclick').match(/'(sz_[^']+)'/)?.[1];
+    if (key) tapCount(key, true);
+  }, 500);
+});
+document.addEventListener('mouseup', () => clearTimeout(_longPressTimer));
+document.addEventListener('touchend', () => clearTimeout(_longPressTimer));
+
+function updateCountTotals() {
+  const totalO = Object.values(_orderedData).reduce((a,b)=>a+(b||0),0);
+  const totalC = Object.values(_countData).reduce((a,b)=>a+(b||0),0);
+  const diff = totalC - totalO;
+  document.getElementById('totalOrdered').textContent = totalO;
+  document.getElementById('totalCounted').textContent = totalC;
+  document.getElementById('totalDiff').textContent = diff === 0 ? '✓ MATCH' : (diff > 0 ? '+'+diff+' OVER' : diff+' SHORT');
+  document.getElementById('totalDiff').style.color = diff === 0 ? '#00c853' : diff > 0 ? '#e8500a' : '#f5c000';
+  const box = document.getElementById('discrepancyBox');
+  box.style.borderColor = diff === 0 ? 'rgba(0,200,83,0.3)' : diff > 0 ? 'rgba(232,80,10,0.4)' : 'rgba(245,200,0,0.3)';
+}
+
+function resetCount() {
+  Object.keys(_countData).forEach(k => _countData[k] = 0);
+  renderCountGrid();
+}
+
+async function saveCountAndAdvance() {
+  if (!sbClient || !_countJobId) return;
+  const field = _countStage === 'receiving' ? 'count_receiving' : 'count_packaging';
+  const stageIdx = STAGES.indexOf(_countStage);
+  const nextStage = STAGES[stageIdx + 1];
+  const { error } = await sbClient.from('print_setups')
+    .update({ [field]: _countData, pipeline_stage: nextStage })
+    .eq('id', _countJobId);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Count saved! Moved to ' + STAGE_LABELS[nextStage], 'success');
+  closeCountModal();
+  loadPipeline();
+}
+
+function closeCountModal() {
+  document.getElementById('countModal').classList.add('hidden');
+  _countJobId = null; _countStage = null; _countData = {}; _orderedData = {};
 }
 
 // ─── TOAST ────────────────────────────────────────────────
