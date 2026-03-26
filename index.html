@@ -769,7 +769,7 @@ function buildKCard(job,stage){
   const isC=COUNT_STAGES.includes(stage);
   const totalOrdered=(job.shirt_types||[]).reduce((s,t)=>s+Object.values(t.sizes||{}).reduce((a,b)=>a+b,0),0)||job.quantity||0;
   const countData=stage==='receiving'?job.count_receiving:job.count_packaging;
-  const totalCounted=countData?countData.reduce((s,tc)=>s+Object.values(tc||{}).reduce((a,b)=>a+(parseInt(b)||0),0),0):null;
+  const totalCounted=countData?(Array.isArray(countData)?countData.reduce((s,tc)=>s+Object.values(tc||{}).reduce((a,b)=>a+(parseInt(b)||0),0),0):Object.values(countData).reduce((a,b)=>a+(typeof b==='object'?Object.values(b).reduce((x,y)=>x+(parseInt(y)||0),0):(parseInt(b)||0)),0)):null;
   const types=(job.shirt_types||[]).map(t=>`${t.style||''}${t.color?' '+t.color:''}`.trim()).filter(Boolean);
   let cntBadge='';
   if(isC&&totalCounted!==null){
