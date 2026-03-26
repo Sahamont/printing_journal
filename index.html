@@ -118,6 +118,27 @@
     .jcard:hover{border-color:rgba(232,80,10,.4);}
     /* Size total */
     .stbar{background:var(--bg);border:1px solid rgba(232,80,10,.2);border-radius:3px;padding:7px 12px;display:flex;align-items:center;gap:10px;margin-top:10px;}
+
+    /* ── Maintenance ── */
+    .mach-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;overflow:hidden;cursor:pointer;transition:border-color .15s;}
+    .mach-card:hover{border-color:rgba(232,80,10,.45);}
+    .mach-photo{width:100%;height:110px;object-fit:cover;background:var(--bg);display:flex;align-items:center;justify-content:center;}
+    .mach-photo img{width:100%;height:110px;object-fit:cover;}
+    .mach-photo-placeholder{width:100%;height:110px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);}
+    .mach-body{padding:10px 12px;}
+    .mach-name{font-weight:600;font-size:.9rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .mach-meta{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);}
+    .status-op{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+    .status-down{background:rgba(232,80,10,.1);color:var(--flash);border:1px solid rgba(232,80,10,.3);}
+    .status-maint{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.25);}
+    .evt-row{padding:10px 0;border-bottom:1px solid rgba(245,240,232,.06);display:grid;grid-template-columns:80px 1fr auto;gap:10px;align-items:start;}
+    .evt-type-badge{font-family:'IBM Plex Mono',monospace;font-size:.6rem;text-transform:uppercase;padding:2px 6px;border-radius:2px;white-space:nowrap;}
+    .evt-preventive{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.25);}
+    .evt-repair{background:rgba(232,80,10,.1);color:var(--flash);border:1px solid rgba(232,80,10,.25);}
+    .evt-cleaning{background:rgba(0,200,83,.08);color:var(--green);border:1px solid rgba(0,200,83,.22);}
+    .maint-subtab{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.88rem;padding:.45rem .9rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;color:var(--muted);white-space:nowrap;touch-action:manipulation;}
+    .maint-subtab.active{color:var(--flash);border-bottom-color:var(--flash);}
+    .mach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
   </style>
 </head>
 <body class="grid-bg">
@@ -150,6 +171,7 @@
   <div class="tab active" id="tab-new" onclick="switchTab('new')">NEW SETUP</div>
   <div class="tab" id="tab-search" onclick="switchTab('search')">SEARCH</div>
   <div class="tab" id="tab-pipeline" onclick="switchTab('pipeline')">PIPELINE</div>
+  <div class="tab" id="tab-maint" onclick="switchTab('maint')">MAINTENANCE</div>
 </div>
 
 <!-- MAIN -->
@@ -304,6 +326,58 @@
     </div>
   </div>
 
+
+  <!-- ═══ MAINTENANCE ═══ -->
+  <div id="pane-maint" class="hidden">
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid rgba(245,240,232,.07);margin-bottom:14px;">
+      <div class="maint-subtab active" id="mst-machines" onclick="switchMaintTab('machines')">MACHINES</div>
+      <div class="maint-subtab" id="mst-log" onclick="switchMaintTab('log')">LOG EVENT</div>
+    </div>
+
+    <!-- MACHINES view -->
+    <div id="mpane-machines">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">MACHINE ID CARDS</div>
+        <button class="btn-primary" onclick="openAddMachineModal()">+ ADD MACHINE</button>
+      </div>
+      <div class="mach-grid" id="machGrid">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:24px 0;">Loading machines…</div>
+      </div>
+    </div>
+
+    <!-- LOG EVENT view -->
+    <div id="mpane-log" class="hidden">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;margin-bottom:14px;">LOG MAINTENANCE EVENT</div>
+      <div class="card" style="padding:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+          <div style="grid-column:1/-1">
+            <label>Machine</label>
+            <select id="evt_machine_id">
+              <option value="">Select a machine…</option>
+            </select>
+          </div>
+          <div><label>Date</label><input type="date" id="evt_date" /></div>
+          <div>
+            <label>Event Type</label>
+            <select id="evt_type">
+              <option value="preventive">Preventive / Scheduled</option>
+              <option value="repair">Repair / Breakdown</option>
+              <option value="cleaning">Cleaning</option>
+            </select>
+          </div>
+          <div style="grid-column:1/-1"><label>Description</label><textarea id="evt_desc" rows="3" placeholder="What was done? Parts replaced? Issues found?"></textarea></div>
+          <div><label>Technician</label><input type="text" id="evt_tech" placeholder="Name" /></div>
+          <div><label>Next Scheduled (optional)</label><input type="date" id="evt_next" /></div>
+          <div style="grid-column:1/-1"><label>Parts / Materials Used</label><input type="text" id="evt_parts" placeholder="e.g. squeegee blade 70 duro, oil filter…" /></div>
+        </div>
+        <div style="margin-top:14px;display:flex;justify-content:flex-end;">
+          <button class="btn-primary" onclick="saveMaintenanceEvent()">SAVE EVENT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- JOB DETAIL MODAL -->
@@ -347,6 +421,46 @@
   </div>
 </div>
 
+
+<!-- ADD MACHINE MODAL -->
+<div id="addMachineModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:520px;padding:18px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.08em;" id="addMachineTitle">ADD MACHINE</div>
+      <button class="btn-ghost" onclick="closeAddMachineModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="grid-column:1/-1"><label>Machine Name</label><input type="text" id="m_name" placeholder="M&R Challenger EX" /></div>
+      <div><label>Brand</label><input type="text" id="m_brand" placeholder="M&R" /></div>
+      <div><label>Model</label><input type="text" id="m_model" placeholder="Challenger EX" /></div>
+      <div><label>Serial #</label><input type="text" id="m_serial" placeholder="SN-00001" /></div>
+      <div><label>Year</label><input type="number" id="m_year" placeholder="2020" min="1980" max="2030" /></div>
+      <div><label>Purchase Date</label><input type="date" id="m_purchase" /></div>
+      <div><label>Floor Location</label><input type="text" id="m_location" placeholder="Station A, Press Room 1…" /></div>
+      <div>
+        <label>Status</label>
+        <select id="m_status">
+          <option value="operational">Operational</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="down">Down</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1"><label>Notes</label><textarea id="m_notes" rows="2" placeholder="Any additional info…"></textarea></div>
+      <div style="grid-column:1/-1"><label>Machine Photo</label><input type="file" id="m_photo" accept="image/*" onchange="previewMachinePhoto(event)" style="padding:5px;" /></div>
+      <div id="m_photo_preview" style="grid-column:1/-1;"></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn-secondary" onclick="closeAddMachineModal()">CANCEL</button>
+      <button class="btn-primary" id="saveMachineBtn" onclick="saveMachine()">SAVE MACHINE</button>
+    </div>
+  </div>
+</div>
+
+<!-- MACHINE DETAIL MODAL -->
+<div id="machDetailModal" class="modal hidden">
+  <div class="card modal-box" style="padding:18px;margin:8px auto;" id="machDetailContent"></div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -376,12 +490,13 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline'].forEach(t=>{
+  ['new','search','pipeline','maint'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
   if(tab==='search') searchJobs();
   if(tab==='pipeline') loadPipeline();
+  if(tab==='maint') loadMachines();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -916,6 +1031,250 @@ function closeCountModal(){
   _cId=null;_cStage=null;_cTypes=[];_cCounts=[];_cIdx=0;
 }
 
+
+// ══════════════════════════════════════════════════════
+// MAINTENANCE
+// ══════════════════════════════════════════════════════
+let _editMachineId = null;
+
+function switchMaintTab(tab) {
+  ['machines','log'].forEach(t => {
+    document.getElementById('mpane-'+t).classList.toggle('hidden', tab !== t);
+    document.getElementById('mst-'+t).classList.toggle('active', tab === t);
+  });
+  if (tab === 'log') populateMachineSelect();
+}
+
+// ── Load machines grid ──────────────────────────────
+async function loadMachines() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('machines_2').select('*').order('name');
+  const grid = document.getElementById('machGrid');
+  if (error) { grid.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#ff4444;">Error: ${error.message}</div>`; return; }
+  if (!data.length) {
+    grid.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:24px 0;">No machines yet — click ADD MACHINE to get started.</div>`;
+    return;
+  }
+  grid.innerHTML = '';
+  data.forEach(m => grid.appendChild(buildMachCard(m)));
+}
+
+function buildMachCard(m) {
+  const div = document.createElement('div');
+  div.className = 'mach-card';
+  div.onclick = () => openMachDetail(m.id);
+  const statusClass = { operational:'status-op', down:'status-down', maintenance:'status-maint' }[m.status] || 'status-op';
+  const statusLabel = { operational:'Operational', down:'Down', maintenance:'Maintenance' }[m.status] || m.status;
+  div.innerHTML = `
+    ${m.photo_url
+      ? `<div class="mach-photo"><img src="${m.photo_url}" alt="${m.name}" /></div>`
+      : `<div class="mach-photo-placeholder">NO PHOTO</div>`}
+    <div class="mach-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:6px;">
+        <div class="mach-name">${m.name}</div>
+        <span class="badge ${statusClass}" style="flex-shrink:0;">${statusLabel}</span>
+      </div>
+      <div class="mach-meta" style="display:flex;flex-direction:column;gap:2px;">
+        ${m.brand||m.model ? `<span>${[m.brand,m.model].filter(Boolean).join(' ')}</span>` : ''}
+        ${m.serial_number ? `<span>S/N: ${m.serial_number}</span>` : ''}
+        ${m.location ? `<span>📍 ${m.location}</span>` : ''}
+        ${m.year ? `<span>Year: ${m.year}</span>` : ''}
+        ${m.last_maintenance ? `<span>Last svc: ${m.last_maintenance}</span>` : ''}
+        ${m.next_maintenance ? `<span style="color:var(--yellow);">Next: ${m.next_maintenance}</span>` : ''}
+      </div>
+    </div>`;
+  return div;
+}
+
+// ── Machine detail + event history ─────────────────
+async function openMachDetail(id) {
+  if (!sbClient) return;
+  const [{ data: m }, { data: evts }] = await Promise.all([
+    sbClient.from('machines_2').select('*').eq('id', id).single(),
+    sbClient.from('maintenance_events').select('*').eq('machine_id', id).order('event_date', { ascending: false })
+  ]);
+  if (!m) return;
+
+  const statusClass = { operational:'status-op', down:'status-down', maintenance:'status-maint' }[m.status] || 'status-op';
+  const statusLabel = { operational:'Operational', down:'Down', maintenance:'Maintenance' }[m.status] || m.status;
+  const typeClass = { preventive:'evt-preventive', repair:'evt-repair', cleaning:'evt-cleaning' };
+  const typeLabel = { preventive:'Preventive', repair:'Repair', cleaning:'Cleaning' };
+
+  const evtHtml = evts?.length ? evts.map(e => `
+    <div class="evt-row">
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:4px;">${e.event_date||'—'}</div>
+        <span class="evt-type-badge ${typeClass[e.event_type]||''}">${typeLabel[e.event_type]||e.event_type}</span>
+      </div>
+      <div>
+        <div style="font-size:.82rem;margin-bottom:3px;">${e.description||'—'}</div>
+        ${e.parts_used ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">Parts: ${e.parts_used}</div>` : ''}
+        ${e.technician ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">Tech: ${e.technician}</div>` : ''}
+      </div>
+      ${e.next_scheduled ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--yellow);white-space:nowrap;">Next:<br>${e.next_scheduled}</div>` : '<div></div>'}
+    </div>`).join('')
+    : `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:16px 0;">No maintenance events logged yet.</div>`;
+
+  document.getElementById('machDetailContent').innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:.08em;">${m.name}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px;">
+          <span class="badge ${statusClass}">${statusLabel}</span>
+          ${m.location ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">📍 ${m.location}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="openEditMachine('${m.id}')">✏ EDIT</button>
+        <button class="btn-ghost" onclick="closeMachDetail()">✕</button>
+      </div>
+    </div>
+    ${m.photo_url ? `<img src="${m.photo_url}" style="width:100%;max-height:180px;object-fit:cover;border-radius:3px;border:1px solid var(--border);margin-bottom:14px;" />` : ''}
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:16px;">
+      ${[['BRAND',m.brand],['MODEL',m.model],['SERIAL #',m.serial_number],['YEAR',m.year],['PURCHASED',m.purchase_date],['LOCATION',m.location]].map(([l,v])=>v?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;">${v}</div></div>`:'').filter(Boolean).join('')}
+    </div>
+    ${m.notes ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;">${m.notes}</div>` : ''}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;color:var(--flash);">MAINTENANCE HISTORY</div>
+      <button class="btn-ghost" onclick="closeMachDetail();switchMaintTab('log');setTimeout(()=>{document.getElementById('evt_machine_id').value='${m.id}';},100);">+ LOG EVENT</button>
+    </div>
+    <div id="machEvtList">${evtHtml}</div>
+  `;
+  document.getElementById('machDetailModal').classList.remove('hidden');
+}
+
+function closeMachDetail() { document.getElementById('machDetailModal').classList.add('hidden'); }
+
+// ── Add / Edit machine modal ────────────────────────
+function openAddMachineModal() {
+  _editMachineId = null;
+  document.getElementById('addMachineTitle').textContent = 'ADD MACHINE';
+  ['m_name','m_brand','m_model','m_serial','m_year','m_location','m_notes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('m_status').value = 'operational';
+  document.getElementById('m_purchase').value = '';
+  document.getElementById('m_photo_preview').innerHTML = '';
+  document.getElementById('m_photo').value = '';
+  document.getElementById('addMachineModal').classList.remove('hidden');
+}
+
+async function openEditMachine(id) {
+  if (!sbClient) return;
+  const { data: m } = await sbClient.from('machines_2').select('*').eq('id', id).single();
+  if (!m) return;
+  _editMachineId = id;
+  closeMachDetail();
+  document.getElementById('addMachineTitle').textContent = 'EDIT MACHINE';
+  document.getElementById('m_name').value = m.name||'';
+  document.getElementById('m_brand').value = m.brand||'';
+  document.getElementById('m_model').value = m.model||'';
+  document.getElementById('m_serial').value = m.serial_number||'';
+  document.getElementById('m_year').value = m.year||'';
+  document.getElementById('m_purchase').value = m.purchase_date||'';
+  document.getElementById('m_location').value = m.location||'';
+  document.getElementById('m_status').value = m.status||'operational';
+  document.getElementById('m_notes').value = m.notes||'';
+  if (m.photo_url) document.getElementById('m_photo_preview').innerHTML = `<img src="${m.photo_url}" style="max-height:100px;border-radius:3px;border:1px solid var(--border);" />`;
+  document.getElementById('addMachineModal').classList.remove('hidden');
+}
+
+function closeAddMachineModal() { document.getElementById('addMachineModal').classList.add('hidden'); _editMachineId = null; }
+
+function previewMachinePhoto(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => { document.getElementById('m_photo_preview').innerHTML = `<img src="${ev.target.result}" style="max-height:100px;border-radius:3px;border:1px solid var(--border);" />`; };
+  reader.readAsDataURL(f);
+}
+
+async function saveMachine() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveMachineBtn');
+  btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true;
+
+  let photoUrl = null;
+  const file = document.getElementById('m_photo').files[0];
+  if (file) {
+    const ext = file.name.split('.').pop();
+    const path = 'machine-photos/' + Date.now() + '.' + ext;
+    const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, file, { upsert: true });
+    if (!upErr) { const { data: ud } = sbClient.storage.from('press-setups').getPublicUrl(path); photoUrl = ud.publicUrl; }
+  }
+
+  const record = {
+    name: document.getElementById('m_name').value.trim(),
+    brand: document.getElementById('m_brand').value.trim(),
+    model: document.getElementById('m_model').value.trim(),
+    serial_number: document.getElementById('m_serial').value.trim(),
+    year: document.getElementById('m_year').value ? parseInt(document.getElementById('m_year').value) : null,
+    purchase_date: document.getElementById('m_purchase').value || null,
+    location: document.getElementById('m_location').value.trim(),
+    status: document.getElementById('m_status').value,
+    notes: document.getElementById('m_notes').value.trim(),
+  };
+  if (photoUrl) record.photo_url = photoUrl;
+  if (!record.name) { showToast('Machine name is required.', 'error'); btn.innerHTML='SAVE MACHINE'; btn.disabled=false; return; }
+
+  let error;
+  if (_editMachineId) {
+    ({ error } = await sbClient.from('machines_2').update(record).eq('id', _editMachineId));
+  } else {
+    ({ error } = await sbClient.from('machines_2').insert([record]));
+  }
+
+  btn.innerHTML = 'SAVE MACHINE'; btn.disabled = false;
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast(_editMachineId ? 'Machine updated!' : 'Machine added!', 'success');
+  closeAddMachineModal();
+  loadMachines();
+}
+
+// ── Populate machine select in log form ─────────────
+async function populateMachineSelect() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('machines_2').select('id,name').order('name');
+  const sel = document.getElementById('evt_machine_id');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Select a machine…</option>' +
+    (data||[]).map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  if (current) sel.value = current;
+}
+
+// ── Save maintenance event ──────────────────────────
+async function saveMaintenanceEvent() {
+  if (!sbClient) return;
+  const machId = document.getElementById('evt_machine_id').value;
+  const date = document.getElementById('evt_date').value;
+  if (!machId) { showToast('Please select a machine.', 'error'); return; }
+  if (!date) { showToast('Please enter a date.', 'error'); return; }
+
+  const record = {
+    machine_id: machId,
+    event_date: date,
+    event_type: document.getElementById('evt_type').value,
+    description: document.getElementById('evt_desc').value.trim(),
+    technician: document.getElementById('evt_tech').value.trim(),
+    next_scheduled: document.getElementById('evt_next').value || null,
+    parts_used: document.getElementById('evt_parts').value.trim(),
+  };
+
+  const { error } = await sbClient.from('maintenance_events').insert([record]);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+
+  // Update machine last_maintenance and next_maintenance
+  const upd = { last_maintenance: date };
+  if (record.next_scheduled) upd.next_maintenance = record.next_scheduled;
+  await sbClient.from('machines_2').update(upd).eq('id', machId);
+
+  showToast('Event logged!', 'success');
+  // Clear form
+  ['evt_desc','evt_tech','evt_parts'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('evt_next').value = '';
+  document.getElementById('evt_date').value = new Date().toISOString().split('T')[0];
+  loadMachines();
+}
+
+// Set default date on log form when switching to it
+const _origSwitchMaintTab = switchMaintTab;
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
   const t=document.getElementById('toast');
