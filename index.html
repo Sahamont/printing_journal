@@ -1495,6 +1495,9 @@ const _origSwitchMaintTab = switchMaintTab;
 // ── SCHEDULE & ALERTS ─────────────────────────────────────
 async function loadSchedule() {
   if (!sbClient) return;
+  // Quick debug render to confirm function is running
+  const listEl = document.getElementById('scheduleList');
+  if (listEl) listEl.innerHTML = '<div style="color:var(--flash);font-family:IBM Plex Mono,monospace;font-size:.8rem;padding:16px;">Loading schedule...</div>';
   // Timezone-safe date strings using local date parts
   const now = new Date();
   const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
