@@ -1499,19 +1499,33 @@ async function loadSchedule() {
   const cutoff = new Date(today); cutoff.setDate(today.getDate() + 90);
   const todayStr = today.toISOString().split('T')[0];
   const cutoffStr = cutoff.toISOString().split('T')[0];
-
-  // Get all machines with a next_maintenance date
-  const { data: machines, error } = await sbClient
-    .from('machines_2')
-    .select('id,name,location,status,next_maintenance,last_maintenance')
-    .not('next_maintenance', 'is', null)
-    .order('next_maintenance', { ascending: true });
-
   const list = document.getElementById('scheduleList');
+
+  // Pull machines AND their latest next_scheduled from maintenance_events as fallback
+  const [{ data: machines, error }, { data: events }] = await Promise.all([
+    sbClient.from('machines_2').select('id,name,location,status,next_maintenance,last_maintenance').order('name'),
+    sbClient.from('maintenance_events').select('machine_id,next_scheduled').not('next_scheduled','is',null).order('next_scheduled', { ascending: false })
+  ]);
+
   if (error) { list.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#ff4444;">Error: ${error.message}</div>`; return; }
 
+  // Build a map of machine_id -> best next_scheduled from events
+  const evtMap = {};
+  (events||[]).forEach(e => { if (!evtMap[e.machine_id]) evtMap[e.machine_id] = e.next_scheduled; });
+
+  // Merge: prefer machines_2.next_maintenance, fall back to event next_scheduled
+  // Also sync machines_2 if it was missing
+  const enriched = (machines||[]).map(m => {
+    const next = m.next_maintenance || evtMap[m.id] || null;
+    // If machine record is missing next_maintenance but events have it, patch it silently
+    if (!m.next_maintenance && evtMap[m.id]) {
+      sbClient.from('machines_2').update({ next_maintenance: evtMap[m.id] }).eq('id', m.id);
+    }
+    return { ...m, next_maintenance: next };
+  });
+
   // Filter to overdue + within 90 days
-  const relevant = (machines||[]).filter(m => m.next_maintenance <= cutoffStr);
+  const relevant = enriched.filter(m => m.next_maintenance && m.next_maintenance <= cutoffStr);
 
   // Update badges
   const overdueOrSoon = relevant.filter(m => {
