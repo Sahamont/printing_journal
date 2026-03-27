@@ -1495,10 +1495,12 @@ const _origSwitchMaintTab = switchMaintTab;
 // ── SCHEDULE & ALERTS ─────────────────────────────────────
 async function loadSchedule() {
   if (!sbClient) return;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const cutoff = new Date(today); cutoff.setDate(today.getDate() + 90);
-  const todayStr = today.toISOString().split('T')[0];
-  const cutoffStr = cutoff.toISOString().split('T')[0];
+  // Timezone-safe date strings using local date parts
+  const now = new Date();
+  const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  const c = new Date(now); c.setDate(c.getDate() + 90);
+  const cutoffStr = c.getFullYear() + '-' + String(c.getMonth()+1).padStart(2,'0') + '-' + String(c.getDate()).padStart(2,'0');
+  const today = new Date(todayStr + 'T00:00:00');
   const list = document.getElementById('scheduleList');
 
   // Pull machines AND their latest next_scheduled from maintenance_events as fallback
@@ -1529,7 +1531,7 @@ async function loadSchedule() {
 
   // Update badges
   const overdueOrSoon = relevant.filter(m => {
-    const days = Math.ceil((new Date(m.next_maintenance) - today) / 86400000);
+    const days = Math.ceil((new Date(m.next_maintenance + 'T00:00:00') - today) / 86400000);
     return days <= 30;
   });
   const badgeCount = overdueOrSoon.length;
@@ -1544,7 +1546,11 @@ async function loadSchedule() {
   }
 
   if (!relevant.length) {
-    list.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">No upcoming maintenance in the next 90 days.</div>`;
+    const allWithNext = enriched.filter(m => m.next_maintenance).length;
+    list.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">
+      No upcoming maintenance in the next 90 days.<br><br>
+      <span style="font-size:.65rem;opacity:.6;">Today: ${todayStr} · Cutoff: ${cutoffStr} · Machines with scheduled dates: ${allWithNext} of ${enriched.length}</span>
+    </div>`;
     return;
   }
 
