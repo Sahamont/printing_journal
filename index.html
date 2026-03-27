@@ -530,6 +530,38 @@
   </div>
 </div>
 
+<!-- EDIT EVENT MODAL -->
+<div id="editEventModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:520px;padding:18px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.08em;">EDIT MAINTENANCE EVENT</div>
+      <button class="btn-ghost" onclick="closeEditEvent()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div><label>Date</label><input type="date" id="ee_date" /></div>
+      <div>
+        <label>Event Type</label>
+        <select id="ee_type">
+          <option value="preventive">Preventive / Scheduled</option>
+          <option value="repair">Repair / Breakdown</option>
+          <option value="cleaning">Cleaning</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1"><label>Description</label><textarea id="ee_desc" rows="3" placeholder="What was done?"></textarea></div>
+      <div><label>Technician</label><input type="text" id="ee_tech" placeholder="Name" /></div>
+      <div><label>Next Scheduled</label><input type="date" id="ee_next" /></div>
+      <div style="grid-column:1/-1"><label>Parts / Materials Used</label><input type="text" id="ee_parts" placeholder="e.g. oil filter, squeegee blade…" /></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" onclick="deleteEvent()">🗑 DELETE EVENT</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" onclick="closeEditEvent()">CANCEL</button>
+        <button class="btn-primary" id="saveEditEventBtn" onclick="saveEditEvent()">SAVE CHANGES</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -1311,19 +1343,25 @@ async function openMachDetail(id) {
   const typeClass = { preventive:'evt-preventive', repair:'evt-repair', cleaning:'evt-cleaning' };
   const typeLabel = { preventive:'Preventive', repair:'Repair', cleaning:'Cleaning' };
 
-  const evtHtml = evts?.length ? evts.map(e => `
-    <div class="evt-row">
-      <div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:4px;">${e.event_date||'—'}</div>
-        <span class="evt-type-badge ${typeClass[e.event_type]||''}">${typeLabel[e.event_type]||e.event_type}</span>
-      </div>
-      <div>
-        <div style="font-size:.82rem;margin-bottom:3px;">${e.description||'—'}</div>
-        ${e.parts_used ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">Parts: ${e.parts_used}</div>` : ''}
-        ${e.technician ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">Tech: ${e.technician}</div>` : ''}
-      </div>
-      ${e.next_scheduled ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--yellow);white-space:nowrap;">Next:<br>${e.next_scheduled}</div>` : '<div></div>'}
-    </div>`).join('')
+  const evtHtml = evts?.length ? evts.map(e => {
+    const tc = typeClass[e.event_type]||'';
+    const tl = typeLabel[e.event_type]||e.event_type;
+    const partsHtml = e.parts_used ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:var(--muted);">Parts: '+e.parts_used+'</div>' : '';
+    const techHtml = e.technician ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:var(--muted);">Tech: '+e.technician+'</div>' : '';
+    const nextHtml = e.next_scheduled ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--yellow);white-space:nowrap;">Next:<br>'+e.next_scheduled+'</div>' : '<div></div>';
+    return '<div class="evt-row" style="grid-template-columns:80px 1fr auto auto;">'
+      +'<div>'
+        +'<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);margin-bottom:4px;">'+(e.event_date||'—')+'</div>'
+        +'<span class="evt-type-badge '+tc+'">'+tl+'</span>'
+      +'</div>'
+      +'<div>'
+        +'<div style="font-size:.82rem;margin-bottom:3px;">'+(e.description||'—')+'</div>'
+        +partsHtml+techHtml
+      +'</div>'
+      +nextHtml
+      +'<div style="padding-top:2px;"><button class="btn-ghost" style="font-size:.6rem;padding:.25rem .5rem;" onclick="openEditEvent(\'' + e.id + '\')">✏</button></div>'
+      +'</div>';
+  }).join('')
     : `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:16px 0;">No maintenance events logged yet.</div>`;
 
   document.getElementById('machDetailContent').innerHTML = `
@@ -1612,6 +1650,15 @@ async function loadSchedule() {
       }, 150);
     };
     right.appendChild(logBtn);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'kcard-btn kcard-btn-bk';
+    editBtn.style.cssText = 'margin-top:4px;font-size:.6rem;width:100%;';
+    editBtn.textContent = '✏ EDIT';
+    const eid = e.id;
+    editBtn.onclick = () => openEditEvent(eid);
+    right.appendChild(editBtn);
+
     list.appendChild(row);
   });
 
@@ -1759,6 +1806,77 @@ function closeCamera() {
   if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
   document.getElementById('cameraModal').classList.add('hidden');
   document.getElementById('camVideo').srcObject = null;
+}
+
+
+// ── EDIT / DELETE MAINTENANCE EVENT ───────────────────────
+let _editEvtId = null;
+let _editEvtMachId = null;
+
+async function openEditEvent(id) {
+  if (!sbClient) return;
+  const { data: e, error } = await sbClient.from('maintenance_events').select('*').eq('id', id).single();
+  if (error || !e) { showToast('Could not load event.', 'error'); return; }
+  _editEvtId = id;
+  _editEvtMachId = e.machine_id;
+  document.getElementById('ee_date').value = e.event_date || '';
+  document.getElementById('ee_type').value = e.event_type || 'preventive';
+  document.getElementById('ee_desc').value = e.description || '';
+  document.getElementById('ee_tech').value = e.technician || '';
+  document.getElementById('ee_next').value = e.next_scheduled || '';
+  document.getElementById('ee_parts').value = e.parts_used || '';
+  document.getElementById('editEventModal').classList.remove('hidden');
+}
+
+function closeEditEvent() {
+  document.getElementById('editEventModal').classList.add('hidden');
+  _editEvtId = null; _editEvtMachId = null;
+}
+
+async function saveEditEvent() {
+  if (!sbClient || !_editEvtId) return;
+  const btn = document.getElementById('saveEditEventBtn');
+  btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true;
+
+  const record = {
+    event_date: document.getElementById('ee_date').value || null,
+    event_type: document.getElementById('ee_type').value,
+    description: document.getElementById('ee_desc').value.trim(),
+    technician: document.getElementById('ee_tech').value.trim(),
+    next_scheduled: document.getElementById('ee_next').value || null,
+    parts_used: document.getElementById('ee_parts').value.trim(),
+  };
+
+  const { error } = await sbClient.from('maintenance_events').update(record).eq('id', _editEvtId);
+  btn.innerHTML = 'SAVE CHANGES'; btn.disabled = false;
+  if (error) { showToast('Error: '+error.message, 'error'); return; }
+
+  // Update machine last_maintenance / next_maintenance if needed
+  if (record.event_date || record.next_scheduled) {
+    const upd = {};
+    if (record.event_date) upd.last_maintenance = record.event_date;
+    if (record.next_scheduled) upd.next_maintenance = record.next_scheduled;
+    await sbClient.from('machines_2').update(upd).eq('id', _editEvtMachId);
+  }
+
+  showToast('Event updated!', 'success');
+  closeEditEvent();
+  // Refresh whichever views are visible
+  loadSchedule();
+  if (!document.getElementById('machDetailModal').classList.contains('hidden')) {
+    openMachDetail(_editEvtMachId);
+  }
+}
+
+async function deleteEvent() {
+  if (!sbClient || !_editEvtId) return;
+  if (!confirm('Delete this maintenance event? This cannot be undone.')) return;
+  const { error } = await sbClient.from('maintenance_events').delete().eq('id', _editEvtId);
+  if (error) { showToast('Error: '+error.message, 'error'); return; }
+  showToast('Event deleted.', 'success');
+  closeEditEvent();
+  loadSchedule();
+  loadMachines();
 }
 
 // ── TOAST ───────────────────────────────────────────────────
