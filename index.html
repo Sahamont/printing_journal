@@ -1507,24 +1507,25 @@ async function loadSchedule() {
   // Pull machines AND their latest next_scheduled from maintenance_events as fallback
   const [{ data: machines, error }, { data: events }] = await Promise.all([
     sbClient.from('machines_2').select('id,name,location,status,next_maintenance,last_maintenance').order('name'),
-    sbClient.from('maintenance_events').select('machine_id,next_scheduled').not('next_scheduled','is',null).order('next_scheduled', { ascending: false })
+    sbClient.from('maintenance_events').select('machine_id,next_scheduled,event_type,description,technician,event_date').not('next_scheduled','is',null).order('event_date', { ascending: false })
   ]);
 
   if (error) { list.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#ff4444;">Error: ${error.message}</div>`; return; }
 
-  // Build a map of machine_id -> best next_scheduled from events
+  // Build a map of machine_id -> latest event info
   const evtMap = {};
-  (events||[]).forEach(e => { if (!evtMap[e.machine_id]) evtMap[e.machine_id] = e.next_scheduled; });
+  (events||[]).forEach(e => {
+    if (!evtMap[e.machine_id]) evtMap[e.machine_id] = e; // first = most recent
+  });
 
-  // Merge: prefer machines_2.next_maintenance, fall back to event next_scheduled
-  // Also sync machines_2 if it was missing
+  // Merge machine data with last event info
   const enriched = (machines||[]).map(m => {
-    const next = m.next_maintenance || evtMap[m.id] || null;
-    // If machine record is missing next_maintenance but events have it, patch it silently
-    if (!m.next_maintenance && evtMap[m.id]) {
-      sbClient.from('machines_2').update({ next_maintenance: evtMap[m.id] }).eq('id', m.id);
+    const lastEvt = evtMap[m.id] || null;
+    const next = m.next_maintenance || lastEvt?.next_scheduled || null;
+    if (!m.next_maintenance && lastEvt?.next_scheduled) {
+      sbClient.from('machines_2').update({ next_maintenance: lastEvt.next_scheduled }).eq('id', m.id);
     }
-    return { ...m, next_maintenance: next };
+    return { ...m, next_maintenance: next, last_event: lastEvt };
   });
 
   // Filter to overdue + within 90 days
@@ -1570,12 +1571,21 @@ async function loadSchedule() {
     const div = document.createElement('div');
     div.className = 'sched-row';
     div.style.cssText = rowStyle;
-    div.innerHTML = '<span class="sched-dot" style="background:'+dotColor+';"></span>'
-      + '<div>'
+    const evt = m.last_event;
+    const typeLabels = { preventive:'Preventive', repair:'Repair', cleaning:'Cleaning' };
+    const typeColors = { preventive:'var(--cyan)', repair:'var(--flash)', cleaning:'var(--green)' };
+    const evtTypeBadge = evt ? '<span style="font-family:IBM Plex Mono,monospace;font-size:.58rem;padding:1px 6px;border-radius:2px;background:rgba(255,255,255,.06);color:'+(typeColors[evt.event_type]||'var(--muted)')+';">'+( typeLabels[evt.event_type]||evt.event_type)+'</span>' : '';
+    const evtDesc = evt?.description ? '<span style="color:rgba(245,240,232,.6);">'+evt.description+'</span>' : '';
+    const evtTech = evt?.technician ? '<span>Tech: '+evt.technician+'</span>' : '';
+    const evtDate = evt?.event_date ? '<span>Last done: '+evt.event_date+'</span>' : '';
+
+    div.innerHTML = '<span class="sched-dot" style="background:'+dotColor+';flex-shrink:0;"></span>'
+      + '<div style="min-width:0;">'
         + '<div class="sched-machine">'+m.name+'</div>'
-        + '<div class="sched-meta">'+locHtml+'<span>Next: '+m.next_maintenance+'</span>'+lastHtml+'<span class="'+stCls+'">● '+(m.status||'operational')+'</span></div>'
+        + '<div class="sched-meta" style="margin-bottom:4px;">'+locHtml+'<span style="color:'+(isOverdue?'#ff3333':isSoon?'var(--yellow)':'var(--green)')+';">Due: '+m.next_maintenance+'</span><span class="'+stCls+'">● '+(m.status||'operational')+'</span></div>'
+        + (evt ? '<div class="sched-meta" style="flex-direction:column;gap:2px;padding:6px 8px;background:rgba(245,240,232,.04);border-radius:2px;border-left:2px solid rgba(245,240,232,.1);">'+evtTypeBadge+' '+evtDate+evtTech+(evtDesc?'<span style="color:rgba(245,240,232,.5);font-size:.6rem;">'+evt.description+'</span>':'')+'</div>' : '<div class="sched-meta" style="color:rgba(245,240,232,.25);font-style:italic;">No events logged yet</div>')
       + '</div>'
-      + '<div style="text-align:right;">'
+      + '<div style="text-align:right;flex-shrink:0;">'
         + '<div class="sched-due '+dueClass+'">'+dueLabel+'</div>'
       + '</div>';
     // Add log button separately to avoid quote issues
