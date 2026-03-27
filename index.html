@@ -1431,7 +1431,7 @@ async function requestNotifPermission() {
   if (!('Notification' in window)) { showToast('Notifications not supported in this browser.', 'error'); return; }
   const perm = await Notification.requestPermission();
   if (perm === 'granted') {
-    showToast('Alerts enabled! You'll be notified of overdue items when the app is open.', 'success');
+    showToast('Alerts enabled! Youll be notified of overdue items when the app is open.', 'success');
     document.getElementById('notifBtn').textContent = '🔔 ALERTS ON';
     document.getElementById('notifBtn').style.color = 'var(--green)';
     document.getElementById('notifBtn').style.borderColor = 'rgba(0,200,83,.3)';
