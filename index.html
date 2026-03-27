@@ -772,10 +772,23 @@ async function submitForm(e){
     pipeline_stage:'intake',
   };
 
-  const {error}=await sbClient.from('print_setups').insert([record]);
+  let error;
+  if (window._editJobId) {
+    ({ error } = await sbClient.from('print_setups').update(record).eq('id', window._editJobId));
+  } else {
+    ({ error } = await sbClient.from('print_setups').insert([record]));
+  }
   btn.innerHTML='SAVE SETUP'; btn.disabled=false;
   if(error){showToast('Error: '+error.message,'error');console.error(error);}
-  else{showToast('Setup saved!','success');resetForm();}
+  else{
+    const wasEdit = !!window._editJobId;
+    showToast(wasEdit ? 'Job updated!' : 'Setup saved!','success');
+    window._editJobId = null;
+    document.getElementById('submitBtn').textContent = 'SAVE SETUP';
+    const banner = document.getElementById('editBanner');
+    if (banner) banner.style.display = 'none';
+    resetForm();
+  }
 }
 
 function initForm(){
@@ -867,6 +880,7 @@ async function openJobDetail(id){
         </div>
       </div>
       <div style="display:flex;gap:7px;">
+        <button class="btn-ghost" onclick="editJob()">✏ EDIT</button>
         <button class="btn-secondary" onclick="exportPDF()">⬇ PDF</button>
         <button class="btn-ghost" onclick="closeJobDetail()">✕</button>
       </div>
@@ -888,6 +902,103 @@ async function openJobDetail(id){
   document.getElementById('jobDetailModal').classList.remove('hidden');
 }
 function closeJobDetail(){document.getElementById('jobDetailModal').classList.add('hidden');}
+
+// ── EDIT JOB ──────────────────────────────────────────────
+async function editJob() {
+  const data = window._dd;
+  if (!data) return;
+  closeJobDetail();
+  switchTab('new');
+
+  // Small delay to let tab render
+  await new Promise(r => setTimeout(r, 80));
+
+  // Reset form first
+  document.getElementById('setupForm').reset();
+  document.getElementById('imagePreview').innerHTML = '';
+  window._editJobId = data.id;
+
+  // ── Job info fields ──
+  const setVal = (name, val) => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (el && val !== null && val !== undefined) el.value = val;
+  };
+  setVal('job_name', data.job_name);
+  setVal('order_number', data.order_number);
+  setVal('job_date', data.job_date);
+  setVal('operator', data.operator);
+  setVal('customer', data.customer);
+  setVal('print_location', data.print_location);
+  setVal('status', data.status);
+  setVal('notes', data.notes);
+  setVal('press_speed', data.press_speed);
+  setVal('stroke_length', data.stroke_length);
+  setVal('off_contact', data.off_contact);
+  setVal('print_strokes', data.print_strokes);
+  setVal('flash_temp', data.flash_temp);
+  setVal('flash_dwell', data.flash_dwell);
+  setVal('dryer_temp', data.dryer_temp);
+  setVal('belt_speed', data.belt_speed);
+
+  // ── Shirt types ──
+  document.getElementById('shirtTypeList').innerHTML = '';
+  stCount = 0;
+  if (data.shirt_types?.length) {
+    data.shirt_types.forEach(t => addShirtType(t));
+  } else {
+    addShirtType();
+  }
+
+  // ── Dynamic rows ──
+  document.getElementById('headRows').innerHTML = '';
+  document.getElementById('inkRows').innerHTML = '';
+  document.getElementById('screenRows').innerHTML = '';
+  document.getElementById('sqRows').innerHTML = '';
+  hC = 0; iC = 0; scC = 0; sqC = 0;
+
+  (data.head_locations || []).forEach(d => addHeadRow(d));
+  if (!data.head_locations?.length) { addHeadRow(); addHeadRow(); addHeadRow(); }
+
+  (data.ink_colors || []).forEach(d => addInkRow(d));
+  if (!data.ink_colors?.length) { addInkRow(); addInkRow(); }
+
+  (data.screen_specs || []).forEach(d => addScreenRow(d));
+  if (!data.screen_specs?.length) { addScreenRow(); addScreenRow(); }
+
+  (data.squeegee_settings || []).forEach(d => addSqRow(d));
+  if (!data.squeegee_settings?.length) { addSqRow(); addSqRow(); }
+
+  // ── Existing photo ──
+  if (data.image_url) {
+    document.getElementById('imagePreview').innerHTML = `<img src="${data.image_url}" style="max-height:120px;border-radius:3px;border:1px solid var(--border);" />`;
+  }
+
+  // ── Update submit button ──
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = 'UPDATE SETUP';
+
+  // ── Show edit banner ──
+  let banner = document.getElementById('editBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'editBanner';
+    banner.style.cssText = 'background:rgba(232,80,10,.12);border:1px solid rgba(232,80,10,.3);border-radius:3px;padding:9px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
+    banner.innerHTML = `<span style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--flash);">✏ EDITING EXISTING JOB — changes will overwrite saved data</span><button type="button" class="btn-ghost" onclick="cancelEdit()" style="font-size:.68rem;">✕ CANCEL EDIT</button>`;
+    document.getElementById('pane-new').insertBefore(banner, document.getElementById('setupForm'));
+  }
+  banner.style.display = 'flex';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEdit() {
+  window._editJobId = null;
+  document.getElementById('submitBtn').textContent = 'SAVE SETUP';
+  const banner = document.getElementById('editBanner');
+  if (banner) banner.style.display = 'none';
+  resetForm();
+}
+
+
 
 // ── PDF EXPORT ──────────────────────────────────────────────
 function exportPDF(){
