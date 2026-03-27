@@ -358,6 +358,7 @@
 
   <!-- ═══ MAINTENANCE ═══ -->
   <div id="pane-maint" class="hidden">
+
     <!-- Sub-tabs -->
     <div style="display:flex;gap:0;border-bottom:1px solid rgba(245,240,232,.07);margin-bottom:14px;">
       <div class="maint-subtab active" id="mst-machines" onclick="switchMaintTab('machines')">MACHINES</div>
@@ -365,7 +366,7 @@
       <div class="maint-subtab" id="mst-schedule" onclick="switchMaintTab('schedule')">SCHEDULE <span id="schedBadge" style="display:none;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:3px;vertical-align:middle;"></span></div>
     </div>
 
-    <!-- MACHINES view -->
+    <!-- MACHINES -->
     <div id="mpane-machines">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">MACHINE ID CARDS</div>
@@ -376,16 +377,14 @@
       </div>
     </div>
 
-    <!-- LOG EVENT view -->
+    <!-- LOG EVENT -->
     <div id="mpane-log" class="hidden">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;margin-bottom:14px;">LOG MAINTENANCE EVENT</div>
       <div class="card" style="padding:14px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
           <div style="grid-column:1/-1">
             <label>Machine</label>
-            <select id="evt_machine_id">
-              <option value="">Select a machine…</option>
-            </select>
+            <select id="evt_machine_id"><option value="">Select a machine…</option></select>
           </div>
           <div><label>Date</label><input type="date" id="evt_date" /></div>
           <div>
@@ -405,8 +404,9 @@
           <button class="btn-primary" onclick="saveMaintenanceEvent()">SAVE EVENT</button>
         </div>
       </div>
+    </div>
 
-    <!-- SCHEDULE view -->
+    <!-- SCHEDULE -->
     <div id="mpane-schedule" class="hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">UPCOMING MAINTENANCE <span style="font-size:.9rem;color:var(--muted);">— next 90 days</span></div>
@@ -415,18 +415,17 @@
           <button class="btn-ghost" onclick="loadSchedule()">↺ REFRESH</button>
         </div>
       </div>
-      <!-- Legend -->
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
         <div style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);"><span style="width:10px;height:10px;border-radius:50%;background:#ff3333;display:inline-block;"></span>OVERDUE</div>
         <div style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);"><span style="width:10px;height:10px;border-radius:50%;background:var(--yellow);display:inline-block;"></span>DUE WITHIN 30 DAYS</div>
         <div style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);"><span style="width:10px;height:10px;border-radius:50%;background:var(--green);display:inline-block;"></span>30+ DAYS OUT</div>
       </div>
       <div id="scheduleList">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:24px 0;text-align:center;">Loading schedule…</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:24px 0;text-align:center;">Click REFRESH to load schedule.</div>
       </div>
     </div>
-  </div>
 
+  </div>
 </main>
 
 <!-- JOB DETAIL MODAL -->
