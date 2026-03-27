@@ -1493,123 +1493,130 @@ const _origSwitchMaintTab = switchMaintTab;
 // ── SCHEDULE & ALERTS ─────────────────────────────────────
 async function loadSchedule() {
   if (!sbClient) return;
-  // Quick debug render to confirm function is running
-  const listEl = document.getElementById('scheduleList');
-  if (listEl) listEl.innerHTML = '<div style="color:var(--flash);font-family:IBM Plex Mono,monospace;font-size:.8rem;padding:16px;">Loading schedule...</div>';
-  // Timezone-safe date strings using local date parts
-  const now = new Date();
-  const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-  const c = new Date(now); c.setDate(c.getDate() + 90);
-  const cutoffStr = c.getFullYear() + '-' + String(c.getMonth()+1).padStart(2,'0') + '-' + String(c.getDate()).padStart(2,'0');
-  const today = new Date(todayStr + 'T00:00:00');
   const list = document.getElementById('scheduleList');
+  list.innerHTML = '<div style="color:var(--flash);font-family:IBM Plex Mono,monospace;font-size:.8rem;padding:16px;">Loading schedule...</div>';
 
-  // Pull machines AND their latest next_scheduled from maintenance_events as fallback
-  const [{ data: machines, error }, { data: events }] = await Promise.all([
-    sbClient.from('machines_2').select('id,name,location,status,next_maintenance,last_maintenance').order('name'),
-    sbClient.from('maintenance_events').select('machine_id,next_scheduled,event_type,description,technician,event_date').not('next_scheduled','is',null).order('event_date', { ascending: false })
+  // Timezone-safe today string
+  const now = new Date();
+  const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const c = new Date(now); c.setDate(c.getDate()+90);
+  const cutoffStr = c.getFullYear()+'-'+String(c.getMonth()+1).padStart(2,'0')+'-'+String(c.getDate()).padStart(2,'0');
+  const today = new Date(todayStr+'T00:00:00');
+
+  // Pull ALL future scheduled events joined with machine info
+  const [{ data: events, error: evtErr }, { data: machines, error: machErr }] = await Promise.all([
+    sbClient.from('maintenance_events')
+      .select('id,machine_id,next_scheduled,event_type,description,technician,event_date')
+      .not('next_scheduled','is',null)
+      .lte('next_scheduled', cutoffStr)
+      .order('next_scheduled', { ascending: true }),
+    sbClient.from('machines_2')
+      .select('id,name,location,status,next_maintenance,last_maintenance')
   ]);
 
-  if (error) { list.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:#ff4444;">Error: ${error.message}</div>`; return; }
+  if (evtErr) { list.innerHTML = '<div style="color:#ff4444;font-family:IBM Plex Mono,monospace;font-size:.72rem;padding:16px;">Error: '+evtErr.message+'</div>'; return; }
 
-  // Build a map of machine_id -> latest event info
-  const evtMap = {};
-  (events||[]).forEach(e => {
-    if (!evtMap[e.machine_id]) evtMap[e.machine_id] = e; // first = most recent
+  // Build machine lookup map
+  const machMap = {};
+  (machines||[]).forEach(m => { machMap[m.id] = m; });
+
+  // Deduplicate: one row per machine+next_scheduled combo (keep earliest logged)
+  const seen = new Set();
+  const rows = (events||[]).filter(e => {
+    const key = e.machine_id + '|' + e.next_scheduled;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 
-  // Merge machine data with last event info
-  const enriched = (machines||[]).map(m => {
-    const lastEvt = evtMap[m.id] || null;
-    const next = m.next_maintenance || lastEvt?.next_scheduled || null;
-    if (!m.next_maintenance && lastEvt?.next_scheduled) {
-      sbClient.from('machines_2').update({ next_maintenance: lastEvt.next_scheduled }).eq('id', m.id);
-    }
-    return { ...m, next_maintenance: next, last_event: lastEvt };
-  });
-
-  // Filter to overdue + within 90 days
-  const relevant = enriched.filter(m => m.next_maintenance && m.next_maintenance <= cutoffStr);
-
-  // Update badges
-  const overdueOrSoon = relevant.filter(m => {
-    const days = Math.ceil((new Date(m.next_maintenance + 'T00:00:00') - today) / 86400000);
+  // Update badges — count overdue or within 30 days
+  const urgent = rows.filter(e => {
+    const days = Math.ceil((new Date(e.next_scheduled+'T00:00:00') - today) / 86400000);
     return days <= 30;
   });
-  const badgeCount = overdueOrSoon.length;
   const tabBadge = document.getElementById('maintTabBadge');
   const schedBadge = document.getElementById('schedBadge');
-  if (badgeCount > 0) {
-    tabBadge.textContent = badgeCount; tabBadge.style.display = 'inline';
-    schedBadge.textContent = badgeCount; schedBadge.style.display = 'inline';
+  if (urgent.length > 0) {
+    tabBadge.textContent = urgent.length; tabBadge.style.display = 'inline';
+    schedBadge.textContent = urgent.length; schedBadge.style.display = 'inline';
   } else {
     tabBadge.style.display = 'none';
     schedBadge.style.display = 'none';
   }
 
-  if (!relevant.length) {
-    const allWithNext = enriched.filter(m => m.next_maintenance).length;
-    list.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">
-      No upcoming maintenance in the next 90 days.<br><br>
-      <span style="font-size:.65rem;opacity:.6;">Today: ${todayStr} · Cutoff: ${cutoffStr} · Machines with scheduled dates: ${allWithNext} of ${enriched.length}</span>
-    </div>`;
+  if (!rows.length) {
+    list.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">No upcoming maintenance in the next 90 days.</div>';
+    checkAndNotify([], today);
     return;
   }
 
-  const rows = relevant.map(m => {
-    const due = new Date(m.next_maintenance + 'T00:00:00');
+  const typeLabels = { preventive:'Preventive', repair:'Repair', cleaning:'Cleaning' };
+  const typeColors = { preventive:'var(--cyan)', repair:'var(--flash)', cleaning:'var(--green)' };
+
+  list.innerHTML = '';
+  rows.forEach(e => {
+    const m = machMap[e.machine_id] || {};
+    const due = new Date(e.next_scheduled+'T00:00:00');
     const days = Math.ceil((due - today) / 86400000);
     const isOverdue = days < 0;
     const isSoon = days >= 0 && days <= 30;
     const dotColor = isOverdue ? '#ff3333' : isSoon ? 'var(--yellow)' : 'var(--green)';
     const dueClass = isOverdue ? 'due-overdue' : isSoon ? 'due-soon' : 'due-ok';
     const dueLabel = isOverdue ? Math.abs(days)+'d OVERDUE' : days === 0 ? 'DUE TODAY' : 'IN '+days+'d';
-    const rowStyle = isOverdue ? 'border-color:rgba(255,51,51,.35);background:rgba(255,51,51,.04);' : '';
-    const locHtml = m.location ? '<span>📍 '+m.location+'</span>' : '';
-    const lastHtml = m.last_maintenance ? '<span>Last svc: '+m.last_maintenance+'</span>' : '';
-    const stCls = m.status==='down'?'due-overdue':m.status==='maintenance'?'due-soon':'';
-    const div = document.createElement('div');
-    div.className = 'sched-row';
-    div.style.cssText = rowStyle;
-    const evt = m.last_event;
-    const typeLabels = { preventive:'Preventive', repair:'Repair', cleaning:'Cleaning' };
-    const typeColors = { preventive:'var(--cyan)', repair:'var(--flash)', cleaning:'var(--green)' };
-    const evtTypeBadge = evt ? '<span style="font-family:IBM Plex Mono,monospace;font-size:.58rem;padding:1px 6px;border-radius:2px;background:rgba(255,255,255,.06);color:'+(typeColors[evt.event_type]||'var(--muted)')+';">'+( typeLabels[evt.event_type]||evt.event_type)+'</span>' : '';
-    const evtDesc = evt?.description ? '<span style="color:rgba(245,240,232,.6);">'+evt.description+'</span>' : '';
-    const evtTech = evt?.technician ? '<span>Tech: '+evt.technician+'</span>' : '';
-    const evtDate = evt?.event_date ? '<span>Last done: '+evt.event_date+'</span>' : '';
+    const typeLbl = typeLabels[e.event_type] || e.event_type || '';
+    const typeClr = typeColors[e.event_type] || 'var(--muted)';
 
-    div.innerHTML = '<span class="sched-dot" style="background:'+dotColor+';flex-shrink:0;"></span>'
-      + '<div style="min-width:0;">'
-        + '<div class="sched-machine">'+m.name+'</div>'
-        + '<div class="sched-meta" style="margin-bottom:4px;">'+locHtml+'<span style="color:'+(isOverdue?'#ff3333':isSoon?'var(--yellow)':'var(--green)')+';">Due: '+m.next_maintenance+'</span><span class="'+stCls+'">● '+(m.status||'operational')+'</span></div>'
-        + (evt ? '<div class="sched-meta" style="flex-direction:column;gap:2px;padding:6px 8px;background:rgba(245,240,232,.04);border-radius:2px;border-left:2px solid rgba(245,240,232,.1);">'+evtTypeBadge+' '+evtDate+evtTech+(evtDesc?'<span style="color:rgba(245,240,232,.5);font-size:.6rem;">'+evt.description+'</span>':'')+'</div>' : '<div class="sched-meta" style="color:rgba(245,240,232,.25);font-style:italic;">No events logged yet</div>')
-      + '</div>'
-      + '<div style="text-align:right;flex-shrink:0;">'
-        + '<div class="sched-due '+dueClass+'">'+dueLabel+'</div>'
-      + '</div>';
-    // Add log button separately to avoid quote issues
+    const row = document.createElement('div');
+    row.className = 'sched-row';
+    if (isOverdue) row.style.cssText = 'border-color:rgba(255,51,51,.35);background:rgba(255,51,51,.04);';
+
+    const leftHtml = ''
+      +'<div style="min-width:0;">'
+        +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;">'
+          +'<span style="font-weight:600;font-size:.85rem;">'+( m.name||'Unknown Machine')+'</span>'
+          +'<span style="font-family:IBM Plex Mono,monospace;font-size:.58rem;padding:1px 6px;border-radius:2px;background:rgba(255,255,255,.06);color:'+typeClr+';">'+typeLbl+'</span>'
+        +'</div>'
+        +'<div class="sched-meta" style="margin-bottom:5px;">'
+          +(m.location ? '<span>📍 '+m.location+'</span>' : '')
+          +'<span>Due: '+e.next_scheduled+'</span>'
+          +(e.event_date ? '<span>Last done: '+e.event_date+'</span>' : '')
+          +(e.technician ? '<span>Tech: '+e.technician+'</span>' : '')
+        +'</div>'
+        +(e.description ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:rgba(245,240,232,.55);padding:5px 8px;background:rgba(245,240,232,.04);border-left:2px solid rgba(245,240,232,.12);border-radius:0 2px 2px 0;">'+e.description+'</div>' : '')
+      +'</div>';
+
+    row.innerHTML = '<span class="sched-dot" style="background:'+dotColor+';flex-shrink:0;margin-top:3px;"></span>'
+      + leftHtml
+      + '<div style="text-align:right;flex-shrink:0;"></div>';
+
+    // Add due label + log button via DOM to avoid quote issues
+    const right = row.querySelector('[style*="text-align:right"]');
+    const dueDiv = document.createElement('div');
+    dueDiv.className = 'sched-due '+dueClass;
+    dueDiv.textContent = dueLabel;
+    right.appendChild(dueDiv);
+
     const logBtn = document.createElement('button');
     logBtn.className = 'kcard-btn kcard-btn-cnt';
     logBtn.style.cssText = 'margin-top:5px;font-size:.6rem;';
     logBtn.textContent = '+ LOG';
-    const mid = m.id;
+    const mid = e.machine_id;
     logBtn.onclick = () => {
       switchMaintTab('log');
       setTimeout(() => {
         populateMachineSelect().then(() => {
           document.getElementById('evt_machine_id').value = mid;
+          document.getElementById('evt_type').value = e.event_type || 'preventive';
+          document.getElementById('evt_desc').value = e.description || '';
         });
       }, 150);
     };
-    div.querySelector('[style*="text-align:right"]').appendChild(logBtn);
-    return div;
+    right.appendChild(logBtn);
+    list.appendChild(row);
   });
-  list.innerHTML = '';
-  rows.forEach(r => list.appendChild(r));
 
-  // Browser notifications for overdue items
-  checkAndNotify(relevant, today);
+  // Pass machine-level data to notify function
+  checkAndNotify(rows.map(e => ({ ...machMap[e.machine_id], next_maintenance: e.next_scheduled })), today);
 }
 
 // ── Machine card due indicators ────────────────────
