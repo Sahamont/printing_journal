@@ -152,6 +152,18 @@
     .due-soon{color:var(--yellow);}
     .due-ok{color:var(--green);}
     .mach-due-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle;flex-shrink:0;}
+
+    /* ── Camera ── */
+    .cam-modal{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;}
+    .cam-video{width:100%;max-width:480px;border-radius:4px;border:2px solid var(--flash);background:#000;}
+    .cam-canvas{display:none;}
+    .cam-preview{width:100%;max-width:480px;border-radius:4px;border:2px solid var(--green);display:none;}
+    .cam-controls{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center;}
+    .cam-btn-capture{background:var(--flash);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.1em;padding:.65rem 2rem;border:none;border-radius:3px;cursor:pointer;touch-action:manipulation;}
+    .cam-btn-capture:active{transform:scale(.95);}
+    .cam-btn-retake{background:transparent;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.8rem;padding:.55rem 1.2rem;border:1px solid var(--dim);border-radius:3px;cursor:pointer;}
+    .cam-btn-use{background:var(--green);color:#000;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;padding:.65rem 1.5rem;border:none;border-radius:3px;cursor:pointer;}
+    .cam-btn-cancel{background:transparent;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.78rem;padding:.5rem 1rem;border:1px solid rgba(245,240,232,.1);border-radius:3px;cursor:pointer;}
   </style>
 </head>
 <body class="grid-bg">
@@ -277,8 +289,12 @@
       <!-- Photo -->
       <div class="card" style="padding:14px;margin-bottom:14px;">
         <div class="sl">PHOTO / REFERENCE</div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;">
-          <div><label>Upload Image</label><input type="file" id="photoInput" accept="image/*" onchange="previewImage(event)" style="padding:5px;" /></div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;">
+          <div>
+            <label>Upload Image</label>
+            <input type="file" id="photoInput" accept="image/*" onchange="previewImage(event)" style="padding:5px;" />
+            <button type="button" class="btn-secondary" style="margin-top:7px;width:100%;" onclick="openCamera('job')">📷 TAKE PHOTO</button>
+          </div>
           <div id="imagePreview"></div>
         </div>
       </div>
@@ -480,7 +496,11 @@
         </select>
       </div>
       <div style="grid-column:1/-1"><label>Notes</label><textarea id="m_notes" rows="2" placeholder="Any additional info…"></textarea></div>
-      <div style="grid-column:1/-1"><label>Machine Photo</label><input type="file" id="m_photo" accept="image/*" onchange="previewMachinePhoto(event)" style="padding:5px;" /></div>
+      <div style="grid-column:1/-1">
+        <label>Machine Photo</label>
+        <input type="file" id="m_photo" accept="image/*" onchange="previewMachinePhoto(event)" style="padding:5px;" />
+        <button type="button" class="btn-secondary" style="margin-top:7px;width:100%;" onclick="openCamera('machine')">📷 TAKE PHOTO</button>
+      </div>
       <div id="m_photo_preview" style="grid-column:1/-1;"></div>
     </div>
     <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
@@ -493,6 +513,23 @@
 <!-- MACHINE DETAIL MODAL -->
 <div id="machDetailModal" class="modal hidden">
   <div class="card modal-box" style="padding:18px;margin:8px auto;" id="machDetailContent"></div>
+</div>
+
+<!-- CAMERA MODAL -->
+<div id="cameraModal" class="cam-modal hidden">
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--flash);letter-spacing:.1em;margin-bottom:12px;" id="camTitle">TAKE PHOTO</div>
+  <video id="camVideo" class="cam-video" autoplay playsinline muted></video>
+  <canvas id="camCanvas" class="cam-canvas"></canvas>
+  <img id="camPreview" class="cam-preview" alt="Preview" />
+  <div class="cam-controls" id="camControlsLive">
+    <button class="cam-btn-cancel" onclick="closeCamera()">✕ CANCEL</button>
+    <button class="cam-btn-capture" onclick="capturePhoto()">📷 CAPTURE</button>
+  </div>
+  <div class="cam-controls hidden" id="camControlsPreview">
+    <button class="cam-btn-cancel" onclick="closeCamera()">✕ CANCEL</button>
+    <button class="cam-btn-retake" onclick="retakePhoto()">↺ RETAKE</button>
+    <button class="cam-btn-use" onclick="usePhoto()">✓ USE PHOTO</button>
+  </div>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -1258,11 +1295,14 @@ async function saveMachine() {
 
   let photoUrl = null;
   const file = document.getElementById('m_photo').files[0];
-  if (file) {
-    const ext = file.name.split('.').pop();
-    const path = 'machine-photos/' + Date.now() + '.' + ext;
-    const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, file, { upsert: true });
+  const camBlob = window._machCamBlob;
+  const uploadFile = file || camBlob;
+  const uploadExt = file ? file.name.split('.').pop() : (window._machCamExt || 'jpg');
+  if (uploadFile) {
+    const path = 'machine-photos/' + Date.now() + '.' + uploadExt;
+    const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, uploadFile, { upsert: true, contentType: file ? undefined : 'image/jpeg' });
     if (!upErr) { const { data: ud } = sbClient.storage.from('press-setups').getPublicUrl(path); photoUrl = ud.publicUrl; }
+    window._machCamBlob = null;
   }
 
   const record = {
@@ -1467,6 +1507,96 @@ function checkAndNotify(machines, today) {
 }
 
 // Run badge check whenever maintenance tab loads
+
+// ── CAMERA ────────────────────────────────────────────────
+let _camStream = null;
+let _camTarget = null; // 'job' or 'machine'
+let _camBlob = null;
+
+async function openCamera(target) {
+  _camTarget = target;
+  _camBlob = null;
+  document.getElementById('camTitle').textContent = target === 'job' ? 'JOB PHOTO' : 'MACHINE PHOTO';
+
+  // Reset UI
+  document.getElementById('camVideo').style.display = 'block';
+  document.getElementById('camPreview').style.display = 'none';
+  document.getElementById('camControlsLive').classList.remove('hidden');
+  document.getElementById('camControlsPreview').classList.add('hidden');
+  document.getElementById('cameraModal').classList.remove('hidden');
+
+  try {
+    _camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 960 } },
+      audio: false
+    });
+    document.getElementById('camVideo').srcObject = _camStream;
+  } catch (err) {
+    showToast('Camera access denied or unavailable.', 'error');
+    closeCamera();
+  }
+}
+
+function capturePhoto() {
+  const video = document.getElementById('camVideo');
+  const canvas = document.getElementById('camCanvas');
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 960;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  // Show preview
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+  const preview = document.getElementById('camPreview');
+  preview.src = dataUrl;
+  preview.style.display = 'block';
+  video.style.display = 'none';
+
+  // Stop stream to save battery
+  if (_camStream) _camStream.getTracks().forEach(t => t.pause());
+
+  document.getElementById('camControlsLive').classList.add('hidden');
+  document.getElementById('camControlsPreview').classList.remove('hidden');
+
+  // Convert to blob for upload
+  canvas.toBlob(blob => { _camBlob = blob; }, 'image/jpeg', 0.88);
+}
+
+function retakePhoto() {
+  _camBlob = null;
+  document.getElementById('camPreview').style.display = 'none';
+  document.getElementById('camVideo').style.display = 'block';
+  document.getElementById('camControlsLive').classList.remove('hidden');
+  document.getElementById('camControlsPreview').classList.add('hidden');
+  // Resume stream
+  if (_camStream) _camStream.getTracks().forEach(t => t.enabled = true);
+}
+
+function usePhoto() {
+  if (!_camBlob) return;
+  const dataUrl = document.getElementById('camPreview').src;
+
+  if (_camTarget === 'job') {
+    // Show in job form preview
+    document.getElementById('imagePreview').innerHTML = `<img src="${dataUrl}" style="max-height:120px;border-radius:3px;border:1px solid var(--border);" />`;
+    // Store blob on a hidden input substitute
+    window._jobCamBlob = _camBlob;
+    window._jobCamExt = 'jpg';
+  } else if (_camTarget === 'machine') {
+    document.getElementById('m_photo_preview').innerHTML = `<img src="${dataUrl}" style="max-height:100px;border-radius:3px;border:1px solid var(--border);" />`;
+    window._machCamBlob = _camBlob;
+    window._machCamExt = 'jpg';
+  }
+
+  closeCamera();
+  showToast('Photo captured!', 'success');
+}
+
+function closeCamera() {
+  if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
+  document.getElementById('cameraModal').classList.add('hidden');
+  document.getElementById('camVideo').srcObject = null;
+}
+
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
   const t=document.getElementById('toast');
