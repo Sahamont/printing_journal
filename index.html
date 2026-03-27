@@ -412,6 +412,7 @@
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">UPCOMING MAINTENANCE <span style="font-size:.9rem;color:var(--muted);">— next 90 days</span></div>
         <div style="display:flex;gap:7px;align-items:center;">
           <button class="btn-ghost" id="notifBtn" onclick="requestNotifPermission()">🔔 ENABLE ALERTS</button>
+          <button class="btn-secondary" onclick="exportMaintPDF(true)">⬇ FULL REPORT</button>
           <button class="btn-ghost" onclick="loadSchedule()">↺ REFRESH</button>
         </div>
       </div>
@@ -1374,6 +1375,7 @@ async function openMachDetail(id) {
         </div>
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="exportMaintPDF()">⬇ PDF</button>
         <button class="btn-ghost" onclick="openEditMachine('${m.id}')">✏ EDIT</button>
         <button class="btn-ghost" onclick="closeMachDetail()">✕</button>
       </div>
@@ -1389,6 +1391,8 @@ async function openMachDetail(id) {
     </div>
     <div id="machEvtList">${evtHtml}</div>
   `;
+  window._machDetail = m;
+  window._machEvents = evts || [];
   document.getElementById('machDetailModal').classList.remove('hidden');
 }
 
@@ -1877,6 +1881,125 @@ async function deleteEvent() {
   closeEditEvent();
   loadSchedule();
   loadMachines();
+}
+
+
+// ── MAINTENANCE PDF EXPORT ────────────────────────────────
+function exportMaintPDF(allMachines = false) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const PW = doc.internal.pageSize.getWidth();
+  const ML = 44, MR = PW - 44, TW = MR - ML;
+  let y = 44;
+
+  const typeLabels = { preventive:'Preventive', repair:'Repair / Breakdown', cleaning:'Cleaning' };
+
+  const checkPage = (needed = 40) => {
+    if (y + needed > 700) { doc.addPage(); y = 44; }
+  };
+
+  const drawHeader = (title, subtitle) => {
+    doc.setFont('helvetica','bold'); doc.setFontSize(18);
+    doc.text('MAINTENANCE REPORT', ML, y); y += 22;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.text(title, ML, y); y += 14;
+    if (subtitle) { doc.text(subtitle, ML, y); y += 14; }
+    doc.text('Generated: ' + new Date().toLocaleDateString(), ML, y); y += 20;
+    doc.setDrawColor(232, 80, 10);
+    doc.setLineWidth(1);
+    doc.line(ML, y, MR, y); y += 14;
+  };
+
+  const drawMachineSection = (m, evts) => {
+    checkPage(60);
+    // Machine header
+    doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.setFillColor(20, 20, 30);
+    doc.rect(ML, y-12, TW, 18, 'F');
+    doc.setTextColor(232, 80, 10);
+    doc.text(m.name || 'Unknown Machine', ML+4, y); y += 8;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    const meta = [
+      m.brand||m.model ? (m.brand||'') + ' ' + (m.model||'') : null,
+      m.serial_number ? 'S/N: '+m.serial_number : null,
+      m.location ? 'Location: '+m.location : null,
+      m.status ? 'Status: '+m.status : null,
+      m.last_maintenance ? 'Last Service: '+m.last_maintenance : null,
+      m.next_maintenance ? 'Next Due: '+m.next_maintenance : null,
+    ].filter(Boolean).join('   ');
+    if (meta) { doc.text(meta, ML, y); y += 12; }
+    y += 6;
+
+    if (!evts || !evts.length) {
+      doc.setFont('helvetica','italic'); doc.setFontSize(9);
+      doc.setTextColor(150,150,150);
+      doc.text('No maintenance events logged.', ML, y); y += 14;
+      doc.setTextColor(0,0,0);
+      return;
+    }
+
+    // Column headers
+    const cols = { date:ML, type:ML+60, desc:ML+130, tech:ML+320, next:ML+420 };
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.setTextColor(100,100,100);
+    doc.text('DATE', cols.date, y);
+    doc.text('TYPE', cols.type, y);
+    doc.text('DESCRIPTION', cols.desc, y);
+    doc.text('TECH', cols.tech, y);
+    doc.text('NEXT DUE', cols.next, y);
+    y += 4;
+    doc.setDrawColor(200,200,200); doc.setLineWidth(0.5);
+    doc.line(ML, y, MR, y); y += 8;
+    doc.setTextColor(0,0,0);
+
+    evts.forEach(e => {
+      const descLines = doc.splitTextToSize(e.description || '—', 180);
+      const rowH = Math.max(14, descLines.length * 11);
+      checkPage(rowH + 6);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+      doc.text(e.event_date || '—', cols.date, y);
+      doc.text(typeLabels[e.event_type] || e.event_type || '—', cols.type, y);
+      doc.text(descLines, cols.desc, y);
+      doc.text(e.technician || '—', cols.tech, y);
+      doc.text(e.next_scheduled || '—', cols.next, y);
+      if (e.parts_used) {
+        doc.setFont('helvetica','italic'); doc.setFontSize(7.5);
+        doc.setTextColor(100,100,100);
+        doc.text('Parts: '+e.parts_used, cols.desc, y + descLines.length*11);
+        doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+      }
+      y += rowH + 4;
+      doc.setDrawColor(230,230,230); doc.setLineWidth(0.3);
+      doc.line(ML, y, MR, y); y += 6;
+    });
+    y += 8;
+  };
+
+  if (allMachines) {
+    // Full report — all machines (called from schedule tab)
+    drawHeader('All Machines — Full Maintenance Log', null);
+    // We'll fetch all data fresh
+    if (!sbClient) return;
+    Promise.all([
+      sbClient.from('machines_2').select('*').order('name'),
+      sbClient.from('maintenance_events').select('*').order('event_date', { ascending: false })
+    ]).then(([{ data: machines }, { data: events }]) => {
+      (machines||[]).forEach(m => {
+        const mEvts = (events||[]).filter(e => e.machine_id === m.id);
+        drawMachineSection(m, mEvts);
+      });
+      doc.save('maintenance-report-all-' + new Date().toISOString().split('T')[0] + '.pdf');
+    });
+  } else {
+    // Single machine report
+    const m = window._machDetail;
+    const evts = window._machEvents || [];
+    if (!m) return;
+    drawHeader(m.name + ' — Maintenance Log', [m.brand, m.model].filter(Boolean).join(' ') || null);
+    drawMachineSection(m, evts);
+    doc.save((m.name||'machine').replace(/\s+/g,'-').toLowerCase() + '-maintenance-' + new Date().toISOString().split('T')[0] + '.pdf');
+  }
 }
 
 // ── TOAST ───────────────────────────────────────────────────
