@@ -1554,33 +1554,48 @@ async function loadSchedule() {
     return;
   }
 
-  list.innerHTML = relevant.map(m => {
+  const rows = relevant.map(m => {
     const due = new Date(m.next_maintenance + 'T00:00:00');
     const days = Math.ceil((due - today) / 86400000);
     const isOverdue = days < 0;
     const isSoon = days >= 0 && days <= 30;
     const dotColor = isOverdue ? '#ff3333' : isSoon ? 'var(--yellow)' : 'var(--green)';
     const dueClass = isOverdue ? 'due-overdue' : isSoon ? 'due-soon' : 'due-ok';
-    const dueLabel = isOverdue ? `${Math.abs(days)}d OVERDUE` : days === 0 ? 'DUE TODAY' : `IN ${days}d`;
-    const typeClass = { preventive:'evt-preventive', repair:'evt-repair', cleaning:'evt-cleaning' };
-
-    return `<div class="sched-row" style="${isOverdue ? 'border-color:rgba(255,51,51,.35);background:rgba(255,51,51,.04);' : ''}">
-      <span class="sched-dot" style="background:${dotColor};"></span>
-      <div>
-        <div class="sched-machine">${m.name}</div>
-        <div class="sched-meta">
-          ${m.location ? `<span>📍 ${m.location}</span>` : ''}
-          <span>Next: ${m.next_maintenance}</span>
-          ${m.last_maintenance ? `<span>Last svc: ${m.last_maintenance}</span>` : ''}
-          <span class="${m.status==='down'?'due-overdue':m.status==='maintenance'?'due-soon':''}">● ${m.status||'operational'}</span>
-        </div>
-      </div>
-      <div style="text-align:right;">
-        <div class="sched-due ${dueClass}">${dueLabel}</div>
-        <button class="kcard-btn kcard-btn-cnt" style="margin-top:5px;font-size:.6rem;" onclick="switchMaintTab('log');setTimeout(()=>{document.getElementById('evt_machine_id').value='${m.id}';populateMachineSelect().then(()=>{document.getElementById('evt_machine_id').value='${m.id}';});},150);">+ LOG</button>
-      </div>
-    </div>`;
-  }).join('');
+    const dueLabel = isOverdue ? Math.abs(days)+'d OVERDUE' : days === 0 ? 'DUE TODAY' : 'IN '+days+'d';
+    const rowStyle = isOverdue ? 'border-color:rgba(255,51,51,.35);background:rgba(255,51,51,.04);' : '';
+    const locHtml = m.location ? '<span>📍 '+m.location+'</span>' : '';
+    const lastHtml = m.last_maintenance ? '<span>Last svc: '+m.last_maintenance+'</span>' : '';
+    const stCls = m.status==='down'?'due-overdue':m.status==='maintenance'?'due-soon':'';
+    const div = document.createElement('div');
+    div.className = 'sched-row';
+    div.style.cssText = rowStyle;
+    div.innerHTML = '<span class="sched-dot" style="background:'+dotColor+';"></span>'
+      + '<div>'
+        + '<div class="sched-machine">'+m.name+'</div>'
+        + '<div class="sched-meta">'+locHtml+'<span>Next: '+m.next_maintenance+'</span>'+lastHtml+'<span class="'+stCls+'">● '+(m.status||'operational')+'</span></div>'
+      + '</div>'
+      + '<div style="text-align:right;">'
+        + '<div class="sched-due '+dueClass+'">'+dueLabel+'</div>'
+      + '</div>';
+    // Add log button separately to avoid quote issues
+    const logBtn = document.createElement('button');
+    logBtn.className = 'kcard-btn kcard-btn-cnt';
+    logBtn.style.cssText = 'margin-top:5px;font-size:.6rem;';
+    logBtn.textContent = '+ LOG';
+    const mid = m.id;
+    logBtn.onclick = () => {
+      switchMaintTab('log');
+      setTimeout(() => {
+        populateMachineSelect().then(() => {
+          document.getElementById('evt_machine_id').value = mid;
+        });
+      }, 150);
+    };
+    div.querySelector('[style*="text-align:right"]').appendChild(logBtn);
+    return div;
+  });
+  list.innerHTML = '';
+  rows.forEach(r => list.appendChild(r));
 
   // Browser notifications for overdue items
   checkAndNotify(relevant, today);
