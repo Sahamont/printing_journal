@@ -1912,12 +1912,12 @@ function exportMaintPDF(allMachines = false) {
 
   const drawMachineSection = (m, evts) => {
     checkPage(60);
-    // Machine header
+    // Machine header — simple text, no background rect
     doc.setFont('helvetica','bold'); doc.setFontSize(13);
-    doc.setFillColor(20, 20, 30);
-    doc.rect(ML, y-12, TW, 18, 'F');
     doc.setTextColor(232, 80, 10);
-    doc.text(m.name || 'Unknown Machine', ML+4, y); y += 8;
+    doc.text(m.name || 'Unknown Machine', ML, y); y += 16;
+    doc.setDrawColor(232, 80, 10); doc.setLineWidth(0.5);
+    doc.line(ML, y, MR, y); y += 10;
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica','normal'); doc.setFontSize(9);
     const meta = [
