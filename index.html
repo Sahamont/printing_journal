@@ -2231,10 +2231,9 @@ async function quickStateChange(id, newState) {
 }
 
 // ── Add / Edit screen ───────────────────────────────
-function openAddScreenModal() {
+async function openAddScreenModal() {
   _editScreenId = null;
   document.getElementById('screenModalTitle').textContent = 'ADD SCREEN';
-  document.getElementById('sc_id').value = '';
   document.getElementById('sc_mesh').value = '110';
   document.getElementById('sc_mesh_custom').value = '';
   document.getElementById('sc_mesh_custom_wrap').classList.add('hidden');
@@ -2242,7 +2241,24 @@ function openAddScreenModal() {
   document.getElementById('sc_state').value = 'clean';
   document.getElementById('sc_notes').value = '';
   document.getElementById('deleteScreenBtn').style.display = 'none';
+
+  // Auto-generate next SCR-XXX id
+  document.getElementById('sc_id').value = 'Generating…';
   document.getElementById('addScreenModal').classList.remove('hidden');
+
+  if (sbClient) {
+    const { data } = await sbClient.from('screens').select('screen_id').ilike('screen_id', 'SCR-%').order('screen_id', { ascending: false }).limit(50);
+    let nextNum = 1;
+    if (data && data.length) {
+      const nums = data
+        .map(s => parseInt((s.screen_id || '').replace(/^SCR-0*/i, '')) || 0)
+        .filter(n => !isNaN(n));
+      if (nums.length) nextNum = Math.max(...nums) + 1;
+    }
+    document.getElementById('sc_id').value = 'SCR-' + String(nextNum).padStart(3, '0');
+  } else {
+    document.getElementById('sc_id').value = 'SCR-001';
+  }
 }
 
 function openEditScreen(s) {
