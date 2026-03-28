@@ -164,6 +164,27 @@
     .cam-btn-retake{background:transparent;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.8rem;padding:.55rem 1.2rem;border:1px solid var(--dim);border-radius:3px;cursor:pointer;}
     .cam-btn-use{background:var(--green);color:#000;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;padding:.65rem 1.5rem;border:none;border-radius:3px;cursor:pointer;}
     .cam-btn-cancel{background:transparent;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.78rem;padding:.5rem 1rem;border:1px solid rgba(245,240,232,.1);border-radius:3px;cursor:pointer;}
+
+    /* ── Screens ── */
+    .screen-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:11px 12px;transition:border-color .15s;}
+    .screen-card:hover{border-color:rgba(232,80,10,.4);}
+    .state-clean{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+    .state-dirty{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.25);}
+    .state-burned{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.25);}
+    .state-onpress{background:rgba(232,80,10,.12);color:var(--flash);border:1px solid rgba(232,80,10,.3);}
+    .state-reclaiming{background:rgba(180,100,255,.1);color:#b464ff;border:1px solid rgba(180,100,255,.25);}
+    .state-retired{background:rgba(245,240,232,.05);color:var(--muted);border:1px solid rgba(245,240,232,.1);}
+    .state-btn{font-family:'IBM Plex Mono',monospace;font-size:.6rem;padding:3px 7px;border-radius:2px;cursor:pointer;border:1px solid rgba(245,240,232,.12);background:transparent;color:var(--muted);transition:all .15s;touch-action:manipulation;white-space:nowrap;}
+    .state-btn:hover{color:var(--text);border-color:var(--dim);}
+    .state-btn.active-state{color:var(--flash);border-color:var(--flash);background:var(--flash-dim);}
+    .summary-pill{font-family:'IBM Plex Mono',monospace;font-size:.65rem;padding:4px 10px;border-radius:12px;white-space:nowrap;}
+    .scr-subtab{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.88rem;padding:.45rem .9rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;color:var(--muted);white-space:nowrap;touch-action:manipulation;}
+    .scr-subtab.active{color:var(--flash);border-bottom-color:var(--flash);}
+    .mesh-group-label{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;color:var(--flash);border-bottom:1px solid rgba(232,80,10,.2);padding-bottom:3px;margin:16px 0 10px;}
+    .planner-job-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:10px 12px;cursor:pointer;transition:border-color .15s;margin-bottom:8px;}
+    .planner-job-card:hover,.planner-job-card.selected{border-color:var(--flash);}
+    .planner-job-card.selected{background:var(--flash-dim);}
+    .assign-row{display:grid;grid-template-columns:60px 1fr 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(245,240,232,.05);}
   </style>
 </head>
 <body class="grid-bg">
@@ -196,6 +217,7 @@
   <div class="tab active" id="tab-new" onclick="switchTab('new')">NEW SETUP</div>
   <div class="tab" id="tab-search" onclick="switchTab('search')">SEARCH</div>
   <div class="tab" id="tab-pipeline" onclick="switchTab('pipeline')">PIPELINE</div>
+  <div class="tab" id="tab-screens" onclick="switchTab('screens')">SCREENS</div>
   <div class="tab" id="tab-maint" onclick="switchTab('maint')">MAINTENANCE <span id="maintTabBadge" style="display:none;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
 </div>
 
@@ -427,6 +449,56 @@
     </div>
 
   </div>
+  <!-- ═══ SCREENS ═══ -->
+  <div id="pane-screens" class="hidden">
+
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid rgba(245,240,232,.07);margin-bottom:14px;">
+      <div class="scr-subtab active" id="sst-inventory" onclick="switchScrTab('inventory')">INVENTORY</div>
+      <div class="scr-subtab" id="sst-planner" onclick="switchScrTab('planner')">JOB PLANNER</div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div id="spane-inventory">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">SCREEN INVENTORY</div>
+        <div style="display:flex;gap:7px;">
+          <button class="btn-ghost" onclick="loadScreens()">↺ REFRESH</button>
+          <button class="btn-primary" onclick="openAddScreenModal()">+ ADD SCREEN</button>
+        </div>
+      </div>
+      <!-- Summary bar -->
+      <div id="screenSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;"></div>
+      <!-- Grouped by mesh -->
+      <div id="screenGrid"></div>
+    </div>
+
+    <!-- PLANNER -->
+    <div id="spane-planner" class="hidden">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;margin-bottom:14px;">JOB SCREEN PLANNER</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <!-- Left: pick job -->
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">1. SELECT JOB</div>
+          <input type="text" id="plannerSearch" placeholder="Search job name…" oninput="searchPlannerJobs()" style="margin-bottom:8px;" />
+          <div id="plannerJobList" style="max-height:320px;overflow-y:auto;"></div>
+        </div>
+        <!-- Right: assign screens -->
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">2. ASSIGN SCREENS</div>
+          <div id="plannerAssign" style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:16px 0;">Select a job to see screen suggestions.</div>
+        </div>
+      </div>
+      <!-- Active assignments -->
+      <div style="margin-top:20px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;color:var(--flash);border-bottom:1px solid rgba(232,80,10,.2);padding-bottom:3px;margin-bottom:10px;">ACTIVE ASSIGNMENTS (ON PRESS)</div>
+        <div id="activeAssignments"></div>
+      </div>
+    </div>
+
+  </div>
+
+
 </main>
 
 <!-- JOB DETAIL MODAL -->
@@ -563,6 +635,51 @@
   </div>
 </div>
 
+<!-- ADD/EDIT SCREEN MODAL -->
+<div id="addScreenModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:480px;padding:18px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.08em;" id="screenModalTitle">ADD SCREEN</div>
+      <button class="btn-ghost" onclick="closeAddScreenModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div><label>Screen ID / #</label><input type="text" id="sc_id" placeholder="SCR-001" /></div>
+      <div>
+        <label>Mesh Count</label>
+        <select id="sc_mesh">
+          <option value="110">110</option>
+          <option value="155w">155 White</option>
+          <option value="155y">155 Yellow</option>
+          <option value="200">200</option>
+          <option value="230">230</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div id="sc_mesh_custom_wrap" class="hidden"><label>Custom Mesh</label><input type="text" id="sc_mesh_custom" placeholder="e.g. 180" /></div>
+      <div><label>Frame Size</label><input type="text" id="sc_frame" placeholder='23"x31"' /></div>
+      <div>
+        <label>State</label>
+        <select id="sc_state">
+          <option value="clean">Clean</option>
+          <option value="dirty">Dirty</option>
+          <option value="burned">Burned / Exposed</option>
+          <option value="onpress">On Press</option>
+          <option value="reclaiming">Reclaiming</option>
+          <option value="retired">Damaged / Retired</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1"><label>Notes</label><input type="text" id="sc_notes" placeholder="Any notes…" /></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" id="deleteScreenBtn" onclick="deleteScreen()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeAddScreenModal()">CANCEL</button>
+        <button class="btn-primary" id="saveScreenBtn" onclick="saveScreen()">SAVE SCREEN</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -600,13 +717,14 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint'].forEach(t=>{
+  ['new','search','pipeline','maint','screens'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
   if(tab==='search') searchJobs();
   if(tab==='pipeline') loadPipeline();
   if(tab==='maint') loadMachines();
+  if(tab==='screens') loadScreens();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -2000,6 +2118,370 @@ function exportMaintPDF(allMachines = false) {
     drawMachineSection(m, evts);
     doc.save((m.name||'machine').replace(/\s+/g,'-').toLowerCase() + '-maintenance-' + new Date().toISOString().split('T')[0] + '.pdf');
   }
+}
+
+
+// ══════════════════════════════════════════════════════
+// SCREENS
+// ══════════════════════════════════════════════════════
+const SCREEN_STATES = ['clean','dirty','burned','onpress','reclaiming','retired'];
+const STATE_LABELS = {clean:'Clean',dirty:'Dirty',burned:'Burned',onpress:'On Press',reclaiming:'Reclaiming',retired:'Retired'};
+const STATE_CLASSES = {clean:'state-clean',dirty:'state-dirty',burned:'state-burned',onpress:'state-onpress',reclaiming:'state-reclaiming',retired:'state-retired'};
+const MESH_LABELS = {'110':'110','155w':'155 White','155y':'155 Yellow','200':'200','230':'230'};
+let _editScreenId = null;
+
+function switchScrTab(tab) {
+  ['inventory','planner'].forEach(t => {
+    document.getElementById('spane-'+t).classList.toggle('hidden', tab !== t);
+    document.getElementById('sst-'+t).classList.toggle('active', tab === t);
+  });
+  if (tab === 'planner') { loadActiveAssignments(); searchPlannerJobs(); }
+}
+
+// ── Load inventory ──────────────────────────────────
+async function loadScreens() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('screens').select('*').order('mesh_count').order('screen_id');
+  const grid = document.getElementById('screenGrid');
+  const summary = document.getElementById('screenSummary');
+  if (error) { grid.innerHTML = '<div style="color:#ff4444;font-family:IBM Plex Mono,monospace;font-size:.72rem;">Error: '+error.message+'</div>'; return; }
+
+  // Summary counts
+  const counts = {};
+  SCREEN_STATES.forEach(s => counts[s] = 0);
+  (data||[]).forEach(s => { if (counts[s.state] !== undefined) counts[s.state]++; });
+  const stateColors = {clean:'rgba(0,200,83,.2)',dirty:'rgba(245,200,0,.2)',burned:'rgba(0,180,216,.2)',onpress:'rgba(232,80,10,.2)',reclaiming:'rgba(180,100,255,.2)',retired:'rgba(245,240,232,.08)'};
+  const stateText = {clean:'var(--green)',dirty:'var(--yellow)',burned:'var(--cyan)',onpress:'var(--flash)',reclaiming:'#b464ff',retired:'var(--muted)'};
+  summary.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);padding:4px 8px;align-self:center;">TOTAL: '+(data||[]).length+'</div>'
+    + SCREEN_STATES.map(s => counts[s] > 0
+      ? '<span class="summary-pill" style="background:'+stateColors[s]+';color:'+stateText[s]+';border:1px solid '+stateText[s].replace(')',', .3)').replace('var(','rgba(')+';">'
+        + STATE_LABELS[s]+': '+counts[s]+'</span>'
+      : ''
+    ).join('');
+
+  if (!data||!data.length) {
+    grid.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;">No screens yet — click ADD SCREEN to get started.</div>';
+    return;
+  }
+
+  // Group by mesh count
+  const groups = {};
+  data.forEach(s => {
+    const key = s.mesh_count || 'Unknown';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(s);
+  });
+
+  grid.innerHTML = '';
+  Object.entries(groups).forEach(([mesh, screens]) => {
+    const groupDiv = document.createElement('div');
+    const meshLabel = MESH_LABELS[mesh] || mesh;
+    groupDiv.innerHTML = '<div class="mesh-group-label">'+meshLabel+' MESH <span style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);">— '+screens.length+' screens</span></div>';
+    const cardGrid = document.createElement('div');
+    cardGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:8px;';
+    screens.forEach(s => cardGrid.appendChild(buildScreenCard(s)));
+    groupDiv.appendChild(cardGrid);
+    grid.appendChild(groupDiv);
+  });
+}
+
+function buildScreenCard(s) {
+  const div = document.createElement('div');
+  div.className = 'screen-card';
+  const stateClass = STATE_CLASSES[s.state] || 'state-clean';
+  const stateLabel = STATE_LABELS[s.state] || s.state;
+  div.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+    +'<span style="font-family:IBM Plex Mono,monospace;font-weight:600;font-size:.82rem;">'+s.screen_id+'</span>'
+    +'<span class="badge '+stateClass+'">'+stateLabel+'</span>'
+    +'</div>'
+    +'<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);margin-bottom:8px;">'
+      +(s.frame_size?s.frame_size+'<br>':'')
+      +(s.notes?'<span style="color:rgba(245,240,232,.35);">'+s.notes+'</span>':'')
+    +'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:4px;" id="sbtn-'+s.id+'"></div>';
+
+  const btnWrap = div.querySelector('#sbtn-'+s.id);
+  // Quick state change buttons (show all except current)
+  const quickStates = SCREEN_STATES.filter(st => st !== s.state);
+  quickStates.forEach(st => {
+    const btn = document.createElement('button');
+    btn.className = 'state-btn';
+    btn.textContent = STATE_LABELS[st];
+    btn.onclick = (e) => { e.stopPropagation(); quickStateChange(s.id, st); };
+    btnWrap.appendChild(btn);
+  });
+
+  // Edit button
+  const editBtn = document.createElement('button');
+  editBtn.className = 'state-btn';
+  editBtn.style.cssText = 'color:var(--flash);border-color:rgba(232,80,10,.3);';
+  editBtn.textContent = '✏ EDIT';
+  editBtn.onclick = (e) => { e.stopPropagation(); openEditScreen(s); };
+  btnWrap.appendChild(editBtn);
+
+  return div;
+}
+
+async function quickStateChange(id, newState) {
+  if (!sbClient) return;
+  const { error } = await sbClient.from('screens').update({ state: newState }).eq('id', id);
+  if (error) { showToast('Error: '+error.message, 'error'); return; }
+  showToast('→ '+STATE_LABELS[newState], 'success');
+  loadScreens();
+}
+
+// ── Add / Edit screen ───────────────────────────────
+function openAddScreenModal() {
+  _editScreenId = null;
+  document.getElementById('screenModalTitle').textContent = 'ADD SCREEN';
+  document.getElementById('sc_id').value = '';
+  document.getElementById('sc_mesh').value = '110';
+  document.getElementById('sc_mesh_custom').value = '';
+  document.getElementById('sc_mesh_custom_wrap').classList.add('hidden');
+  document.getElementById('sc_frame').value = '';
+  document.getElementById('sc_state').value = 'clean';
+  document.getElementById('sc_notes').value = '';
+  document.getElementById('deleteScreenBtn').style.display = 'none';
+  document.getElementById('addScreenModal').classList.remove('hidden');
+}
+
+function openEditScreen(s) {
+  _editScreenId = s.id;
+  document.getElementById('screenModalTitle').textContent = 'EDIT SCREEN';
+  document.getElementById('sc_id').value = s.screen_id || '';
+  const knownMesh = Object.keys(MESH_LABELS).includes(s.mesh_count);
+  if (knownMesh) {
+    document.getElementById('sc_mesh').value = s.mesh_count;
+    document.getElementById('sc_mesh_custom_wrap').classList.add('hidden');
+  } else {
+    document.getElementById('sc_mesh').value = 'custom';
+    document.getElementById('sc_mesh_custom').value = s.mesh_count || '';
+    document.getElementById('sc_mesh_custom_wrap').classList.remove('hidden');
+  }
+  document.getElementById('sc_frame').value = s.frame_size || '';
+  document.getElementById('sc_state').value = s.state || 'clean';
+  document.getElementById('sc_notes').value = s.notes || '';
+  document.getElementById('deleteScreenBtn').style.display = 'inline-block';
+  document.getElementById('addScreenModal').classList.remove('hidden');
+}
+
+function closeAddScreenModal() {
+  document.getElementById('addScreenModal').classList.add('hidden');
+  _editScreenId = null;
+}
+
+// Show/hide custom mesh input
+document.addEventListener('change', e => {
+  if (e.target.id === 'sc_mesh') {
+    document.getElementById('sc_mesh_custom_wrap').classList.toggle('hidden', e.target.value !== 'custom');
+  }
+});
+
+async function saveScreen() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveScreenBtn');
+  btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true;
+  const meshVal = document.getElementById('sc_mesh').value;
+  const mesh = meshVal === 'custom' ? document.getElementById('sc_mesh_custom').value.trim() : meshVal;
+  const record = {
+    screen_id: document.getElementById('sc_id').value.trim(),
+    mesh_count: mesh,
+    frame_size: document.getElementById('sc_frame').value.trim(),
+    state: document.getElementById('sc_state').value,
+    notes: document.getElementById('sc_notes').value.trim(),
+  };
+  if (!record.screen_id) { showToast('Screen ID is required.', 'error'); btn.innerHTML='SAVE SCREEN'; btn.disabled=false; return; }
+  let error;
+  if (_editScreenId) {
+    ({ error } = await sbClient.from('screens').update(record).eq('id', _editScreenId));
+  } else {
+    ({ error } = await sbClient.from('screens').insert([record]));
+  }
+  btn.innerHTML = 'SAVE SCREEN'; btn.disabled = false;
+  if (error) { showToast('Error: '+error.message, 'error'); return; }
+  showToast(_editScreenId ? 'Screen updated!' : 'Screen added!', 'success');
+  closeAddScreenModal(); loadScreens();
+}
+
+async function deleteScreen() {
+  if (!sbClient || !_editScreenId) return;
+  if (!confirm('Delete this screen? This cannot be undone.')) return;
+  const { error } = await sbClient.from('screens').delete().eq('id', _editScreenId);
+  if (error) { showToast('Error: '+error.message, 'error'); return; }
+  showToast('Screen deleted.', 'success');
+  closeAddScreenModal(); loadScreens();
+}
+
+// ── PLANNER ─────────────────────────────────────────
+let _plannerJobId = null;
+let _plannerAssignments = {}; // head_num -> screen_id
+
+async function searchPlannerJobs() {
+  if (!sbClient) return;
+  const q = document.getElementById('plannerSearch').value.trim();
+  let query = sbClient.from('print_setups').select('id,job_name,order_number,head_locations,screen_specs,pipeline_stage').order('job_date', { ascending: false }).limit(20);
+  if (q) query = query.ilike('job_name', '%'+q+'%');
+  const { data } = await query;
+  const list = document.getElementById('plannerJobList');
+  if (!data||!data.length) { list.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--muted);padding:12px 0;">No jobs found.</div>'; return; }
+  list.innerHTML = '';
+  data.forEach(job => {
+    const div = document.createElement('div');
+    div.className = 'planner-job-card' + (_plannerJobId===job.id?' selected':'');
+    const heads = (job.head_locations||[]).filter(h=>h.head_type!=='Flash Unit').length;
+    div.innerHTML = '<div style="font-weight:600;font-size:.82rem;margin-bottom:3px;">'+job.job_name+'</div>'
+      +'<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);">'
+        +(job.order_number?'#'+job.order_number+'  ':'')
+        +heads+' print head'+(heads!==1?'s':'')
+      +'</div>';
+    div.onclick = () => selectPlannerJob(job);
+    list.appendChild(div);
+  });
+}
+
+async function selectPlannerJob(job) {
+  _plannerJobId = job.id;
+  _plannerAssignments = {};
+  searchPlannerJobs(); // refresh to show selected
+
+  const { data: screens } = await sbClient.from('screens').select('*').in('state',['clean','burned']).order('mesh_count');
+  const printHeads = (job.head_locations||[]).filter(h => h.head_type !== 'Flash Unit');
+
+  const assignDiv = document.getElementById('plannerAssign');
+  if (!printHeads.length) {
+    assignDiv.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);">No print heads found on this job. Add head locations in the setup form.</div>';
+    return;
+  }
+
+  // Group available screens by mesh count for dropdowns
+  const byMesh = {};
+  (screens||[]).forEach(s => { if (!byMesh[s.mesh_count]) byMesh[s.mesh_count] = []; byMesh[s.mesh_count].push(s); });
+
+  assignDiv.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;">Assign a screen to each print head — showing Clean &amp; Burned screens only</div>';
+
+  const table = document.createElement('div');
+  printHeads.forEach(h => {
+    const row = document.createElement('div');
+    row.className = 'assign-row';
+
+    // Suggest mesh based on job screen_specs
+    const specForHead = (job.screen_specs||[]).find(s => s.screen_num == h.head_num);
+    const suggestedMesh = specForHead?.mesh || '';
+
+    const sel = document.createElement('select');
+    sel.style.cssText = 'font-size:.72rem;';
+    sel.innerHTML = '<option value="">Unassigned</option>';
+    // Add screens grouped by mesh
+    Object.entries(byMesh).forEach(([mesh, scrList]) => {
+      const meshLbl = MESH_LABELS[mesh] || mesh;
+      const og = document.createElement('optgroup');
+      og.label = meshLbl + ' mesh';
+      scrList.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.screen_id + ' (' + STATE_LABELS[s.state] + ')';
+        if (suggestedMesh && s.mesh_count == suggestedMesh && !Object.values(_plannerAssignments).includes(s.id)) {
+          opt.selected = true;
+          _plannerAssignments[h.head_num] = s.id;
+        }
+        og.appendChild(opt);
+      });
+      sel.appendChild(og);
+    });
+    sel.onchange = () => { _plannerAssignments[h.head_num] = sel.value || null; };
+
+    row.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;font-weight:600;">HEAD '+h.head_num+'</div>'
+      +'<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);">'+(h.head_color||'')+(suggestedMesh?' · '+( MESH_LABELS[suggestedMesh]||suggestedMesh)+' mesh':'')+'</div>';
+    row.appendChild(sel);
+
+    const putBtn = document.createElement('button');
+    putBtn.className = 'kcard-btn kcard-btn-adv';
+    putBtn.textContent = 'PUT ON PRESS';
+    putBtn.onclick = () => assignScreenToPress(h.head_num, sel.value, job);
+    row.appendChild(putBtn);
+
+    table.appendChild(row);
+  });
+
+  assignDiv.appendChild(table);
+
+  const bulkBtn = document.createElement('button');
+  bulkBtn.className = 'btn-primary';
+  bulkBtn.style.cssText = 'margin-top:12px;width:100%;';
+  bulkBtn.textContent = 'PUT ALL ASSIGNED SCREENS ON PRESS';
+  bulkBtn.onclick = () => assignAllToPress(job);
+  assignDiv.appendChild(bulkBtn);
+}
+
+async function assignScreenToPress(headNum, screenId, job) {
+  if (!sbClient || !screenId) { showToast('Select a screen first.', 'error'); return; }
+  const { error } = await sbClient.from('screens').update({
+    state: 'onpress',
+    current_job: job.job_name,
+    current_job_id: job.id
+  }).eq('id', screenId);
+  if (error) { showToast('Error: '+error.message, 'error'); return; }
+  showToast('Screen on press!', 'success');
+  loadScreens(); loadActiveAssignments();
+}
+
+async function assignAllToPress(job) {
+  if (!sbClient) return;
+  const ids = Object.values(_plannerAssignments).filter(Boolean);
+  if (!ids.length) { showToast('No screens assigned.', 'error'); return; }
+  const { error } = await sbClient.from('screens').update({
+    state: 'onpress', current_job: job.job_name, current_job_id: job.id
+  }).in('id', ids);
+  if (error) { showToast('Error: '+error.message, 'error'); return; }
+  showToast(ids.length+' screen'+(ids.length>1?'s':'')+' on press!', 'success');
+  loadScreens(); loadActiveAssignments();
+}
+
+async function loadActiveAssignments() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('screens').select('*').eq('state','onpress').order('current_job');
+  const div = document.getElementById('activeAssignments');
+  if (!data||!data.length) {
+    div.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:10px 0;">No screens currently on press.</div>';
+    return;
+  }
+  // Group by job
+  const byJob = {};
+  data.forEach(s => { const k=s.current_job||'Unassigned'; if(!byJob[k]) byJob[k]=[]; byJob[k].push(s); });
+  div.innerHTML = '';
+  Object.entries(byJob).forEach(([jobName, screens]) => {
+    const jobDiv = document.createElement('div');
+    jobDiv.style.cssText = 'margin-bottom:12px;';
+    jobDiv.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--flash);margin-bottom:6px;text-transform:uppercase;">'+jobName+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px;" id="asgn-'+jobName.replace(/ /g,'_')+'"></div>';
+    const btnWrap = jobDiv.querySelector('#asgn-'+jobName.replace(/ /g,'_'));
+    screens.forEach(s => {
+      const pill = document.createElement('div');
+      pill.style.cssText = 'background:var(--surface2);border:1px solid rgba(232,80,10,.3);border-radius:3px;padding:5px 10px;font-family:IBM Plex Mono,monospace;font-size:.65rem;display:flex;align-items:center;gap:7px;';
+      pill.innerHTML = '<span style="font-weight:600;">'+s.screen_id+'</span><span style="color:var(--muted);">'+(MESH_LABELS[s.mesh_count]||s.mesh_count)+' mesh</span>';
+      const doneBtn = document.createElement('button');
+      doneBtn.className = 'state-btn';
+      doneBtn.style.cssText = 'padding:2px 6px;';
+      doneBtn.textContent = '→ DIRTY';
+      doneBtn.onclick = () => quickStateChange(s.id, 'dirty').then(() => loadActiveAssignments());
+      pill.appendChild(doneBtn);
+      btnWrap.appendChild(pill);
+    });
+
+    // Bulk done button
+    const bulkDone = document.createElement('button');
+    bulkDone.className = 'btn-ghost';
+    bulkDone.style.cssText = 'margin-top:6px;font-size:.65rem;width:100%;';
+    bulkDone.textContent = '↺ MARK ALL DIRTY (JOB DONE)';
+    const ids = screens.map(s=>s.id);
+    bulkDone.onclick = async () => {
+      await sbClient.from('screens').update({state:'dirty',current_job:null,current_job_id:null}).in('id',ids);
+      showToast('All screens marked dirty.','success');
+      loadScreens(); loadActiveAssignments();
+    };
+    jobDiv.appendChild(bulkDone);
+    div.appendChild(jobDiv);
+  });
 }
 
 // ── TOAST ───────────────────────────────────────────────────
