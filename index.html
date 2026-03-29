@@ -1850,6 +1850,17 @@ async function loadSchedule() {
     editBtn.onclick = () => openEditEvent(eid);
     right.appendChild(editBtn);
 
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'kcard-btn';
+    doneBtn.style.cssText = 'margin-top:4px;font-size:.6rem;width:100%;color:var(--green);border-color:rgba(0,200,83,.35);';
+    doneBtn.textContent = '✓ MARK DONE';
+    const evtId = e.id;
+    const evtMachId = e.machine_id;
+    const evtType = e.event_type;
+    const evtDesc = e.description;
+    doneBtn.onclick = () => markEventDone(evtId, evtMachId, evtType, evtDesc);
+    right.appendChild(doneBtn);
+
     list.appendChild(row);
   });
 
@@ -2742,6 +2753,39 @@ async function scannerSetState(newState) {
 function closeScannerModal() {
   document.getElementById('scannerModal').classList.add('hidden');
   _scannerScreenData = null;
+}
+
+
+// ── MARK SCHEDULE EVENT DONE ──────────────────────────────
+async function markEventDone(evtId, machId, evtType, evtDesc) {
+  if (!sbClient) return;
+  const today = new Date();
+  const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+
+  // 1. Clear next_scheduled on the completed event so it falls off schedule
+  const { error: clearErr } = await sbClient
+    .from('maintenance_events')
+    .update({ next_scheduled: null })
+    .eq('id', evtId);
+  if (clearErr) { showToast('Error: '+clearErr.message, 'error'); return; }
+
+  // 2. Log a new completion event with today's date
+  const { error: insertErr } = await sbClient
+    .from('maintenance_events')
+    .insert([{
+      machine_id: machId,
+      event_date: todayStr,
+      event_type: evtType || 'preventive',
+      description: (evtDesc ? evtDesc + ' — completed' : 'Scheduled maintenance completed'),
+      next_scheduled: null,
+    }]);
+  if (insertErr) { showToast('Error: '+insertErr.message, 'error'); return; }
+
+  // 3. Update machine last_maintenance
+  await sbClient.from('machines_2').update({ last_maintenance: todayStr }).eq('id', machId);
+
+  showToast('Marked done! Event logged for today.', 'success');
+  loadSchedule();
 }
 
 // ── TOAST ───────────────────────────────────────────────────
