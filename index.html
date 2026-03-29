@@ -123,8 +123,8 @@
     /* ── Maintenance ── */
     .mach-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;overflow:hidden;cursor:pointer;transition:border-color .15s;}
     .mach-card:hover{border-color:rgba(232,80,10,.45);}
-    .mach-photo{width:100%;height:110px;object-fit:cover;background:var(--bg);display:flex;align-items:center;justify-content:center;}
-    .mach-photo img{width:100%;height:110px;object-fit:cover;}
+    .mach-photo{width:100%;height:130px;background:#0d0d0d;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+    .mach-photo img{max-width:100%;max-height:130px;width:auto;height:auto;object-fit:contain;display:block;}
     .mach-photo-placeholder{width:100%;height:110px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);}
     .mach-body{padding:10px 12px;}
     .mach-name{font-weight:600;font-size:.9rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1616,7 +1616,7 @@ async function openMachDetail(id) {
         <button class="btn-ghost" onclick="closeMachDetail()">✕</button>
       </div>
     </div>
-    ${m.photo_url ? `<img src="${m.photo_url}" style="width:100%;max-height:180px;object-fit:cover;border-radius:3px;border:1px solid var(--border);margin-bottom:14px;" />` : ''}
+    ${m.photo_url ? `<div style="background:#0d0d0d;border:1px solid var(--border);border-radius:3px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;max-height:240px;overflow:hidden;"><img src="${m.photo_url}" style="max-width:100%;max-height:240px;width:auto;height:auto;object-fit:contain;display:block;" /></div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:16px;">
       ${[['BRAND',m.brand],['MODEL',m.model],['SERIAL #',m.serial_number],['YEAR',m.year],['PURCHASED',m.purchase_date],['LOCATION',m.location]].map(([l,v])=>v?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;">${v}</div></div>`:'').filter(Boolean).join('')}
     </div>
