@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -185,6 +186,12 @@
     .planner-job-card:hover,.planner-job-card.selected{border-color:var(--flash);}
     .planner-job-card.selected{background:var(--flash-dim);}
     .assign-row{display:grid;grid-template-columns:60px 1fr 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(245,240,232,.05);}
+
+    /* ── QR / Scanner ── */
+    .qr-print-area{background:#fff;color:#000;padding:20px;border-radius:4px;display:flex;flex-direction:column;align-items:center;gap:10px;width:220px;}
+    .qr-label{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:#222;text-align:center;font-weight:600;line-height:1.3;}
+    .qr-sublabel{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:#666;text-align:center;}
+    .scanner-state-btn{font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:1.4rem;padding:18px 10px;border-radius:4px;cursor:pointer;border:2px solid;transition:all .15s;touch-action:manipulation;width:100%;}
   </style>
 </head>
 <body class="grid-bg">
@@ -680,6 +687,41 @@
   </div>
 </div>
 
+<!-- QR CODE MODAL -->
+<div id="qrModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:320px;padding:20px;margin:8px auto;text-align:center;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="qrModalTitle">QR CODE</div>
+      <button class="btn-ghost" onclick="closeQRModal()">✕</button>
+    </div>
+    <div style="display:flex;justify-content:center;margin-bottom:14px;">
+      <div class="qr-print-area" id="qrPrintArea">
+        <div id="qrCodeCanvas"></div>
+        <div class="qr-label" id="qrLabelText"></div>
+        <div class="qr-sublabel" id="qrSubLabel"></div>
+      </div>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:14px;" id="qrUrlText"></div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button class="btn-secondary" onclick="printQR()">🖨 PRINT LABEL</button>
+      <button class="btn-ghost" onclick="downloadQR()">⬇ SAVE IMAGE</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN SCANNER MODAL (shown when app opened via QR) -->
+<div id="scannerModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:400px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.08em;color:var(--flash);" id="scannerScreenId">SCREEN</div>
+      <button class="btn-ghost" onclick="closeScannerModal()">✕</button>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-bottom:16px;" id="scannerScreenInfo"></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Update State</div>
+    <div id="scannerStateBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -706,6 +748,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(url&&key){
     initSupabase(url,key);
     document.getElementById('configModal').style.display='none';
+    setTimeout(handleDeepLink, 600);
     // Update notification button state
     if('Notification' in window && Notification.permission === 'granted') {
       const nb = document.getElementById('notifBtn');
@@ -1519,6 +1562,7 @@ async function openMachDetail(id) {
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;">
         <button class="btn-ghost" onclick="exportMaintPDF()">⬇ PDF</button>
+        <button class="btn-ghost" onclick="showQR('machine','${m.id}','${m.name}','${[m.brand,m.model].filter(Boolean).join(' ')}')">⬛ QR</button>
         <button class="btn-ghost" onclick="openEditMachine('${m.id}')">✏ EDIT</button>
         <button class="btn-ghost" onclick="closeMachDetail()">✕</button>
       </div>
@@ -2244,6 +2288,13 @@ function buildScreenCard(s) {
   editBtn.onclick = (e) => { e.stopPropagation(); openEditScreen(s); };
   btnWrap.appendChild(editBtn);
 
+  const qrBtn = document.createElement('button');
+  qrBtn.className = 'state-btn';
+  qrBtn.style.cssText = 'color:var(--cyan);border-color:rgba(0,180,216,.3);';
+  qrBtn.textContent = '⬛ QR';
+  qrBtn.onclick = (e) => { e.stopPropagation(); showQR('screen', s.screen_id, s.screen_id, (MESH_LABELS[s.mesh_count]||s.mesh_count)+' mesh · '+(s.frame_size||'')); };
+  btnWrap.appendChild(qrBtn);
+
   return div;
 }
 
@@ -2523,6 +2574,174 @@ async function loadActiveAssignments() {
     jobDiv.appendChild(bulkDone);
     div.appendChild(jobDiv);
   });
+}
+
+
+// ══════════════════════════════════════════════════════
+// QR CODES & DEEP LINKS
+// ══════════════════════════════════════════════════════
+let _qrInstance = null;
+
+function getBaseUrl() {
+  return window.location.origin + window.location.pathname;
+}
+
+function showQR(type, id, label, sublabel) {
+  const base = getBaseUrl();
+  const url = base + '?'+type+'='+encodeURIComponent(id);
+
+  document.getElementById('qrModalTitle').textContent = type === 'machine' ? 'MACHINE QR CODE' : 'SCREEN QR CODE';
+  document.getElementById('qrLabelText').textContent = label || id;
+  document.getElementById('qrSubLabel').textContent = sublabel || '';
+  document.getElementById('qrUrlText').textContent = url;
+
+  // Clear and regenerate QR
+  const canvas = document.getElementById('qrCodeCanvas');
+  canvas.innerHTML = '';
+  if (_qrInstance) { try { _qrInstance.clear(); } catch(e){} }
+  _qrInstance = new QRCode(canvas, {
+    text: url,
+    width: 160,
+    height: 160,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+
+  document.getElementById('qrModal').classList.remove('hidden');
+}
+
+function closeQRModal() {
+  document.getElementById('qrModal').classList.add('hidden');
+}
+
+function printQR() {
+  const area = document.getElementById('qrPrintArea').outerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>QR Label</title>
+    <style>
+      body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff;}
+      .qr-print-area{background:#fff;padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px;width:200px;border:1px solid #ddd;}
+      .qr-label{font-family:monospace;font-size:13px;color:#222;text-align:center;font-weight:600;line-height:1.4;}
+      .qr-sublabel{font-family:monospace;font-size:10px;color:#666;text-align:center;}
+      img{max-width:160px;}
+      @media print{body{margin:0;}@page{margin:4mm;}}
+    </style></head><body>${area}
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
+function downloadQR() {
+  const canvas = document.getElementById('qrCodeCanvas').querySelector('canvas');
+  if (!canvas) {
+    // QRCode lib may render as img
+    const img = document.getElementById('qrCodeCanvas').querySelector('img');
+    if (img) {
+      const a = document.createElement('a');
+      a.href = img.src;
+      a.download = (document.getElementById('qrLabelText').textContent || 'qr') + '-qr.png';
+      a.click();
+    }
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = (document.getElementById('qrLabelText').textContent || 'qr') + '-qr.png';
+  a.click();
+}
+
+// ── Deep link handler ────────────────────────────────
+async function handleDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const machineId = params.get('machine');
+  const screenId = params.get('screen');
+
+  if (!machineId && !screenId) return;
+
+  // Wait for sbClient to be ready
+  let tries = 0;
+  while (!sbClient && tries < 20) { await new Promise(r => setTimeout(r, 200)); tries++; }
+  if (!sbClient) return;
+
+  if (machineId) {
+    // Open machine detail directly
+    switchTab('maint');
+    await loadMachines();
+    await openMachDetail(machineId);
+  }
+
+  if (screenId) {
+    // Open screen quick-state-changer
+    const { data, error } = await sbClient.from('screens').select('*').eq('screen_id', screenId).single();
+    if (error || !data) {
+      showToast('Screen '+screenId+' not found.', 'error');
+      return;
+    }
+    openScannerModal(data);
+  }
+}
+
+// ── Screen scanner modal ─────────────────────────────
+let _scannerScreenData = null;
+
+function openScannerModal(s) {
+  _scannerScreenData = s;
+  const meshLbl = MESH_LABELS[s.mesh_count] || s.mesh_count;
+  document.getElementById('scannerScreenId').textContent = s.screen_id;
+  document.getElementById('scannerScreenInfo').textContent =
+    meshLbl + ' mesh' + (s.frame_size ? ' · ' + s.frame_size : '') +
+    ' · Current: ' + (STATE_LABELS[s.state] || s.state);
+
+  const stateColors = {
+    clean:'var(--green)', dirty:'var(--yellow)', burned:'var(--cyan)',
+    onpress:'var(--flash)', reclaiming:'#b464ff', retired:'var(--muted)'
+  };
+  const stateBg = {
+    clean:'rgba(0,200,83,.12)', dirty:'rgba(245,200,0,.12)', burned:'rgba(0,180,216,.12)',
+    onpress:'rgba(232,80,10,.12)', reclaiming:'rgba(180,100,255,.12)', retired:'rgba(245,240,232,.06)'
+  };
+
+  const btns = document.getElementById('scannerStateBtns');
+  btns.innerHTML = '';
+  SCREEN_STATES.forEach(st => {
+    const btn = document.createElement('button');
+    btn.className = 'scanner-state-btn';
+    btn.textContent = STATE_LABELS[st];
+    const isActive = st === s.state;
+    btn.style.cssText = 'background:' + (isActive ? stateBg[st] : 'transparent') + ';'
+      + 'color:' + stateColors[st] + ';'
+      + 'border-color:' + stateColors[st] + ';'
+      + (isActive ? 'opacity:1;' : 'opacity:.5;');
+    if (isActive) {
+      btn.style.gridColumn = '1 / -1';
+      const tick = document.createElement('div');
+      tick.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.6rem;opacity:.6;';
+      tick.textContent = '✓ CURRENT STATE';
+      btn.appendChild(document.createElement('br'));
+      btn.appendChild(tick);
+    } else {
+      btn.onclick = () => scannerSetState(st);
+    }
+    btns.appendChild(btn);
+  });
+
+  document.getElementById('scannerModal').classList.remove('hidden');
+}
+
+async function scannerSetState(newState) {
+  if (!sbClient || !_scannerScreenData) return;
+  const { error } = await sbClient.from('screens').update({ state: newState }).eq('id', _scannerScreenData.id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('→ ' + STATE_LABELS[newState], 'success');
+  _scannerScreenData.state = newState;
+  openScannerModal(_scannerScreenData); // re-render with new active state
+  loadScreens();
+}
+
+function closeScannerModal() {
+  document.getElementById('scannerModal').classList.add('hidden');
+  _scannerScreenData = null;
 }
 
 // ── TOAST ───────────────────────────────────────────────────
