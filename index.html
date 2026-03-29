@@ -940,7 +940,7 @@ async function submitForm(e){
   }
 }
 
-function initForm(){
+async function initForm(){
   document.getElementById('shirtTypeList').innerHTML='';
   stCount=0; addShirtType();
   ['headRows','inkRows','screenRows','sqRows'].forEach(id=>document.getElementById(id).innerHTML='');
@@ -951,6 +951,19 @@ function initForm(){
   addSqRow();addSqRow();
   const de=document.querySelector('[name=job_date]');
   if(de) de.value=new Date().toISOString().split('T')[0];
+
+  // Auto-generate next ORD-XXX
+  const ordEl=document.querySelector('[name=order_number]');
+  if(ordEl && sbClient){
+    ordEl.value='Generating…';
+    const{data}=await sbClient.from('print_setups').select('order_number').ilike('order_number','ORD-%').order('order_number',{ascending:false}).limit(100);
+    let nextNum=1;
+    if(data&&data.length){
+      const nums=data.map(r=>parseInt((r.order_number||'').replace(/^ORD-0*/i,''))||0).filter(n=>n>0);
+      if(nums.length) nextNum=Math.max(...nums)+1;
+    }
+    ordEl.value='ORD-'+String(nextNum).padStart(3,'0');
+  }
 }
 function resetForm(){ document.getElementById('setupForm').reset(); document.getElementById('imagePreview').innerHTML=''; initForm(); }
 
