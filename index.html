@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -217,6 +218,26 @@
     .preview-stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);text-transform:uppercase;}
     .style-btn{padding:.5rem 1rem;border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.72rem;border:1px solid var(--dim);background:transparent;color:var(--muted);transition:all .15s;}
     .style-btn.selected{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+
+    /* ── Showrooms ── */
+    .sr-col{min-width:220px;width:220px;flex-shrink:0;display:flex;flex-direction:column;}
+    .sr-col-header{padding:9px 12px;border-radius:3px 3px 0 0;border-left:3px solid;display:flex;align-items:center;justify-content:space-between;}
+    .sr-col-body{background:#0d0d14;border-left:1px solid rgba(245,240,232,.05);border-right:1px solid rgba(245,240,232,.05);min-height:200px;padding:6px;display:flex;flex-direction:column;gap:5px;flex:1;}
+    .sr-unit{background:var(--surface2);border:1px solid rgba(245,240,232,.08);border-radius:2px;padding:7px 9px;font-size:.78rem;}
+    .sr-unit.customized{border-color:rgba(232,80,10,.5);background:rgba(232,80,10,.05);}
+    .sr-unit.customized-pkg{border-color:rgba(232,80,10,.5);background:rgba(232,80,10,.06);}
+    .sr-custom-badge{display:inline-block;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:1px 6px;border-radius:2px;margin-bottom:4px;font-weight:600;letter-spacing:.04em;}
+    .sr-name-tag{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--flash);letter-spacing:.06em;line-height:1;}
+    .sr-size-pill{display:inline-block;background:rgba(245,240,232,.08);border-radius:2px;padding:2px 6px;font-family:'IBM Plex Mono',monospace;font-size:.6rem;margin:2px 2px 0 0;}
+    .sr-size-grid{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+    .sr-size-box{background:var(--bg);border:1px solid rgba(245,240,232,.1);border-radius:2px;padding:5px 4px;text-align:center;min-width:38px;}
+    .sr-size-lbl{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);}
+    .sr-size-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);}
+    .col-mapper-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);}
+    .col-mapper-name{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .col-sample{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sr-view-btn{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.88rem;padding:.45rem .9rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;color:var(--muted);white-space:nowrap;touch-action:manipulation;}
+    .sr-view-btn.active{color:var(--flash);border-bottom-color:var(--flash);}
   </style>
 </head>
 <body class="grid-bg">
@@ -251,6 +272,7 @@
   <div class="tab" id="tab-pipeline" onclick="switchTab('pipeline')">PIPELINE</div>
   <div class="tab" id="tab-screens" onclick="switchTab('screens')">SCREENS</div>
   <div class="tab" id="tab-reports" onclick="switchTab('reports')">REPORTS</div>
+  <div class="tab" id="tab-showrooms" onclick="switchTab('showrooms')">SHOWROOMS</div>
   <div class="tab" id="tab-maint" onclick="switchTab('maint')">MAINTENANCE <span id="maintTabBadge" style="display:none;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
 </div>
 
@@ -634,6 +656,70 @@
   </div>
 
 
+  <!-- ═══ SHOWROOMS ═══ -->
+  <div id="pane-showrooms" class="hidden">
+
+    <!-- Top bar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">SHOWROOM ORDERS</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);" id="srFileName">No file loaded</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-secondary" onclick="document.getElementById('srFileInput').click()">📂 LOAD SPREADSHEET</button>
+        <input type="file" id="srFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleSRFile(event)" />
+        <button class="btn-ghost" id="srExportBtn" onclick="exportSRPDF()" style="display:none;">⬇ EXPORT PDF</button>
+      </div>
+    </div>
+
+    <!-- Step indicator -->
+    <div id="srSteps">
+      <!-- STEP 1: Upload prompt -->
+      <div id="srStep1" style="text-align:center;padding:48px 16px;">
+        <div style="font-size:3rem;margin-bottom:12px;">📊</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;margin-bottom:8px;">Upload Your Order Spreadsheet</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);max-width:400px;margin:0 auto 20px;line-height:1.7;">
+          Supports .xlsx, .xls, and .csv files.<br>
+          The app will read your columns and let you map them to the right fields.
+        </div>
+        <button class="btn-primary" onclick="document.getElementById('srFileInput').click()">📂 CHOOSE FILE</button>
+      </div>
+
+      <!-- STEP 2: Column mapper -->
+      <div id="srStep2" class="hidden">
+        <div class="card" style="padding:16px;margin-bottom:12px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;color:var(--flash);margin-bottom:4px;">MAP YOUR COLUMNS</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:14px;">Tell the app what each column represents. The app made some guesses — correct any that are wrong. Set unknown columns to IGNORE.</div>
+          <div id="srMapperRows"></div>
+          <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn-secondary" onclick="resetSRFile()">↩ CHANGE FILE</button>
+            <button class="btn-primary" onclick="applySRMapping()">APPLY MAPPING →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Board views -->
+      <div id="srStep3" class="hidden">
+        <!-- View switcher + stats bar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;border-bottom:1px solid rgba(245,240,232,.07);">
+            <div class="sr-view-btn active" id="srViewProd" onclick="switchSRView('production')">🖨 PRODUCTION</div>
+            <div class="sr-view-btn" id="srViewPkg" onclick="switchSRView('packaging')">📦 PACKAGING</div>
+          </div>
+          <div id="srStatsBar" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:10px;" id="srViewDesc"></div>
+
+        <!-- Board -->
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;">
+          <div style="display:flex;gap:8px;min-width:max-content;" id="srBoard"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+
 </main>
 
 <!-- JOB DETAIL MODAL -->
@@ -959,7 +1045,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens','reports'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports','showrooms'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -968,6 +1054,7 @@ function switchTab(tab){
   if(tab==='maint') loadMachines();
   if(tab==='screens') loadScreens();
   if(tab==='reports') initReports();
+  if(tab==='showrooms') initShowrooms();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -2873,6 +2960,26 @@ function printQR() {
     .preview-stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);text-transform:uppercase;}
     .style-btn{padding:.5rem 1rem;border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.72rem;border:1px solid var(--dim);background:transparent;color:var(--muted);transition:all .15s;}
     .style-btn.selected{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+
+    /* ── Showrooms ── */
+    .sr-col{min-width:220px;width:220px;flex-shrink:0;display:flex;flex-direction:column;}
+    .sr-col-header{padding:9px 12px;border-radius:3px 3px 0 0;border-left:3px solid;display:flex;align-items:center;justify-content:space-between;}
+    .sr-col-body{background:#0d0d14;border-left:1px solid rgba(245,240,232,.05);border-right:1px solid rgba(245,240,232,.05);min-height:200px;padding:6px;display:flex;flex-direction:column;gap:5px;flex:1;}
+    .sr-unit{background:var(--surface2);border:1px solid rgba(245,240,232,.08);border-radius:2px;padding:7px 9px;font-size:.78rem;}
+    .sr-unit.customized{border-color:rgba(232,80,10,.5);background:rgba(232,80,10,.05);}
+    .sr-unit.customized-pkg{border-color:rgba(232,80,10,.5);background:rgba(232,80,10,.06);}
+    .sr-custom-badge{display:inline-block;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:1px 6px;border-radius:2px;margin-bottom:4px;font-weight:600;letter-spacing:.04em;}
+    .sr-name-tag{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--flash);letter-spacing:.06em;line-height:1;}
+    .sr-size-pill{display:inline-block;background:rgba(245,240,232,.08);border-radius:2px;padding:2px 6px;font-family:'IBM Plex Mono',monospace;font-size:.6rem;margin:2px 2px 0 0;}
+    .sr-size-grid{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+    .sr-size-box{background:var(--bg);border:1px solid rgba(245,240,232,.1);border-radius:2px;padding:5px 4px;text-align:center;min-width:38px;}
+    .sr-size-lbl{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);}
+    .sr-size-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);}
+    .col-mapper-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);}
+    .col-mapper-name{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .col-sample{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sr-view-btn{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.88rem;padding:.45rem .9rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;color:var(--muted);white-space:nowrap;touch-action:manipulation;}
+    .sr-view-btn.active{color:var(--flash);border-bottom-color:var(--flash);}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -3615,6 +3722,450 @@ function saveShopSettings() {
   closeShopSettings();
   showToast('Shop settings saved!', 'success');
 }
+
+
+// ══════════════════════════════════════════════════════
+// SHOWROOMS
+// ══════════════════════════════════════════════════════
+const SR_FIELDS = [
+  { key: 'ignore',       label: 'IGNORE',              color: 'var(--muted)' },
+  { key: 'order_name',   label: 'Order / Job Name',    color: 'var(--cyan)' },
+  { key: 'design_type',  label: 'Design Type / Logo',  color: 'var(--flash)' },
+  { key: 'custom_text',  label: 'Customization Text',  color: '#ff9500' },
+  { key: 'garment',      label: 'Garment Style',        color: 'var(--green)' },
+  { key: 'color',        label: 'Garment Color',        color: '#b464ff' },
+  { key: 'size',         label: 'Size',                 color: 'var(--yellow)' },
+  { key: 'quantity',     label: 'Quantity',             color: 'var(--cyan)' },
+];
+
+// Guess keywords for auto-mapping
+const SR_GUESSES = {
+  order_name:  ['order','job','client','customer','account','po','number','#'],
+  design_type: ['design','logo','type','version','style','art','print','artwork'],
+  custom_text: ['name','custom','personali','text','monogram','number','jersey','player'],
+  garment:     ['garment','shirt','style','product','item','apparel','tee','hoodie'],
+  color:       ['color','colour'],
+  size:        ['size','sz'],
+  quantity:    ['qty','quantity','count','pcs','pieces','units'],
+};
+
+let _srRawData = [];     // all rows from sheet
+let _srHeaders = [];     // column names
+let _srMapping = {};     // colIndex -> field key
+let _srMapped = [];      // processed rows after mapping
+let _srView = 'production';
+let _srFileName = '';
+
+function initShowrooms() {
+  // keep existing state if file already loaded
+}
+
+// ── File handling ────────────────────────────────────
+function handleSRFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  _srFileName = file.name;
+  document.getElementById('srFileName').textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (!json.length) { showToast('Spreadsheet appears empty.', 'error'); return; }
+      _srHeaders = json[0].map(h => String(h).trim());
+      _srRawData = json.slice(1).filter(r => r.some(c => String(c).trim()));
+      buildColumnMapper();
+    } catch(err) {
+      showToast('Could not read file: '+err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  // reset input so same file can be re-loaded
+  e.target.value = '';
+}
+
+function resetSRFile() {
+  _srRawData = []; _srHeaders = []; _srMapping = {}; _srMapped = [];
+  document.getElementById('srStep1').classList.remove('hidden');
+  document.getElementById('srStep2').classList.add('hidden');
+  document.getElementById('srStep3').classList.add('hidden');
+  document.getElementById('srFileName').textContent = 'No file loaded';
+  document.getElementById('srExportBtn').style.display = 'none';
+}
+
+// ── Column mapper ────────────────────────────────────
+function buildColumnMapper() {
+  // Auto-guess mapping
+  _srMapping = {};
+  _srHeaders.forEach((h, i) => {
+    const hl = h.toLowerCase();
+    let best = 'ignore';
+    for (const [field, keywords] of Object.entries(SR_GUESSES)) {
+      if (keywords.some(k => hl.includes(k))) { best = field; break; }
+    }
+    _srMapping[i] = best;
+  });
+
+  // Build UI
+  const container = document.getElementById('srMapperRows');
+  const samples = _srRawData.slice(0, 3);
+
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:5px 0 8px;border-bottom:1px solid rgba(245,240,232,.1);">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;">Column Name / Sample</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;">Maps To</div>
+    </div>
+  ` + _srHeaders.map((h, i) => {
+    const sampleVals = samples.map(r => String(r[i]||'').trim()).filter(Boolean).slice(0,2).join(', ');
+    const opts = SR_FIELDS.map(f =>
+      `<option value="${f.key}" ${_srMapping[i]===f.key?'selected':''}>${f.label}</option>`
+    ).join('');
+    return `<div class="col-mapper-row">
+      <div>
+        <div class="col-mapper-name">${h}</div>
+        <div class="col-sample">${sampleVals || '(empty)'}</div>
+      </div>
+      <div>
+        <select style="font-size:.72rem;" onchange="updateSRMapping(${i},this.value)">${opts}</select>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('srStep1').classList.add('hidden');
+  document.getElementById('srStep2').classList.remove('hidden');
+  document.getElementById('srStep3').classList.add('hidden');
+}
+
+function updateSRMapping(colIdx, fieldKey) {
+  _srMapping[colIdx] = fieldKey;
+}
+
+// ── Apply mapping & build board ──────────────────────
+function applySRMapping() {
+  // Build reverse map: field -> colIndex
+  const fieldCol = {};
+  Object.entries(_srMapping).forEach(([ci, fk]) => {
+    if (fk !== 'ignore') fieldCol[fk] = parseInt(ci);
+  });
+
+  const required = ['design_type'];
+  const missing = required.filter(f => fieldCol[f] === undefined);
+  if (missing.length) {
+    showToast('Please map at least: Design Type / Logo', 'error');
+    return;
+  }
+
+  // Process rows
+  _srMapped = _srRawData.map((row, idx) => {
+    const get = field => fieldCol[field] !== undefined ? String(row[fieldCol[field]]||'').trim() : '';
+    const customText = get('custom_text');
+    return {
+      _row: idx,
+      order_name:  get('order_name')  || 'Order '+(idx+1),
+      design_type: get('design_type') || 'Standard',
+      custom_text: customText,
+      is_custom:   customText.length > 0,
+      garment:     get('garment'),
+      color:       get('color'),
+      size:        get('size').toUpperCase(),
+      quantity:    parseInt(get('quantity')) || 1,
+    };
+  }).filter(r => r.design_type);
+
+  if (!_srMapped.length) {
+    showToast('No valid rows found after mapping. Check your column assignments.', 'error');
+    return;
+  }
+
+  document.getElementById('srStep2').classList.add('hidden');
+  document.getElementById('srStep3').classList.remove('hidden');
+  document.getElementById('srExportBtn').style.display = 'inline-block';
+  switchSRView('production');
+}
+
+// ── View switcher ─────────────────────────────────────
+function switchSRView(view) {
+  _srView = view;
+  document.getElementById('srViewProd').classList.toggle('active', view === 'production');
+  document.getElementById('srViewPkg').classList.toggle('active', view === 'packaging');
+  if (view === 'production') {
+    document.getElementById('srViewDesc').textContent = 'Grouped by design type — press operator view. Orange = needs customization.';
+    renderProductionBoard();
+  } else {
+    document.getElementById('srViewDesc').textContent = 'Grouped by order name — packaging team view. Each column is one order.';
+    renderPackagingBoard();
+  }
+  renderStatsBar();
+}
+
+function renderStatsBar() {
+  const total = _srMapped.reduce((s,r) => s+r.quantity, 0);
+  const customCount = _srMapped.filter(r => r.is_custom).reduce((s,r) => s+r.quantity, 0);
+  const designs = [...new Set(_srMapped.map(r => r.design_type))].length;
+  const orders = [...new Set(_srMapped.map(r => r.order_name))].length;
+  document.getElementById('srStatsBar').innerHTML = [
+    ['TOTAL UNITS', total],
+    ['CUSTOMIZED', customCount],
+    ['DESIGN TYPES', designs],
+    ['ORDERS', orders],
+  ].map(([l,v]) => `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:4px 10px;text-align:center;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--flash);">${v}</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);">${l}</div>
+  </div>`).join('');
+}
+
+// ── PRODUCTION BOARD ─────────────────────────────────
+function renderProductionBoard() {
+  const board = document.getElementById('srBoard');
+  board.innerHTML = '';
+
+  // Group by design_type
+  const groups = {};
+  _srMapped.forEach(r => {
+    const key = r.design_type || 'Standard';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+
+  // Color palette for design columns
+  const colors = ['#e8500a','#00b4d8','#00c853','#b464ff','#f5c000','#ff4488','#00e5ff','#76ff03'];
+  let ci = 0;
+
+  Object.entries(groups).forEach(([design, rows]) => {
+    const color = colors[ci++ % colors.length];
+    const totalUnits = rows.reduce((s,r) => s+r.quantity, 0);
+    const customRows = rows.filter(r => r.is_custom);
+    const stdRows = rows.filter(r => !r.is_custom);
+
+    // Size breakdown
+    const sizeCounts = {};
+    rows.forEach(r => {
+      if (r.size) sizeCounts[r.size] = (sizeCounts[r.size]||0) + r.quantity;
+    });
+
+    const col = document.createElement('div');
+    col.className = 'sr-col';
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'sr-col-header';
+    hdr.style.cssText = `border-color:${color};background:var(--surface);`;
+    hdr.innerHTML = `<div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.08em;">${design}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);">${totalUnits} units${customRows.length?' · '+customRows.length+' custom':''}</div>
+    </div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:${color};">${totalUnits}</div>`;
+    col.appendChild(hdr);
+
+    const body = document.createElement('div');
+    body.className = 'sr-col-body';
+
+    // Size summary card
+    if (Object.keys(sizeCounts).length) {
+      const sizeCard = document.createElement('div');
+      sizeCard.style.cssText = `background:rgba(${hexToRgb(color)},.08);border:1px solid rgba(${hexToRgb(color)},.2);border-radius:2px;padding:8px 9px;`;
+      sizeCard.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.58rem;color:var(--muted);text-transform:uppercase;margin-bottom:5px;">Size Breakdown</div>'
+        +'<div class="sr-size-grid">'
+        +Object.entries(sizeCounts).sort(sizeSort).map(([sz,qty]) =>
+          `<div class="sr-size-box"><div class="sr-size-lbl">${sz}</div><div class="sr-size-val" style="color:${color};">${qty}</div></div>`
+        ).join('')
+        +'</div>';
+      body.appendChild(sizeCard);
+    }
+
+    // Standard units
+    if (stdRows.length) {
+      const stdLabel = document.createElement('div');
+      stdLabel.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:4px 0 2px;';
+      stdLabel.textContent = 'Standard ('+stdRows.reduce((s,r)=>s+r.quantity,0)+' units)';
+      body.appendChild(stdLabel);
+      stdRows.forEach(r => body.appendChild(buildProductionUnit(r, false)));
+    }
+
+    // Customized units
+    if (customRows.length) {
+      const custLabel = document.createElement('div');
+      custLabel.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--flash);text-transform:uppercase;letter-spacing:.06em;padding:6px 0 2px;display:flex;align-items:center;gap:5px;';
+      custLabel.innerHTML = '⚠ CUSTOMIZED ('+customRows.reduce((s,r)=>s+r.quantity,0)+' units)';
+      body.appendChild(custLabel);
+      customRows.forEach(r => body.appendChild(buildProductionUnit(r, true)));
+    }
+
+    col.appendChild(body);
+    board.appendChild(col);
+  });
+}
+
+function buildProductionUnit(r, isCustom) {
+  const div = document.createElement('div');
+  div.className = 'sr-unit' + (isCustom ? ' customized' : '');
+  let html = '';
+  if (isCustom) html += '<span class="sr-custom-badge">CUSTOM</span><div class="sr-name-tag">'+r.custom_text+'</div>';
+  html += `<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:var(--muted);margin-top:3px;">`;
+  if (r.garment) html += r.garment+' ';
+  if (r.color)   html += '/ '+r.color+' ';
+  if (r.size)    html += '<span class="sr-size-pill">'+r.size+'</span>';
+  if (r.quantity > 1) html += ' ×'+r.quantity;
+  html += '</div>';
+  if (r.order_name) html += `<div style="font-family:IBM Plex Mono,monospace;font-size:.58rem;color:rgba(245,240,232,.2);margin-top:2px;">${r.order_name}</div>`;
+  div.innerHTML = html;
+  return div;
+}
+
+// ── PACKAGING BOARD ───────────────────────────────────
+function renderPackagingBoard() {
+  const board = document.getElementById('srBoard');
+  board.innerHTML = '';
+
+  // Group by order_name
+  const groups = {};
+  _srMapped.forEach(r => {
+    const key = r.order_name || 'Unknown Order';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+
+  Object.entries(groups).forEach(([order, rows]) => {
+    const hasCustom = rows.some(r => r.is_custom);
+    const totalUnits = rows.reduce((s,r) => s+r.quantity, 0);
+    const color = hasCustom ? 'var(--flash)' : 'var(--cyan)';
+
+    const col = document.createElement('div');
+    col.className = 'sr-col';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'sr-col-header';
+    hdr.style.cssText = `border-color:${color};background:var(--surface);`;
+    hdr.innerHTML = `<div style="min-width:0;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.88rem;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">${order}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);">${totalUnits} pcs${hasCustom?' · ⚠ CUSTOM':''}</div>
+    </div>`;
+    col.appendChild(hdr);
+
+    const body = document.createElement('div');
+    body.className = 'sr-col-body';
+
+    // Group by design within this order
+    const byDesign = {};
+    rows.forEach(r => {
+      const d = r.design_type || 'Standard';
+      if (!byDesign[d]) byDesign[d] = [];
+      byDesign[d].push(r);
+    });
+
+    Object.entries(byDesign).forEach(([design, drows]) => {
+      const dLabel = document.createElement('div');
+      dLabel.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:4px 0 2px;border-top:1px solid rgba(245,240,232,.06);margin-top:4px;';
+      dLabel.textContent = design;
+      body.appendChild(dLabel);
+
+      drows.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'sr-unit' + (r.is_custom ? ' customized-pkg' : '');
+        let html = '';
+        if (r.is_custom) html += '<span class="sr-custom-badge">✏ '+r.custom_text+'</span>';
+        html += `<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;">`;
+        if (r.garment) html += r.garment;
+        if (r.color)   html += ' / '+r.color;
+        html += '</div>';
+        if (r.size) html += `<span class="sr-size-pill">${r.size}</span>`;
+        if (r.quantity > 1) html += `<span style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);"> ×${r.quantity}</span>`;
+        item.innerHTML = html;
+        body.appendChild(item);
+      });
+    });
+
+    col.appendChild(body);
+    board.appendChild(col);
+  });
+}
+
+// ── PDF Export ────────────────────────────────────────
+function exportSRPDF() {
+  if (!_srMapped.length) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'letter', orientation:'landscape' });
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const ML=36, MR=PW-36; let y=44; let page=1;
+
+  const nl = (n=14) => { y+=n; if(y>PH-44){doc.setFontSize(8);doc.setTextColor(150,150,150);doc.text('Page '+page,PW/2,PH-16,{align:'center'});doc.addPage();page++;y=44;doc.setTextColor(0,0,0);} };
+
+  const shop = getShopSettings();
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text((shop.name||'PRESS SETUP DOC').toUpperCase(), ML, y); nl(14);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text('SHOWROOM ORDER REPORT  ·  '+_srFileName+'  ·  Generated: '+new Date().toLocaleDateString(), ML, y);
+  nl(16); doc.setTextColor(0,0,0);
+
+  if (_srView === 'production') {
+    // Group by design
+    const groups = {};
+    _srMapped.forEach(r => { const k=r.design_type||'Standard'; if(!groups[k])groups[k]=[]; groups[k].push(r); });
+    Object.entries(groups).forEach(([design, rows]) => {
+      if(y>PH-100){doc.addPage();page++;y=44;}
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(232,80,10);
+      doc.text(design.toUpperCase(), ML, y); nl(6);
+      doc.setDrawColor(232,80,10); doc.setLineWidth(0.5); doc.line(ML,y,MR,y); nl(10);
+      doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+      const total = rows.reduce((s,r)=>s+r.quantity,0);
+      doc.text('Total: '+total+' units  ·  Customized: '+rows.filter(r=>r.is_custom).length, ML, y); nl(12);
+      // Size breakdown
+      const sc={};rows.forEach(r=>{if(r.size)sc[r.size]=(sc[r.size]||0)+r.quantity;});
+      const szLine=Object.entries(sc).sort(sizeSort).map(([sz,q])=>sz+': '+q).join('   ');
+      if(szLine){doc.setFont('helvetica','bold');doc.text('SIZES: ',ML,y);doc.setFont('helvetica','normal');doc.text(szLine,ML+38,y);nl(14);}
+      // Customized rows
+      const customs=rows.filter(r=>r.is_custom);
+      if(customs.length){
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,80,10);
+        doc.text('⚠ CUSTOMIZED UNITS:', ML, y); nl(10);
+        doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
+        customs.forEach(r=>{
+          if(y>PH-50){doc.addPage();page++;y=44;}
+          doc.text('• '+r.custom_text+(r.size?' ['+r.size+']':'')+(r.garment?' — '+r.garment:'')+(r.order_name?' ('+r.order_name+')':''), ML+8, y);
+          nl(11);
+        });
+      }
+      nl(8);
+    });
+  } else {
+    // Group by order
+    const groups={};
+    _srMapped.forEach(r=>{const k=r.order_name||'Unknown';if(!groups[k])groups[k]=[];groups[k].push(r);});
+    Object.entries(groups).forEach(([order,rows])=>{
+      if(y>PH-80){doc.addPage();page++;y=44;}
+      doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(0,180,216);
+      doc.text(order, ML, y); nl(6);
+      doc.setDrawColor(0,180,216); doc.setLineWidth(0.5); doc.line(ML,y,MR,y); nl(10);
+      doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+      rows.forEach(r=>{
+        if(y>PH-44){doc.addPage();page++;y=44;}
+        const line=(r.is_custom?'⚠ [CUSTOM: '+r.custom_text+'] ':'')+r.design_type+(r.garment?' — '+r.garment:'')+(r.color?' / '+r.color:'')+(r.size?' ['+r.size+']':'')+(r.quantity>1?' ×'+r.quantity:'');
+        if(r.is_custom)doc.setTextColor(232,80,10); else doc.setTextColor(0,0,0);
+        doc.text('• '+line, ML+6, y); nl(11);
+      });
+      doc.setTextColor(0,0,0); nl(6);
+    });
+  }
+  doc.setFontSize(8); doc.setTextColor(150,150,150);
+  doc.text('Page '+page, PW/2, PH-16, {align:'center'});
+  doc.save('showroom-'+_srView+'-'+new Date().toISOString().split('T')[0]+'.pdf');
+}
+
+// ── Helpers ───────────────────────────────────────────
+const SIZE_ORDER=['XS','S','M','L','XL','XXL','2XL','3XL','4XL','5XL','YS','YM','YL'];
+const sizeSort=([a],[b])=>{const ai=SIZE_ORDER.indexOf(a),bi=SIZE_ORDER.indexOf(b);return(ai<0?99:ai)-(bi<0?99:bi);};
+
+function hexToRgb(hex) {
+  if (!hex || hex.startsWith('var(')) return '200,200,200';
+  hex = hex.replace('#','');
+  if (hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+  const n=parseInt(hex,16);
+  return [(n>>16)&255,(n>>8)&255,n&255].join(',');
+}
+
 
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
