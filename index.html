@@ -1216,7 +1216,8 @@ const COUNT_STAGES=['receiving','packaging'];
 async function loadPipeline(){
   if(!sbClient)return;
   const{data,error}=await sbClient.from('print_setups')
-    .select('id,job_name,order_number,job_date,customer,quantity,pipeline_stage,shirt_types,count_receiving,count_packaging')
+    .select('id,job_name,order_number,job_date,customer,quantity,pipeline_stage,shirt_types,count_receiving,count_packaging,status')
+    .neq('status','archived')
     .order('job_date',{ascending:false});
   if(error){showToast('Pipeline error: '+error.message,'error');return;}
   STAGES.forEach(s=>{document.getElementById('col-'+s).innerHTML='';document.getElementById('count-'+s).textContent='0';});
@@ -1257,6 +1258,7 @@ function buildKCard(job,stage){
       ${idx>0?`<button class="kcard-btn kcard-btn-bk" onclick="moveStage(event,'${job.id}','${STAGES[idx-1]}')">← BACK</button>`:''}
       ${isC?`<button class="kcard-btn kcard-btn-cnt" onclick="openCountModal(event,'${job.id}','${stage}')">📊 COUNT</button>`:''}
       ${idx<STAGES.length-1?`<button class="kcard-btn kcard-btn-adv" onclick="moveStage(event,'${job.id}','${STAGES[idx+1]}')">${STAGES[idx+1]==='complete'?'✓ DONE':'NEXT →'}</button>`:''}
+      ${stage==='complete'?`<button class="kcard-btn" style="color:var(--muted);border-color:rgba(245,240,232,.12);margin-top:2px;width:100%;" onclick="archiveJob(event,'${job.id}')">🗄 ARCHIVE &amp; REMOVE</button>`:''}
     </div>`;
   return div;
 }
@@ -1267,6 +1269,16 @@ async function moveStage(e,id,stage){
   const{error}=await sbClient.from('print_setups').update({pipeline_stage:stage}).eq('id',id);
   if(error){showToast('Error: '+error.message,'error');return;}
   showToast('→ '+SLABELS[stage],'success');
+  loadPipeline();
+}
+
+async function archiveJob(e,id){
+  e.stopPropagation();
+  if(!sbClient)return;
+  if(!confirm('Archive this job? It will be removed from the pipeline board but kept in Search.')) return;
+  const{error}=await sbClient.from('print_setups').update({status:'archived',pipeline_stage:'complete'}).eq('id',id);
+  if(error){showToast('Error: '+error.message,'error');return;}
+  showToast('Job archived.','success');
   loadPipeline();
 }
 
