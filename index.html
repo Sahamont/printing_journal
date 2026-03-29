@@ -722,6 +722,55 @@
   </div>
 </div>
 
+<!-- MARK DONE MODAL -->
+<div id="markDoneModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:460px;padding:18px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.08em;color:var(--green);">✓ MARK AS DONE</div>
+      <button class="btn-ghost" onclick="closeMarkDoneModal()">✕</button>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-bottom:16px;" id="mdMachName"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px;">
+      <div><label>Completion Date</label><input type="date" id="md_date" /></div>
+      <div><label>Technician</label><input type="text" id="md_tech" placeholder="Name" /></div>
+      <div style="grid-column:1/-1"><label>Notes (optional)</label><input type="text" id="md_notes" placeholder="Any observations or parts used…" /></div>
+    </div>
+
+    <div style="background:var(--bg);border:1px solid rgba(245,240,232,.1);border-radius:3px;padding:12px;margin-bottom:14px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Schedule Next Occurrence?</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;">
+          <input type="checkbox" id="md_repeat" onchange="toggleRepeatFields()" style="width:auto;accent-color:var(--flash);" /> Yes, repeat this event
+        </label>
+      </div>
+      <div id="md_repeat_fields" style="display:none;grid-template-columns:1fr 1fr 1fr;gap:9px;">
+        <div>
+          <label>Every</label>
+          <input type="number" id="md_interval" min="1" value="1" placeholder="1" />
+        </div>
+        <div>
+          <label>Period</label>
+          <select id="md_period">
+            <option value="days">Days</option>
+            <option value="weeks">Weeks</option>
+            <option value="months" selected>Months</option>
+          </select>
+        </div>
+        <div>
+          <label>Next Date</label>
+          <input type="date" id="md_next_date" />
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn-secondary" onclick="closeMarkDoneModal()">CANCEL</button>
+      <button class="btn-primary" id="mdSaveBtn" onclick="submitMarkDone()">SAVE &amp; COMPLETE</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -1785,6 +1834,7 @@ async function loadSchedule() {
   list.innerHTML = '';
   rows.forEach(e => {
     const m = machMap[e.machine_id] || {};
+    e._machineName = m.name || '';
     const due = new Date(e.next_scheduled+'T00:00:00');
     const days = Math.ceil((due - today) / 86400000);
     const isOverdue = days < 0;
@@ -1854,11 +1904,7 @@ async function loadSchedule() {
     doneBtn.className = 'kcard-btn';
     doneBtn.style.cssText = 'margin-top:4px;font-size:.6rem;width:100%;color:var(--green);border-color:rgba(0,200,83,.35);';
     doneBtn.textContent = '✓ MARK DONE';
-    const evtId = e.id;
-    const evtMachId = e.machine_id;
-    const evtType = e.event_type;
-    const evtDesc = e.description;
-    doneBtn.onclick = () => markEventDone(evtId, evtMachId, evtType, evtDesc);
+    doneBtn.onclick = () => openMarkDoneModal(e);
     right.appendChild(doneBtn);
 
     list.appendChild(row);
@@ -2757,34 +2803,120 @@ function closeScannerModal() {
 
 
 // ── MARK SCHEDULE EVENT DONE ──────────────────────────────
-async function markEventDone(evtId, machId, evtType, evtDesc) {
-  if (!sbClient) return;
+let _mdEvent = null;
+
+function openMarkDoneModal(e) {
+  _mdEvent = e;
   const today = new Date();
   const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const typeLabels = { preventive:'Preventive', repair:'Repair', cleaning:'Cleaning' };
 
-  // 1. Clear next_scheduled on the completed event so it falls off schedule
-  const { error: clearErr } = await sbClient
-    .from('maintenance_events')
-    .update({ next_scheduled: null })
-    .eq('id', evtId);
-  if (clearErr) { showToast('Error: '+clearErr.message, 'error'); return; }
+  document.getElementById('mdMachName').textContent =
+    (e._machineName || e.machine_id) + '  ·  ' + (typeLabels[e.event_type]||e.event_type) +
+    (e.description ? '  ·  ' + e.description : '');
+  document.getElementById('md_date').value = todayStr;
+  document.getElementById('md_tech').value = e.technician || '';
+  document.getElementById('md_notes').value = '';
+  document.getElementById('md_repeat').checked = false;
+  document.getElementById('md_repeat_fields').style.display = 'none';
+  document.getElementById('md_interval').value = '1';
+  document.getElementById('md_period').value = 'months';
 
-  // 2. Log a new completion event with today's date
-  const { error: insertErr } = await sbClient
-    .from('maintenance_events')
-    .insert([{
-      machine_id: machId,
-      event_date: todayStr,
-      event_type: evtType || 'preventive',
-      description: (evtDesc ? evtDesc + ' — completed' : 'Scheduled maintenance completed'),
-      next_scheduled: null,
-    }]);
-  if (insertErr) { showToast('Error: '+insertErr.message, 'error'); return; }
+  // Pre-calculate suggested next date based on gap between last event and scheduled date
+  if (e.event_date && e.next_scheduled) {
+    const last = new Date(e.event_date + 'T00:00:00');
+    const next = new Date(e.next_scheduled + 'T00:00:00');
+    const diffDays = Math.round((next - last) / 86400000);
+    if (diffDays >= 25 && diffDays <= 35) {
+      document.getElementById('md_interval').value = '1';
+      document.getElementById('md_period').value = 'months';
+    } else if (diffDays >= 60 && diffDays <= 95) {
+      document.getElementById('md_interval').value = '3';
+      document.getElementById('md_period').value = 'months';
+    } else if (diffDays >= 160 && diffDays <= 200) {
+      document.getElementById('md_interval').value = '6';
+      document.getElementById('md_period').value = 'months';
+    } else if (diffDays >= 340) {
+      document.getElementById('md_interval').value = '1';
+      document.getElementById('md_period').value = 'months';
+      document.getElementById('md_interval').value = '12';
+    } else if (diffDays <= 10) {
+      document.getElementById('md_interval').value = String(diffDays);
+      document.getElementById('md_period').value = 'days';
+    } else {
+      document.getElementById('md_interval').value = String(Math.round(diffDays/7));
+      document.getElementById('md_period').value = 'weeks';
+    }
+  }
+  updateNextDate();
+  document.getElementById('markDoneModal').classList.remove('hidden');
+}
 
-  // 3. Update machine last_maintenance
-  await sbClient.from('machines_2').update({ last_maintenance: todayStr }).eq('id', machId);
+function closeMarkDoneModal() {
+  document.getElementById('markDoneModal').classList.add('hidden');
+  _mdEvent = null;
+}
 
-  showToast('Marked done! Event logged for today.', 'success');
+function toggleRepeatFields() {
+  const show = document.getElementById('md_repeat').checked;
+  document.getElementById('md_repeat_fields').style.display = show ? 'grid' : 'none';
+  if (show) updateNextDate();
+}
+
+function updateNextDate() {
+  const interval = parseInt(document.getElementById('md_interval').value) || 1;
+  const period = document.getElementById('md_period').value;
+  const base = new Date(document.getElementById('md_date').value + 'T00:00:00');
+  if (isNaN(base.getTime())) return;
+  const next = new Date(base);
+  if (period === 'days')   next.setDate(next.getDate() + interval);
+  if (period === 'weeks')  next.setDate(next.getDate() + interval * 7);
+  if (period === 'months') next.setMonth(next.getMonth() + interval);
+  const nextStr = next.getFullYear()+'-'+String(next.getMonth()+1).padStart(2,'0')+'-'+String(next.getDate()).padStart(2,'0');
+  document.getElementById('md_next_date').value = nextStr;
+}
+
+// Auto-update next date when interval/period/date changes
+document.addEventListener('input', e => {
+  if (['md_interval','md_period','md_date'].includes(e.target.id)) updateNextDate();
+});
+
+async function submitMarkDone() {
+  if (!sbClient || !_mdEvent) return;
+  const btn = document.getElementById('mdSaveBtn');
+  btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true;
+
+  const doneDate = document.getElementById('md_date').value;
+  const tech = document.getElementById('md_tech').value.trim();
+  const notes = document.getElementById('md_notes').value.trim();
+  const repeat = document.getElementById('md_repeat').checked;
+  const nextDate = repeat ? document.getElementById('md_next_date').value : null;
+
+  // 1. Clear next_scheduled on old event
+  await sbClient.from('maintenance_events').update({ next_scheduled: null }).eq('id', _mdEvent.id);
+
+  // 2. Log new completion event (with next_scheduled if repeating)
+  const { error } = await sbClient.from('maintenance_events').insert([{
+    machine_id: _mdEvent.machine_id,
+    event_date: doneDate,
+    event_type: _mdEvent.event_type || 'preventive',
+    description: _mdEvent.description || 'Scheduled maintenance completed',
+    technician: tech || null,
+    parts_used: notes || null,
+    next_scheduled: nextDate,
+  }]);
+
+  if (error) { showToast('Error: '+error.message, 'error'); btn.innerHTML='SAVE & COMPLETE'; btn.disabled=false; return; }
+
+  // 3. Update machine record
+  const machUpd = { last_maintenance: doneDate };
+  if (nextDate) machUpd.next_maintenance = nextDate;
+  await sbClient.from('machines_2').update(machUpd).eq('id', _mdEvent.machine_id);
+
+  btn.innerHTML = 'SAVE & COMPLETE'; btn.disabled = false;
+  const msg = repeat ? 'Done! Next scheduled: '+nextDate : 'Marked done!';
+  showToast(msg, 'success');
+  closeMarkDoneModal();
   loadSchedule();
 }
 
