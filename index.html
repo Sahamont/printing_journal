@@ -192,6 +192,14 @@
     .qr-label{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:#222;text-align:center;font-weight:600;line-height:1.3;}
     .qr-sublabel{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:#666;text-align:center;}
     .scanner-state-btn{font-family:'Bebas Neue',sans-serif;letter-spacing:.1em;font-size:1.4rem;padding:18px 10px;border-radius:4px;cursor:pointer;border:2px solid;transition:all .15s;touch-action:manipulation;width:100%;}
+
+    /* ── Stats Dashboard ── */
+    .stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;}
+    .stat-val{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;color:var(--flash);}
+    .stat-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:3px;}
+    .stat-sub{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:rgba(245,240,232,.35);margin-top:2px;}
+    .bottleneck-bar{height:8px;border-radius:4px;background:var(--flash);transition:width .4s ease;}
+    .job-time-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(245,240,232,.05);}
   </style>
 </head>
 <body class="grid-bg">
@@ -353,6 +361,12 @@
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">JOB PIPELINE</div>
       <button class="btn-ghost" onclick="loadPipeline()">↺ REFRESH</button>
     </div>
+
+    <!-- STATS DASHBOARD -->
+    <div id="pipelineStats" style="margin-bottom:18px;">
+      <!-- filled by JS -->
+    </div>
+
     <div class="kanban-wrap">
       <div class="kanban-board">
         <div class="kanban-col">
@@ -1307,10 +1321,19 @@ const COUNT_STAGES=['receiving','packaging'];
 
 async function loadPipeline(){
   if(!sbClient)return;
+  // Load active jobs for kanban
   const{data,error}=await sbClient.from('print_setups')
     .select('id,job_name,order_number,job_date,customer,quantity,pipeline_stage,shirt_types,count_receiving,count_packaging,status')
     .neq('status','archived')
     .order('job_date',{ascending:false});
+
+  // Load stats data (completed + archived jobs)
+  const{data:statsData}=await sbClient.from('print_setups')
+    .select('id,job_name,job_date,completed_at,quantity,shirt_types,pipeline_stage,stage_receiving_at,stage_printing_at,stage_packaging_at,stage_complete_at')
+    .not('completed_at','is',null)
+    .order('completed_at',{ascending:false})
+    .limit(200);
+  renderPipelineStats(statsData||[], data||[]);
   if(error){showToast('Pipeline error: '+error.message,'error');return;}
   STAGES.forEach(s=>{document.getElementById('col-'+s).innerHTML='';document.getElementById('count-'+s).textContent='0';});
   (data||[]).forEach(job=>{
@@ -1358,7 +1381,11 @@ function buildKCard(job,stage){
 async function moveStage(e,id,stage){
   e.stopPropagation();
   if(!sbClient)return;
-  const{error}=await sbClient.from('print_setups').update({pipeline_stage:stage}).eq('id',id);
+  const now=new Date().toISOString();
+  const upd={pipeline_stage:stage};
+  upd['stage_'+stage+'_at']=now;
+  if(stage==='complete') upd.completed_at=now;
+  const{error}=await sbClient.from('print_setups').update(upd).eq('id',id);
   if(error){showToast('Error: '+error.message,'error');return;}
   showToast('→ '+SLABELS[stage],'success');
   loadPipeline();
@@ -1368,7 +1395,8 @@ async function archiveJob(e,id){
   e.stopPropagation();
   if(!sbClient)return;
   if(!confirm('Archive this job? It will be removed from the pipeline board but kept in Search.')) return;
-  const{error}=await sbClient.from('print_setups').update({status:'archived',pipeline_stage:'complete'}).eq('id',id);
+  const now=new Date().toISOString();
+  const{error}=await sbClient.from('print_setups').update({status:'archived',pipeline_stage:'complete',completed_at:now,'stage_complete_at':now}).eq('id',id);
   if(error){showToast('Error: '+error.message,'error');return;}
   showToast('Job archived.','success');
   loadPipeline();
@@ -2683,7 +2711,15 @@ function printQR() {
       .qr-sublabel{font-family:monospace;font-size:10px;color:#666;text-align:center;}
       img{max-width:160px;}
       @media print{body{margin:0;}@page{margin:4mm;}}
-    </style></head><body>${area}
+  
+    /* ── Stats Dashboard ── */
+    .stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;}
+    .stat-val{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;color:var(--flash);}
+    .stat-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:3px;}
+    .stat-sub{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:rgba(245,240,232,.35);margin-top:2px;}
+    .bottleneck-bar{height:8px;border-radius:4px;background:var(--flash);transition:width .4s ease;}
+    .job-time-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(245,240,232,.05);}
+  </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
   win.document.close();
@@ -2918,6 +2954,141 @@ async function submitMarkDone() {
   showToast(msg, 'success');
   closeMarkDoneModal();
   loadSchedule();
+}
+
+
+// ══════════════════════════════════════════════════════
+// PIPELINE STATS DASHBOARD
+// ══════════════════════════════════════════════════════
+function renderPipelineStats(completed, active) {
+  const el = document.getElementById('pipelineStats');
+  if (!el) return;
+
+  const now = new Date();
+
+  // ── Helper: days between two date strings ──
+  const daysBetween = (a, b) => {
+    if (!a || !b) return null;
+    const d = (new Date(b) - new Date(a)) / 86400000;
+    return Math.round(d * 10) / 10;
+  };
+
+  const fmtDays = d => d === null ? '—' : d < 1 ? Math.round(d*24)+'h' : d+'d';
+
+  // ── Cycle times for completed jobs ──
+  const cycleTimes = completed
+    .map(j => ({ name: j.job_name, days: daysBetween(j.job_date, j.completed_at), job: j }))
+    .filter(j => j.days !== null && j.days >= 0);
+
+  const avgCycle = cycleTimes.length
+    ? Math.round(cycleTimes.reduce((s,j)=>s+j.days,0) / cycleTimes.length * 10)/10 : null;
+  const fastest = cycleTimes.length ? cycleTimes.reduce((a,b)=>a.days<b.days?a:b) : null;
+  const slowest = cycleTimes.length ? cycleTimes.reduce((a,b)=>a.days>b.days?a:b) : null;
+
+  // ── Jobs completed this week / month ──
+  const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate()-7);
+  const monthAgo = new Date(now); monthAgo.setMonth(monthAgo.getMonth()-1);
+  const thisWeek = completed.filter(j => j.completed_at && new Date(j.completed_at) >= weekAgo).length;
+  const thisMonth = completed.filter(j => j.completed_at && new Date(j.completed_at) >= monthAgo).length;
+
+  // ── Pieces printed this month ──
+  const piecesMonth = completed
+    .filter(j => j.completed_at && new Date(j.completed_at) >= monthAgo)
+    .reduce((s,j) => {
+      const qty = (j.shirt_types||[]).reduce((a,t)=>a+Object.values(t.sizes||{}).reduce((x,y)=>x+y,0),0) || j.quantity || 0;
+      return s + qty;
+    }, 0);
+
+  // ── Stage bottleneck (avg days per stage for jobs that passed through all) ──
+  const stageAvgs = {};
+  const stagePairs = [
+    ['intake','receiving', 'job_date','stage_receiving_at'],
+    ['receiving','printing','stage_receiving_at','stage_printing_at'],
+    ['printing','packaging','stage_printing_at','stage_packaging_at'],
+    ['packaging','complete','stage_packaging_at','stage_complete_at'],
+  ];
+  stagePairs.forEach(([from,to,fromField,toField]) => {
+    const times = completed
+      .map(j => daysBetween(j[fromField]||j.job_date, j[toField]))
+      .filter(d => d !== null && d >= 0);
+    stageAvgs[to] = times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length*10)/10 : null;
+  });
+  const maxStage = Math.max(...Object.values(stageAvgs).filter(Boolean), 1);
+
+  // ── Active jobs in pipeline ──
+  const activeCount = active.filter(j=>j.pipeline_stage!=='complete').length;
+
+  // ── Recent completed jobs (last 5) ──
+  const recentJobs = cycleTimes.slice(0,5);
+
+  el.innerHTML = `
+    <!-- Top stat cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px;">
+      <div class="stat-card">
+        <div class="stat-val">${avgCycle !== null ? avgCycle+'d' : '—'}</div>
+        <div class="stat-label">Avg Cycle Time</div>
+        <div class="stat-sub">${cycleTimes.length} jobs measured</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">${thisWeek}</div>
+        <div class="stat-label">Completed This Week</div>
+        <div class="stat-sub">${thisMonth} this month</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color:var(--cyan);">${piecesMonth.toLocaleString()}</div>
+        <div class="stat-label">Pieces This Month</div>
+        <div class="stat-sub">printed &amp; shipped</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color:var(--yellow);">${activeCount}</div>
+        <div class="stat-label">Active in Pipeline</div>
+        <div class="stat-sub">${active.length} total open</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+
+      <!-- Bottleneck analysis -->
+      <div class="stat-card">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:.08em;color:var(--flash);margin-bottom:10px;">STAGE BOTTLENECK</div>
+        ${Object.entries({'→ Receiving':stageAvgs.receiving,'→ Printing':stageAvgs.printing,'→ Packaging':stageAvgs.packaging,'→ Complete':stageAvgs.complete}).map(([lbl,days])=>
+          days === null ? '' : `<div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:3px;">
+              <span>${lbl}</span><span style="color:${days===Math.max(...Object.values(stageAvgs).filter(Boolean))?'var(--flash)':'var(--text)'};">${fmtDays(days)}</span>
+            </div>
+            <div style="background:rgba(245,240,232,.08);border-radius:4px;height:6px;overflow:hidden;">
+              <div class="bottleneck-bar" style="width:${Math.round(days/maxStage*100)}%;background:${days===Math.max(...Object.values(stageAvgs).filter(Boolean))?'var(--flash)':'var(--cyan)'}"></div>
+            </div>
+          </div>`
+        ).join('')}
+        ${Object.values(stageAvgs).every(v=>v===null)?'<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--muted);">Complete more jobs to see stage data.</div>':''}
+      </div>
+
+      <!-- Fastest / slowest + recent -->
+      <div class="stat-card">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:.08em;color:var(--flash);margin-bottom:10px;">RECENT JOBS</div>
+        ${fastest ? `<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <div style="flex:1;background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:3px;padding:6px 8px;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--green);">⚡ FASTEST</div>
+            <div style="font-size:.78rem;font-weight:600;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${fastest.name}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--green);">${fmtDays(fastest.days)}</div>
+          </div>
+          <div style="flex:1;background:rgba(232,80,10,.08);border:1px solid rgba(232,80,10,.2);border-radius:3px;padding:6px 8px;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--flash);">🐢 SLOWEST</div>
+            <div style="font-size:.78rem;font-weight:600;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${slowest.name}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--flash);">${fmtDays(slowest.days)}</div>
+          </div>
+        </div>` : ''}
+        ${recentJobs.map(j=>`
+          <div class="job-time-row">
+            <div style="font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.name}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${j.job.job_date||''}</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${j.days<=3?'var(--green)':j.days<=7?'var(--yellow)':'var(--flash)'};">${fmtDays(j.days)}</div>
+          </div>`).join('')}
+        ${!recentJobs.length?'<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--muted);">No completed jobs yet.</div>':''}
+      </div>
+    </div>
+  `;
 }
 
 // ── TOAST ───────────────────────────────────────────────────
