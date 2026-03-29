@@ -200,6 +200,23 @@
     .stat-sub{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:rgba(245,240,232,.35);margin-top:2px;}
     .bottleneck-bar{height:8px;border-radius:4px;background:var(--flash);transition:width .4s ease;}
     .job-time-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(245,240,232,.05);}
+
+    /* ── Reports ── */
+    .report-type-card{background:var(--surface2);border:2px solid var(--border);border-radius:3px;padding:14px;cursor:pointer;transition:all .15s;text-align:left;}
+    .report-type-card:hover{border-color:var(--dim);}
+    .report-type-card.selected{border-color:var(--flash);background:var(--flash-dim);}
+    .report-type-icon{font-size:1.6rem;margin-bottom:6px;display:block;}
+    .report-type-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;margin-bottom:2px;}
+    .report-type-desc{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.5;}
+    .report-param-group{background:var(--bg);border:1px solid rgba(245,240,232,.08);border-radius:3px;padding:12px;margin-bottom:10px;}
+    .report-param-title{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
+    .report-col-check{display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:.72rem;cursor:pointer;padding:3px 0;}
+    .report-col-check input{width:auto;accent-color:var(--flash);}
+    .preview-stat{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:10px;text-align:center;}
+    .preview-stat-val{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--flash);}
+    .preview-stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);text-transform:uppercase;}
+    .style-btn{padding:.5rem 1rem;border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.72rem;border:1px solid var(--dim);background:transparent;color:var(--muted);transition:all .15s;}
+    .style-btn.selected{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
   </style>
 </head>
 <body class="grid-bg">
@@ -233,6 +250,7 @@
   <div class="tab" id="tab-search" onclick="switchTab('search')">SEARCH</div>
   <div class="tab" id="tab-pipeline" onclick="switchTab('pipeline')">PIPELINE</div>
   <div class="tab" id="tab-screens" onclick="switchTab('screens')">SCREENS</div>
+  <div class="tab" id="tab-reports" onclick="switchTab('reports')">REPORTS</div>
   <div class="tab" id="tab-maint" onclick="switchTab('maint')">MAINTENANCE <span id="maintTabBadge" style="display:none;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
 </div>
 
@@ -520,6 +538,102 @@
   </div>
 
 
+  <!-- ═══ REPORTS ═══ -->
+  <div id="pane-reports" class="hidden">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;margin-bottom:4px;">REPORT BUILDER</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);margin-bottom:16px;">Build and export customized PDF reports</div>
+
+    <!-- Shop info banner -->
+    <div id="shopInfoBanner" class="card" style="padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);">
+        Shop: <span id="shopNameDisplay" style="color:var(--text);">Not set</span>
+      </div>
+      <button class="btn-ghost" style="font-size:.65rem;" onclick="openShopSettings()">⚙ SHOP SETTINGS</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+      <!-- LEFT: report type + params -->
+      <div>
+        <!-- Step 1: Pick report type -->
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">1. Select Report Type</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px;" id="reportTypeGrid">
+          <!-- filled by JS -->
+        </div>
+
+        <!-- Step 2: Parameters -->
+        <div id="reportParams" style="display:none;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">2. Parameters</div>
+
+          <!-- Date range -->
+          <div class="report-param-group">
+            <div class="report-param-title">Date Range</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">
+              <button class="btn-ghost" style="font-size:.65rem;" onclick="setDatePreset('week')">This Week</button>
+              <button class="btn-ghost" style="font-size:.65rem;" onclick="setDatePreset('month')">This Month</button>
+              <button class="btn-ghost" style="font-size:.65rem;" onclick="setDatePreset('quarter')">This Quarter</button>
+              <button class="btn-ghost" style="font-size:.65rem;" onclick="setDatePreset('year')">This Year</button>
+              <button class="btn-ghost" style="font-size:.65rem;" onclick="setDatePreset('all')">All Time</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div><label>From</label><input type="date" id="rpt_from" oninput="updateReportPreview()" /></div>
+              <div><label>To</label><input type="date" id="rpt_to" oninput="updateReportPreview()" /></div>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="report-param-group" id="rptFilterGroup">
+            <div class="report-param-title">Filters</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div id="rptCustomerWrap"><label>Customer</label><input type="text" id="rpt_customer" placeholder="All customers" oninput="updateReportPreview()" /></div>
+              <div id="rptOperatorWrap"><label>Operator</label><input type="text" id="rpt_operator" placeholder="All operators" oninput="updateReportPreview()" /></div>
+              <div id="rptStatusWrap"><label>Status</label>
+                <select id="rpt_status" onchange="updateReportPreview()">
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="approved">Approved</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Columns to include -->
+          <div class="report-param-group" id="rptColumnsGroup">
+            <div class="report-param-title">Include Columns</div>
+            <div id="rptColumnChecks" style="display:grid;grid-template-columns:1fr 1fr;gap:2px;"></div>
+          </div>
+
+          <!-- PDF Style -->
+          <div class="report-param-group">
+            <div class="report-param-title">PDF Style</div>
+            <div style="display:flex;gap:8px;">
+              <button class="style-btn selected" id="styleMinimal" onclick="selectStyle('minimal')">Clean Minimal</button>
+              <button class="style-btn" id="styleBold" onclick="selectStyle('bold')">Bold Industrial</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: preview + generate -->
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">3. Preview &amp; Generate</div>
+
+        <div id="reportPreview" class="card" style="padding:16px;min-height:200px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:40px 0;">
+            Select a report type to begin
+          </div>
+        </div>
+
+        <div id="reportGenerateBar" style="display:none;margin-top:10px;">
+          <button class="btn-primary" style="width:100%;font-size:1.2rem;" onclick="generateReport()">⬇ GENERATE PDF</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
 </main>
 
 <!-- JOB DETAIL MODAL -->
@@ -785,6 +899,28 @@
   </div>
 </div>
 
+<!-- SHOP SETTINGS MODAL -->
+<div id="shopSettingsModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:440px;padding:18px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;">SHOP SETTINGS</div>
+      <button class="btn-ghost" onclick="closeShopSettings()">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px;">
+      <div><label>Shop / Company Name</label><input type="text" id="ss_name" placeholder="Your Print Shop" /></div>
+      <div><label>Address Line 1</label><input type="text" id="ss_addr1" placeholder="123 Main St" /></div>
+      <div><label>Address Line 2</label><input type="text" id="ss_addr2" placeholder="City, State ZIP" /></div>
+      <div><label>Phone</label><input type="text" id="ss_phone" placeholder="(555) 000-0000" /></div>
+      <div><label>Email</label><input type="text" id="ss_email" placeholder="info@yourshop.com" /></div>
+      <div><label>Logo URL (optional)</label><input type="text" id="ss_logo" placeholder="https://..." /></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn-secondary" onclick="closeShopSettings()">CANCEL</button>
+      <button class="btn-primary" onclick="saveShopSettings()">SAVE</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -823,7 +959,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -831,6 +967,7 @@ function switchTab(tab){
   if(tab==='pipeline') loadPipeline();
   if(tab==='maint') loadMachines();
   if(tab==='screens') loadScreens();
+  if(tab==='reports') initReports();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -2719,6 +2856,23 @@ function printQR() {
     .stat-sub{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:rgba(245,240,232,.35);margin-top:2px;}
     .bottleneck-bar{height:8px;border-radius:4px;background:var(--flash);transition:width .4s ease;}
     .job-time-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(245,240,232,.05);}
+
+    /* ── Reports ── */
+    .report-type-card{background:var(--surface2);border:2px solid var(--border);border-radius:3px;padding:14px;cursor:pointer;transition:all .15s;text-align:left;}
+    .report-type-card:hover{border-color:var(--dim);}
+    .report-type-card.selected{border-color:var(--flash);background:var(--flash-dim);}
+    .report-type-icon{font-size:1.6rem;margin-bottom:6px;display:block;}
+    .report-type-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;margin-bottom:2px;}
+    .report-type-desc{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.5;}
+    .report-param-group{background:var(--bg);border:1px solid rgba(245,240,232,.08);border-radius:3px;padding:12px;margin-bottom:10px;}
+    .report-param-title{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
+    .report-col-check{display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:.72rem;cursor:pointer;padding:3px 0;}
+    .report-col-check input{width:auto;accent-color:var(--flash);}
+    .preview-stat{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:10px;text-align:center;}
+    .preview-stat-val{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--flash);}
+    .preview-stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);text-transform:uppercase;}
+    .style-btn{padding:.5rem 1rem;border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.72rem;border:1px solid var(--dim);background:transparent;color:var(--muted);transition:all .15s;}
+    .style-btn.selected{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -3089,6 +3243,377 @@ function renderPipelineStats(completed, active) {
       </div>
     </div>
   `;
+}
+
+
+// ══════════════════════════════════════════════════════
+// REPORTS
+// ══════════════════════════════════════════════════════
+const REPORT_TYPES = {
+  job_summary: {
+    icon: '📋', name: 'Job Summary',
+    desc: 'List of jobs with key info, status and quantities',
+    columns: ['Job Name','Order #','Date','Customer','Operator','Garment','Qty','Status'],
+    colKeys:  ['job_name','order_number','job_date','customer','operator','garment_style','quantity','status'],
+    filters: ['customer','operator','status'],
+  },
+  production: {
+    icon: '📊', name: 'Production Volume',
+    desc: 'Pieces printed by period and customer',
+    columns: ['Date','Job Name','Customer','Garment','Qty','Operator'],
+    colKeys:  ['job_date','job_name','customer','garment_style','quantity','operator'],
+    filters: ['customer','operator'],
+  },
+  screens: {
+    icon: '🖼', name: 'Screen Inventory',
+    desc: 'Current screen stock grouped by mesh and state',
+    columns: ['Screen ID','Mesh','Frame','State','Current Job','Notes'],
+    colKeys:  ['screen_id','mesh_count','frame_size','state','current_job','notes'],
+    filters: [],
+  },
+  maintenance: {
+    icon: '🔧', name: 'Maintenance Log',
+    desc: 'All maintenance events across all machines',
+    columns: ['Date','Machine','Type','Description','Technician','Parts','Next Due'],
+    colKeys:  ['event_date','machine','event_type','description','technician','parts_used','next_scheduled'],
+    filters: [],
+  },
+  customer: {
+    icon: '👤', name: 'Customer Report',
+    desc: 'All jobs for a specific customer',
+    columns: ['Date','Job Name','Order #','Garment','Qty','Status','Operator'],
+    colKeys:  ['job_date','job_name','order_number','garment_style','quantity','status','operator'],
+    filters: ['customer'],
+  },
+};
+
+let _rptType = null;
+let _rptStyle = 'minimal';
+let _rptData = [];
+
+// ── Init ─────────────────────────────────────────────
+function initReports() {
+  loadShopSettings();
+  const grid = document.getElementById('reportTypeGrid');
+  grid.innerHTML = '';
+  Object.entries(REPORT_TYPES).forEach(([key, rt]) => {
+    const btn = document.createElement('button');
+    btn.className = 'report-type-card' + (_rptType === key ? ' selected' : '');
+    btn.innerHTML = '<span class="report-type-icon">'+rt.icon+'</span>'
+      + '<div class="report-type-name">'+rt.name+'</div>'
+      + '<div class="report-type-desc">'+rt.desc+'</div>';
+    btn.onclick = () => selectReportType(key);
+    grid.appendChild(btn);
+  });
+  setDatePreset('month');
+}
+
+function selectReportType(key) {
+  _rptType = key;
+  const rt = REPORT_TYPES[key];
+  // Update selected state
+  document.querySelectorAll('.report-type-card').forEach((c,i) => {
+    c.classList.toggle('selected', Object.keys(REPORT_TYPES)[i] === key);
+  });
+  document.getElementById('reportParams').style.display = 'block';
+
+  // Show/hide filters
+  const filters = rt.filters;
+  document.getElementById('rptCustomerWrap').style.display = filters.includes('customer') ? '' : 'none';
+  document.getElementById('rptOperatorWrap').style.display = filters.includes('operator') ? '' : 'none';
+  document.getElementById('rptStatusWrap').style.display  = filters.includes('status')   ? '' : 'none';
+  document.getElementById('rptFilterGroup').style.display = filters.length ? '' : 'none';
+
+  // Build column checkboxes
+  const checks = document.getElementById('rptColumnChecks');
+  checks.innerHTML = rt.columns.map((col, i) =>
+    '<label class="report-col-check"><input type="checkbox" checked data-col="'+i+'" onchange="updateReportPreview()" /> '+col+'</label>'
+  ).join('');
+
+  updateReportPreview();
+}
+
+function selectStyle(s) {
+  _rptStyle = s;
+  document.getElementById('styleMinimal').classList.toggle('selected', s === 'minimal');
+  document.getElementById('styleBold').classList.toggle('selected', s === 'bold');
+}
+
+function setDatePreset(preset) {
+  const now = new Date();
+  const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const from = new Date(now), to = new Date(now);
+  if (preset === 'week')    { from.setDate(now.getDate()-7); }
+  if (preset === 'month')   { from.setMonth(now.getMonth()-1); }
+  if (preset === 'quarter') { from.setMonth(now.getMonth()-3); }
+  if (preset === 'year')    { from.setFullYear(now.getFullYear()-1); }
+  if (preset === 'all')     { from.setFullYear(2020); }
+  document.getElementById('rpt_from').value = fmt(from);
+  document.getElementById('rpt_to').value = fmt(to);
+  updateReportPreview();
+}
+
+// ── Preview ──────────────────────────────────────────
+async function updateReportPreview() {
+  if (!_rptType || !sbClient) return;
+  const preview = document.getElementById('reportPreview');
+  preview.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--muted);text-align:center;padding:20px;">Loading preview…</div>';
+
+  const data = await fetchReportData();
+  _rptData = data;
+
+  const rt = REPORT_TYPES[_rptType];
+  const totalQty = data.reduce((s,r) => s + (parseInt(r.quantity||r.qty||0)||0), 0);
+
+  preview.innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;color:var(--flash);margin-bottom:10px;">${rt.icon} ${rt.name}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px;">
+      <div class="preview-stat"><div class="preview-stat-val">${data.length}</div><div class="preview-stat-lbl">Records</div></div>
+      ${totalQty ? '<div class="preview-stat"><div class="preview-stat-val" style="color:var(--cyan);">'+totalQty.toLocaleString()+'</div><div class="preview-stat-lbl">Total Pieces</div></div>' : ''}
+      <div class="preview-stat"><div class="preview-stat-val" style="font-size:1rem;">${document.getElementById('rpt_from').value||'—'}</div><div class="preview-stat-lbl">From</div></div>
+    </div>
+    ${data.length > 0 ? `
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">First ${Math.min(5,data.length)} records:</div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>${rt.columns.slice(0,4).map(c=>'<th style="text-align:left;font-family:IBM Plex Mono,monospace;font-size:.58rem;color:var(--muted);padding:3px 8px 3px 0;border-bottom:1px solid rgba(245,240,232,.08);">'+c+'</th>').join('')}</tr>
+        ${data.slice(0,5).map(r=>'<tr>'+rt.colKeys.slice(0,4).map(k=>'<td style="font-family:IBM Plex Mono,monospace;font-size:.65rem;padding:3px 8px 3px 0;border-bottom:1px solid rgba(245,240,232,.05);white-space:nowrap;overflow:hidden;max-width:100px;text-overflow:ellipsis;">'+(r[k]||'—')+'</td>').join('')+'</tr>').join('')}
+      </table>
+    </div>` : '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:20px 0;">No records match the selected filters.</div>'}
+  `;
+  document.getElementById('reportGenerateBar').style.display = data.length ? 'block' : 'none';
+}
+
+async function fetchReportData() {
+  if (!sbClient || !_rptType) return [];
+  const from = document.getElementById('rpt_from').value;
+  const to   = document.getElementById('rpt_to').value;
+  const customer = document.getElementById('rpt_customer')?.value.trim();
+  const operator = document.getElementById('rpt_operator')?.value.trim();
+  const status   = document.getElementById('rpt_status')?.value;
+
+  if (_rptType === 'screens') {
+    const { data } = await sbClient.from('screens').select('*').order('mesh_count').order('screen_id');
+    return data || [];
+  }
+
+  if (_rptType === 'maintenance') {
+    const { data: evts } = await sbClient.from('maintenance_events').select('*,machines_2(name)').order('event_date', { ascending: false });
+    return (evts||[]).map(e => ({ ...e, machine: e.machines_2?.name || e.machine_id }));
+  }
+
+  // Job-based reports
+  let q = sbClient.from('print_setups').select('*').order('job_date', { ascending: false });
+  if (from) q = q.gte('job_date', from);
+  if (to)   q = q.lte('job_date', to);
+  if (status)   q = q.eq('status', status);
+  if (customer) q = q.ilike('customer', '%'+customer+'%');
+  if (operator) q = q.ilike('operator', '%'+operator+'%');
+
+  const { data } = await q;
+  let rows = data || [];
+
+  // For production report, expand shirt types into rows
+  if (_rptType === 'production') {
+    const expanded = [];
+    rows.forEach(job => {
+      const types = job.shirt_types || [];
+      if (types.length) {
+        types.forEach(t => {
+          const qty = Object.values(t.sizes||{}).reduce((a,b)=>a+b,0);
+          expanded.push({ ...job, garment_style: (t.style||'')+(t.color?' / '+t.color:''), quantity: qty });
+        });
+      } else {
+        expanded.push(job);
+      }
+    });
+    return expanded;
+  }
+
+  return rows;
+}
+
+// ── Generate PDF ─────────────────────────────────────
+function generateReport() {
+  if (!_rptData.length || !_rptType) return;
+  const rt = REPORT_TYPES[_rptType];
+  const shop = getShopSettings();
+  const bold = _rptStyle === 'bold';
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'landscape' });
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const ML = 36, MR = PW - 36, TW = MR - ML;
+  let y = 36, pageNum = 1;
+
+  const addPage = () => {
+    // Footer on current page
+    drawFooter(doc, PW, PH, pageNum, bold);
+    doc.addPage();
+    pageNum++;
+    y = 36;
+    drawPageHeader(doc, shop, rt, ML, MR, y, bold);
+    y += 48;
+  };
+
+  const checkPage = (needed = 20) => { if (y + needed > PH - 40) addPage(); };
+
+  // ── Page 1 header ──
+  drawPageHeader(doc, shop, rt, ML, MR, y, bold);
+  y += 48;
+
+  // ── Params line ──
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.setTextColor(120,120,120);
+  const from = document.getElementById('rpt_from').value;
+  const to   = document.getElementById('rpt_to').value;
+  const paramLine = [
+    from && to ? 'Period: '+from+' — '+to : '',
+    document.getElementById('rpt_customer')?.value ? 'Customer: '+document.getElementById('rpt_customer').value : '',
+    document.getElementById('rpt_status')?.value ? 'Status: '+document.getElementById('rpt_status').value : '',
+  ].filter(Boolean).join('   ·   ');
+  if (paramLine) { doc.text(paramLine, ML, y); y += 12; }
+  doc.setTextColor(0,0,0);
+  y += 6;
+
+  // ── Get active columns ──
+  const checks = document.querySelectorAll('#rptColumnChecks input[type=checkbox]');
+  const activeCols = Array.from(checks)
+    .map((c,i) => c.checked ? i : -1)
+    .filter(i => i >= 0);
+  const headers = activeCols.map(i => rt.columns[i]);
+  const keys    = activeCols.map(i => rt.colKeys[i]);
+  const cw = TW / headers.length;
+
+  // ── Table header ──
+  if (bold) {
+    doc.setFillColor(20,20,30);
+    doc.rect(ML, y-10, TW, 16, 'F');
+    doc.setTextColor(232,80,10);
+  } else {
+    doc.setDrawColor(200,200,200); doc.setLineWidth(0.5);
+    doc.line(ML, y+4, MR, y+4);
+    doc.setTextColor(100,100,100);
+  }
+  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  headers.forEach((h,i) => doc.text(h, ML+i*cw+2, y));
+  y += bold ? 10 : 12;
+  doc.setTextColor(0,0,0);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+
+  // ── Rows ──
+  const stateLabels = {clean:'Clean',dirty:'Dirty',burned:'Burned',onpress:'On Press',reclaiming:'Reclaiming',retired:'Retired'};
+  const typeLabels  = {preventive:'Preventive',repair:'Repair',cleaning:'Cleaning'};
+  let rowNum = 0;
+  _rptData.forEach(row => {
+    checkPage(14);
+    if (bold && rowNum % 2 === 0) { doc.setFillColor(14,14,25); doc.rect(ML, y-9, TW, 13, 'F'); }
+    keys.forEach((k,i) => {
+      let val = row[k] !== undefined && row[k] !== null ? String(row[k]) : '—';
+      if (k === 'state') val = stateLabels[val] || val;
+      if (k === 'event_type') val = typeLabels[val] || val;
+      if (k === 'quantity' && parseInt(val)) val = parseInt(val).toLocaleString();
+      const txt = doc.splitTextToSize(val, cw-4);
+      doc.text(txt[0], ML+i*cw+2, y);
+    });
+    if (!bold) { doc.setDrawColor(230,230,230); doc.setLineWidth(0.2); doc.line(ML, y+3, MR, y+3); }
+    y += 13; rowNum++;
+  });
+
+  // ── Summary totals ──
+  y += 10;
+  checkPage(40);
+  doc.setDrawColor(bold ? 232 : 150, bold ? 80 : 150, bold ? 10 : 150);
+  doc.setLineWidth(bold ? 1 : 0.5);
+  doc.line(ML, y, MR, y); y += 12;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('TOTAL RECORDS: '+_rptData.length, ML, y); y += 12;
+  const totalQty = _rptData.reduce((s,r)=>s+(parseInt(r.quantity||r.qty||0)||0),0);
+  if (totalQty) { doc.text('TOTAL PIECES: '+totalQty.toLocaleString(), ML, y); y += 12; }
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.setTextColor(120,120,120);
+  doc.text('Report generated: '+new Date().toLocaleString(), ML, y);
+
+  drawFooter(doc, PW, PH, pageNum, bold);
+
+  const filename = rt.name.replace(/ /g,'-').toLowerCase()+'-'+new Date().toISOString().split('T')[0]+'.pdf';
+  doc.save(filename);
+}
+
+function drawPageHeader(doc, shop, rt, ML, MR, y, bold) {
+  const PW = doc.internal.pageSize.getWidth();
+  if (bold) {
+    doc.setFillColor(10,10,18);
+    doc.rect(0, 0, PW, 40, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.setTextColor(232,80,10);
+    doc.text((shop.name||'PRESS SETUP DOC').toUpperCase(), ML, y+14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.setTextColor(180,180,180);
+    doc.text(rt.icon+' '+rt.name.toUpperCase()+' REPORT', ML, y+26);
+    doc.setTextColor(120,120,120);
+    doc.text('Generated: '+new Date().toLocaleDateString(), MR-100, y+14);
+    doc.setTextColor(0,0,0);
+  } else {
+    doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.setTextColor(0,0,0);
+    doc.text(shop.name || 'PRESS SETUP DOC', ML, y+14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    doc.setTextColor(100,100,100);
+    doc.text(rt.name+' Report', ML, y+26);
+    if (shop.addr1) doc.text(shop.addr1+(shop.addr2?' | '+shop.addr2:''), MR-200, y+14);
+    if (shop.phone) doc.text(shop.phone+(shop.email?' | '+shop.email:''), MR-200, y+26);
+    doc.setDrawColor(200,200,200); doc.setLineWidth(0.5);
+    doc.line(ML, y+32, MR, y+32);
+    doc.setTextColor(0,0,0);
+  }
+}
+
+function drawFooter(doc, PW, PH, pageNum, bold) {
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.setTextColor(150,150,150);
+  doc.text('Page '+pageNum, PW/2, PH-16, { align:'center' });
+  doc.text('PRESS SETUP DOC  ·  Confidential', 36, PH-16);
+}
+
+// ── Shop settings ─────────────────────────────────────
+function getShopSettings() {
+  try { return JSON.parse(localStorage.getItem('shop_settings') || '{}'); } catch { return {}; }
+}
+
+function loadShopSettings() {
+  const s = getShopSettings();
+  document.getElementById('shopNameDisplay').textContent = s.name || 'Not set';
+}
+
+function openShopSettings() {
+  const s = getShopSettings();
+  document.getElementById('ss_name').value  = s.name  || '';
+  document.getElementById('ss_addr1').value = s.addr1 || '';
+  document.getElementById('ss_addr2').value = s.addr2 || '';
+  document.getElementById('ss_phone').value = s.phone || '';
+  document.getElementById('ss_email').value = s.email || '';
+  document.getElementById('ss_logo').value  = s.logo  || '';
+  document.getElementById('shopSettingsModal').classList.remove('hidden');
+}
+
+function closeShopSettings() {
+  document.getElementById('shopSettingsModal').classList.add('hidden');
+}
+
+function saveShopSettings() {
+  const s = {
+    name:  document.getElementById('ss_name').value.trim(),
+    addr1: document.getElementById('ss_addr1').value.trim(),
+    addr2: document.getElementById('ss_addr2').value.trim(),
+    phone: document.getElementById('ss_phone').value.trim(),
+    email: document.getElementById('ss_email').value.trim(),
+    logo:  document.getElementById('ss_logo').value.trim(),
+  };
+  localStorage.setItem('shop_settings', JSON.stringify(s));
+  loadShopSettings();
+  closeShopSettings();
+  showToast('Shop settings saved!', 'success');
 }
 
 // ── TOAST ───────────────────────────────────────────────────
