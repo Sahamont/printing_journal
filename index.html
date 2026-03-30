@@ -266,7 +266,10 @@
 <header style="background:var(--bg);border-bottom:1px solid rgba(245,240,232,.07);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;">
   <div style="display:flex;align-items:center;gap:9px;">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--flash);letter-spacing:.12em;" id="appNameHeader">PRESS SETUP DOC</div>
-    <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;" id="connDot"></span>
+    <div style="display:flex;align-items:center;gap:5px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;" id="connDot"></span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--green);display:none;" id="liveLabel">LIVE</span>
+    </div>
   </div>
   <button class="btn-ghost" onclick="openAppSettings()">⚙ SETTINGS</button>
 </header>
@@ -1141,6 +1144,7 @@ function saveConfig(){
   localStorage.setItem('sb_url',url); localStorage.setItem('sb_key',key);
   initSupabase(url,key);
   document.getElementById('configModal').style.display='none';
+  startRealtime();
 }
 function showConfig(){
   document.getElementById('cfgUrl').value=localStorage.getItem('sb_url')||'';
@@ -1158,6 +1162,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     initSupabase(url,key);
     document.getElementById('configModal').style.display='none';
     setTimeout(handleDeepLink, 600);
+    startRealtime();
     // Update notification button state
     if('Notification' in window && Notification.permission === 'granted') {
       const nb = document.getElementById('notifBtn');
@@ -4603,6 +4608,71 @@ function initTextSizeButtons(currentSize) {
     const btn = document.getElementById(sizeIdMap[k]);
     if (btn) btn.classList.toggle('selected', k === size);
   });
+}
+
+
+// ══════════════════════════════════════════════════════
+// REAL-TIME SYNC
+// ══════════════════════════════════════════════════════
+let _realtimeChannel = null;
+
+function startRealtime() {
+  if (!sbClient) return;
+  if (_realtimeChannel) {
+    sbClient.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+
+  _realtimeChannel = sbClient
+    .channel('print_setups_changes')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'print_setups' },
+      (payload) => {
+        // Reload pipeline if it's visible
+        const pipelineVisible = !document.getElementById('pane-pipeline').classList.contains('hidden');
+        if (pipelineVisible) {
+          loadPipeline();
+          flashLiveIndicator();
+        }
+      }
+    )
+    .subscribe((status) => {
+      const dot = document.getElementById('connDot');
+      const lbl = document.getElementById('liveLabel');
+      if (status === 'SUBSCRIBED') {
+        if (dot) dot.style.background = 'var(--green)';
+        if (lbl) lbl.style.display = 'inline';
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        if (dot) dot.style.background = 'var(--yellow)';
+        if (lbl) { lbl.style.display = 'inline'; lbl.textContent = 'RECONNECTING…'; lbl.style.color = 'var(--yellow)'; }
+        // Auto-retry after 5 seconds
+        setTimeout(startRealtime, 5000);
+      } else if (status === 'CLOSED') {
+        if (dot) dot.style.background = 'var(--muted)';
+        if (lbl) lbl.style.display = 'none';
+      }
+    });
+}
+
+function stopRealtime() {
+  if (_realtimeChannel && sbClient) {
+    sbClient.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+  const lbl = document.getElementById('liveLabel');
+  if (lbl) lbl.style.display = 'none';
+}
+
+function flashLiveIndicator() {
+  const dot = document.getElementById('connDot');
+  if (!dot) return;
+  dot.style.background = '#fff';
+  dot.style.transform = 'scale(1.5)';
+  setTimeout(() => {
+    dot.style.background = 'var(--green)';
+    dot.style.transform = 'scale(1)';
+    dot.style.transition = 'all .3s';
+  }, 200);
 }
 
 // ── TOAST ───────────────────────────────────────────────────
