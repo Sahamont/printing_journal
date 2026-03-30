@@ -295,7 +295,8 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
           <div><label>Job Name</label><input type="text" name="job_name" required placeholder="Varsity Tee Run" /></div>
           <div><label>Order #</label><input type="text" name="order_number" placeholder="ORD-001" /></div>
-          <div><label>Date</label><input type="date" name="job_date" /></div>
+          <div><label>Job Date</label><input type="date" name="job_date" /></div>
+          <div><label>Due Date</label><input type="date" name="due_date" /></div>
           <div><label>Operator</label><input type="text" name="operator" placeholder="Your name" /></div>
           <div style="grid-column:1/-1"><label>Customer</label><input type="text" name="customer" placeholder="Customer name" /></div>
           <div><label>Print Location</label><input type="text" name="print_location" placeholder="Left chest, full back…" /></div>
@@ -1432,6 +1433,7 @@ async function _doSearch(){
             ${job.job_date?`<span>${job.job_date}</span>`:''}
             ${job.customer?`<span>${job.customer}</span>`:''}
             ${job.quantity?`<span>${job.quantity} pcs</span>`:''}
+            ${job.due_date?`<span style="color:var(--yellow);">⏰ Due: ${job.due_date}</span>`:''}
             ${types?`<span>${types}</span>`:''}
           </div>
         </div>
@@ -1484,7 +1486,7 @@ async function openJobDetail(id){
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px;">
-      ${[['CUSTOMER',data.customer],['PRINT LOCATION',data.print_location],['QTY',data.quantity],['OPERATOR',data.operator]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${v||'—'}</div></div>`).join('')}
+      ${[['CUSTOMER',data.customer],['PRINT LOCATION',data.print_location],['QTY',data.quantity],['OPERATOR',data.operator],['JOB DATE',data.job_date],['DUE DATE',data.due_date]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${v||'—'}</div></div>`).join('')}
     </div>
     ${data.image_url?`<img src="${data.image_url}" style="max-height:140px;border-radius:3px;border:1px solid var(--border);margin-bottom:14px;display:block;" />`:''}
     ${shirtHtml?`<div style="margin-bottom:14px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid rgba(232,80,10,.2);padding-bottom:3px;margin-bottom:7px;">SHIRT TYPES</div>${shirtHtml}</div>`:''}
@@ -1529,6 +1531,7 @@ async function editJob() {
   setVal('print_location', data.print_location);
   setVal('status', data.status);
   setVal('notes', data.notes);
+  setVal('due_date', data.due_date);
   setVal('press_speed', data.press_speed);
   setVal('stroke_length', data.stroke_length);
   setVal('off_contact', data.off_contact);
@@ -1653,7 +1656,7 @@ async function loadPipeline(){
   if(!sbClient)return;
   // Load active jobs for kanban
   const{data,error}=await sbClient.from('print_setups')
-    .select('id,job_name,order_number,job_date,customer,quantity,pipeline_stage,shirt_types,count_receiving,count_packaging,status')
+    .select('id,job_name,order_number,job_date,due_date,customer,quantity,pipeline_stage,shirt_types,count_receiving,count_packaging,status')
     .neq('status','archived')
     .order('job_date',{ascending:false});
 
@@ -1695,6 +1698,7 @@ function buildKCard(job,stage){
     <div class="kcard-meta">
       ${job.order_number?`<span>#${job.order_number}</span>`:''}
       ${job.job_date?`<span>${job.job_date}</span>`:''}
+      ${job.due_date?`<span style="color:${new Date(job.due_date+'T00:00:00')<new Date()?'#ff4444':'var(--yellow)'};">${new Date(job.due_date+'T00:00:00')<new Date()?'⚠ OVERDUE:':'⏰ Due:'} ${job.due_date}</span>`:''}
       ${totalOrdered?`<span>${totalOrdered}pc</span>`:''}
       ${types.length?`<span>${types.slice(0,2).join(', ')}${types.length>2?'…':''}</span>`:''}
       ${cntBadge}
