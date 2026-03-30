@@ -1111,6 +1111,23 @@
 
 <script>
 'use strict';
+// ── DATE FORMATTING ───────────────────────────────────
+// Converts YYYY-MM-DD to MM/DD/YYYY for display everywhere
+function fmtDate(d) {
+  if (!d) return '—';
+  const s = String(d).trim().split('T')[0]; // handle ISO strings too
+  const parts = s.split('-');
+  if (parts.length !== 3) return d;
+  return parts[1] + '/' + parts[2] + '/' + parts[0];
+}
+function fmtDateShort(d) {
+  if (!d) return '';
+  const s = String(d).trim().split('T')[0];
+  const parts = s.split('-');
+  if (parts.length !== 3) return d;
+  return parts[1] + '/' + parts[2] + '/' + parts[0].slice(2); // MM/DD/YY
+}
+
 // ── CONFIG ──────────────────────────────────────────────────
 let sbClient = null;
 function showConfigFromSettings() {
@@ -1430,10 +1447,10 @@ async function _doSearch(){
           </div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px 9px;">
             ${job.order_number?`<span>#${job.order_number}</span>`:''}
-            ${job.job_date?`<span>${job.job_date}</span>`:''}
+            ${job.job_date?`<span>${fmtDate(job.job_date)}</span>`:''}
             ${job.customer?`<span>${job.customer}</span>`:''}
             ${job.quantity?`<span>${job.quantity} pcs</span>`:''}
-            ${job.due_date?`<span style="color:var(--yellow);">⏰ Due: ${job.due_date}</span>`:''}
+            ${job.due_date?`<span style="color:var(--yellow);">⏰ Due: ${fmtDate(job.due_date)}</span>`:''}
             ${types?`<span>${types}</span>`:''}
           </div>
         </div>
@@ -1475,7 +1492,7 @@ async function openJobDetail(id){
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:.08em;">${data.job_name}</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.67rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
           ${data.order_number?`<span>#${data.order_number}</span>`:''}
-          ${data.job_date?`<span>${data.job_date}</span>`:''}
+          ${data.job_date?`<span>${fmtDate(data.job_date)}</span>`:''}
           <span class="badge badge-${data.status}">${data.status}</span>
         </div>
       </div>
@@ -1486,7 +1503,7 @@ async function openJobDetail(id){
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px;">
-      ${[['CUSTOMER',data.customer],['PRINT LOCATION',data.print_location],['QTY',data.quantity],['OPERATOR',data.operator],['JOB DATE',data.job_date],['DUE DATE',data.due_date]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${v||'—'}</div></div>`).join('')}
+      ${[['CUSTOMER',data.customer],['PRINT LOCATION',data.print_location],['QTY',data.quantity],['OPERATOR',data.operator],['JOB DATE',fmtDate(data.job_date)],['DUE DATE',fmtDate(data.due_date)]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${v||'—'}</div></div>`).join('')}
     </div>
     ${data.image_url?`<img src="${data.image_url}" style="max-height:140px;border-radius:3px;border:1px solid var(--border);margin-bottom:14px;display:block;" />`:''}
     ${shirtHtml?`<div style="margin-bottom:14px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid rgba(232,80,10,.2);padding-bottom:3px;margin-bottom:7px;">SHIRT TYPES</div>${shirtHtml}</div>`:''}
@@ -1611,7 +1628,7 @@ function exportPDF(){
   const nl=()=>{y+=13;if(y>700){doc.addPage();y=44;}};
   doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text('PRESS SETUP DOC',44,y);y+=26;
   doc.setFont('helvetica','normal');doc.setFontSize(10);
-  doc.text(`Job: ${data.job_name}   Order: ${data.order_number||'—'}   Date: ${data.job_date||'—'}   Status: ${data.status}`,44,y);nl();
+  doc.text(`Job: ${data.job_name}   Order: ${data.order_number||'—'}   Date: ${fmtDate(data.job_date)}   Status: ${data.status}`,44,y);nl();
   doc.text(`Customer: ${data.customer||'—'}   Qty: ${data.quantity||'—'}   Operator: ${data.operator||'—'}`,44,y);y+=20;
   if(data.shirt_types?.length){
     doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('SHIRT TYPES',44,y);y+=13;
@@ -1697,7 +1714,7 @@ function buildKCard(job,stage){
     <div class="kcard-name">${job.job_name}</div>
     <div class="kcard-meta">
       ${job.order_number?`<span>#${job.order_number}</span>`:''}
-      ${job.job_date?`<span>${job.job_date}</span>`:''}
+      ${job.job_date?`<span>${fmtDate(job.job_date)}</span>`:''}
       ${job.due_date?`<span style="color:${new Date(job.due_date+'T00:00:00')<new Date()?'#ff4444':'var(--yellow)'};">${new Date(job.due_date+'T00:00:00')<new Date()?'⚠ OVERDUE:':'⏰ Due:'} ${job.due_date}</span>`:''}
       ${totalOrdered?`<span>${totalOrdered}pc</span>`:''}
       ${types.length?`<span>${types.slice(0,2).join(', ')}${types.length>2?'…':''}</span>`:''}
@@ -1920,8 +1937,8 @@ function buildMachCard(m) {
         ${m.serial_number ? `<span>S/N: ${m.serial_number}</span>` : ''}
         ${m.location ? `<span>📍 ${m.location}</span>` : ''}
         ${m.year ? `<span>Year: ${m.year}</span>` : ''}
-        ${m.last_maintenance ? `<span>Last svc: ${m.last_maintenance}</span>` : ''}
-        ${m.next_maintenance ? `<span style="color:var(--yellow);">Next: ${m.next_maintenance}</span>` : ''}
+        ${m.last_maintenance ? `<span>Last svc: ${fmtDate(m.last_maintenance)}</span>` : ''}
+        ${m.next_maintenance ? `<span style="color:var(--yellow);">Next: ${fmtDate(m.next_maintenance)}</span>` : ''}
       </div>
     </div>`;
   return div;
@@ -1980,7 +1997,7 @@ async function openMachDetail(id) {
     </div>
     ${m.photo_url ? `<div style="background:#0d0d0d;border:1px solid var(--border);border-radius:3px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;max-height:240px;overflow:hidden;"><img src="${m.photo_url}" style="max-width:100%;max-height:240px;width:auto;height:auto;object-fit:contain;display:block;" /></div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:16px;">
-      ${[['BRAND',m.brand],['MODEL',m.model],['SERIAL #',m.serial_number],['YEAR',m.year],['PURCHASED',m.purchase_date],['LOCATION',m.location]].map(([l,v])=>v?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;">${v}</div></div>`:'').filter(Boolean).join('')}
+      ${[['BRAND',m.brand],['MODEL',m.model],['SERIAL #',m.serial_number],['YEAR',m.year],['PURCHASED',fmtDate(m.purchase_date)],['LOCATION',m.location]].map(([l,v])=>v?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;">${v}</div></div>`:'').filter(Boolean).join('')}
     </div>
     ${m.notes ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;">${m.notes}</div>` : ''}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -2220,7 +2237,7 @@ async function loadSchedule() {
         +'<div class="sched-meta" style="margin-bottom:5px;">'
           +(m.location ? '<span>📍 '+m.location+'</span>' : '')
           +'<span>Due: '+e.next_scheduled+'</span>'
-          +(e.event_date ? '<span>Last done: '+e.event_date+'</span>' : '')
+          +(e.event_date ? '<span>Last done: '+fmtDate(e.event_date)+'</span>' : '')
           +(e.technician ? '<span>Tech: '+e.technician+'</span>' : '')
         +'</div>'
         +(e.description ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:rgba(245,240,232,.55);padding:5px 8px;background:rgba(245,240,232,.04);border-left:2px solid rgba(245,240,232,.12);border-radius:0 2px 2px 0;">'+e.description+'</div>' : '')
@@ -3226,7 +3243,8 @@ function openMarkDoneModal(e) {
 
   document.getElementById('mdMachName').textContent =
     (e._machineName || e.machine_id) + '  ·  ' + (typeLabels[e.event_type]||e.event_type) +
-    (e.description ? '  ·  ' + e.description : '');
+    (e.description ? '  ·  ' + e.description : '') +
+    (e.next_scheduled ? '  ·  Due: '+fmtDate(e.next_scheduled) : '');
   document.getElementById('md_date').value = todayStr;
   document.getElementById('md_tech').value = e.technician || '';
   document.getElementById('md_notes').value = '';
@@ -3459,7 +3477,7 @@ function renderPipelineStats(completed, active) {
         ${recentJobs.map(j=>`
           <div class="job-time-row">
             <div style="font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.name}</div>
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${j.job.job_date||''}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${fmtDate(j.job.job_date)}</div>
             <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${j.days<=3?'var(--green)':j.days<=7?'var(--yellow)':'var(--flash)'};">${fmtDays(j.days)}</div>
           </div>`).join('')}
         ${!recentJobs.length?'<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--muted);">No completed jobs yet.</div>':''}
