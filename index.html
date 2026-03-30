@@ -4494,8 +4494,9 @@ function previewAppName() {
 function saveAppSettings() {
   const name = document.getElementById('as_name').value.trim();
   // Read active text size from button states
+  const sizeIdMap2 = {small:'sizeSmall',normal:'sizeNormal',large:'sizeLarge',xlarge:'sizeXLarge'};
   const activeSize = Object.keys(TEXT_SIZES).find(k => {
-    const btn = document.getElementById('size'+k.charAt(0).toUpperCase()+k.slice(1));
+    const btn = document.getElementById(sizeIdMap2[k]);
     return btn && btn.classList.contains('selected');
   }) || 'normal';
 
@@ -4554,7 +4555,8 @@ function setTextSize(size, save = false) {
 
   // Update button states
   Object.keys(TEXT_SIZES).forEach(k => {
-    const btn = document.getElementById('size' + k.charAt(0).toUpperCase() + k.slice(1));
+    const sizeIdMap = {small:'sizeSmall',normal:'sizeNormal',large:'sizeLarge',xlarge:'sizeXLarge'};
+    const btn = document.getElementById(sizeIdMap[k]);
     if (btn) btn.classList.toggle('selected', k === size);
   });
 
@@ -4575,7 +4577,8 @@ function setTextSize(size, save = false) {
 function initTextSizeButtons(currentSize) {
   const size = currentSize || 'normal';
   Object.keys(TEXT_SIZES).forEach(k => {
-    const btn = document.getElementById('size' + k.charAt(0).toUpperCase() + k.slice(1));
+    const sizeIdMap = {small:'sizeSmall',normal:'sizeNormal',large:'sizeLarge',xlarge:'sizeXLarge'};
+    const btn = document.getElementById(sizeIdMap[k]);
     if (btn) btn.classList.toggle('selected', k === size);
   });
 }
