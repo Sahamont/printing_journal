@@ -19,7 +19,7 @@
       --cyan:#00b4d8; --green:#00c853; --yellow:#f5c000;
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-    html{scroll-behavior:smooth;}
+    html{scroll-behavior:smooth;font-size:15px;transition:font-size .2s;}
     body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100dvh;}
     .grid-bg{background-image:linear-gradient(rgba(245,240,232,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(245,240,232,0.03) 1px,transparent 1px);background-size:32px 32px;}
     .hidden{display:none!important;}
@@ -1066,6 +1066,33 @@
         <button class="style-btn active" id="fontBebas" onclick="setFont('bebas')">BEBAS NEUE</button>
         <button class="style-btn" id="fontMono" onclick="setFont('mono')">IBM PLEX MONO</button>
         <button class="style-btn" id="fontSans" onclick="setFont('sans')">IBM PLEX SANS</button>
+      </div>
+    </div>
+
+    <!-- Text Size / Accessibility -->
+    <div class="report-param-group">
+      <div class="report-param-title">Text Size</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:10px;">Scales all text and UI elements proportionally.</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+        <button class="style-btn" id="sizeSmall"  onclick="setTextSize('small')">
+          <div style="font-size:.7rem;margin-bottom:2px;">A</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;">Small</div>
+        </button>
+        <button class="style-btn" id="sizeNormal" onclick="setTextSize('normal')">
+          <div style="font-size:.9rem;margin-bottom:2px;">A</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;">Normal</div>
+        </button>
+        <button class="style-btn" id="sizeLarge"  onclick="setTextSize('large')">
+          <div style="font-size:1.1rem;margin-bottom:2px;">A</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;">Large</div>
+        </button>
+        <button class="style-btn" id="sizeXLarge" onclick="setTextSize('xlarge')">
+          <div style="font-size:1.3rem;margin-bottom:2px;">A</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;">Extra Large</div>
+        </button>
+      </div>
+      <div style="margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);" id="textSizePreview">
+        Preview: The quick brown fox jumps over the lazy dog.
       </div>
     </div>
 
@@ -4318,6 +4345,11 @@ function applyAppSettings(s, save = false) {
   // Font
   if (s.headerFont) applyFont(s.headerFont);
 
+  // Text size
+  if (s.textSize && TEXT_SIZES[s.textSize]) {
+    document.documentElement.style.fontSize = TEXT_SIZES[s.textSize].px + 'px';
+  }
+
   if (save) localStorage.setItem('app_settings', JSON.stringify(s));
 }
 
@@ -4388,6 +4420,10 @@ function openAppSettings() {
     if (el) el.classList.toggle('selected', f === curFont);
   });
 
+  // Text size buttons
+  const curSize = _asSettings.textSize || 'normal';
+  initTextSizeButtons(curSize);
+
   document.getElementById('appSettingsModal').classList.remove('hidden');
 }
 
@@ -4457,6 +4493,12 @@ function previewAppName() {
 
 function saveAppSettings() {
   const name = document.getElementById('as_name').value.trim();
+  // Read active text size from button states
+  const activeSize = Object.keys(TEXT_SIZES).find(k => {
+    const btn = document.getElementById('size'+k.charAt(0).toUpperCase()+k.slice(1));
+    return btn && btn.classList.contains('selected');
+  }) || 'normal';
+
   const settings = {
     appName: name || 'Press Setup Doc',
     flash:   getComputedStyle(document.documentElement).getPropertyValue('--flash').trim(),
@@ -4466,6 +4508,7 @@ function saveAppSettings() {
     bgStyle: _asSettings.bgStyle || 'dark',
     headerFont: _asSettings.headerFont || 'bebas',
     theme:   _asSettings.theme || 'default',
+    textSize: activeSize,
   };
   applyAppSettings(settings, true);
   document.getElementById('appSettingsModal').classList.add('hidden');
@@ -4494,6 +4537,48 @@ function rgbToHex(color) {
   return '#'+m.slice(0,3).map(n=>parseInt(n).toString(16).padStart(2,'0')).join('');
 }
 
+
+
+// ── TEXT SIZE / ACCESSIBILITY ─────────────────────────
+const TEXT_SIZES = {
+  small:  { px: 13, label: 'Small' },
+  normal: { px: 15, label: 'Normal' },
+  large:  { px: 18, label: 'Large' },
+  xlarge: { px: 21, label: 'Extra Large' },
+};
+
+function setTextSize(size, save = false) {
+  const s = TEXT_SIZES[size];
+  if (!s) return;
+  document.documentElement.style.fontSize = s.px + 'px';
+
+  // Update button states
+  Object.keys(TEXT_SIZES).forEach(k => {
+    const btn = document.getElementById('size' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (btn) btn.classList.toggle('selected', k === size);
+  });
+
+  // Update preview text
+  const prev = document.getElementById('textSizePreview');
+  if (prev) {
+    prev.style.fontSize = s.px + 'px';
+    prev.textContent = s.label + ' — The quick brown fox jumps over the lazy dog.';
+  }
+
+  if (save) {
+    const settings = getAppSettings();
+    settings.textSize = size;
+    localStorage.setItem('app_settings', JSON.stringify(settings));
+  }
+}
+
+function initTextSizeButtons(currentSize) {
+  const size = currentSize || 'normal';
+  Object.keys(TEXT_SIZES).forEach(k => {
+    const btn = document.getElementById('size' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (btn) btn.classList.toggle('selected', k === size);
+  });
+}
 
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
