@@ -238,6 +238,12 @@
     .col-sample{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .sr-view-btn{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.88rem;padding:.45rem .9rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;color:var(--muted);white-space:nowrap;touch-action:manipulation;}
     .sr-view-btn.active{color:var(--flash);border-bottom-color:var(--flash);}
+
+    /* ── App Settings ── */
+    .theme-swatch{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;flex-shrink:0;}
+    .theme-swatch.active{border-color:var(--text);transform:scale(1.12);}
+    .color-input-row{display:flex;align-items:center;gap:10px;}
+    .color-preview{width:28px;height:28px;border-radius:3px;border:1px solid var(--border);flex-shrink:0;}
   </style>
 </head>
 <body class="grid-bg">
@@ -245,7 +251,7 @@
 <!-- CONFIG MODAL -->
 <div id="configModal" class="modal" style="display:flex;align-items:center;">
   <div class="card modal-box" style="max-width:420px;padding:24px;">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:var(--flash);letter-spacing:.1em;">PRESS SETUP DOC</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:var(--flash);letter-spacing:.1em;" id="appNameConfig">PRESS SETUP DOC</div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-bottom:18px;">CONNECT YOUR SUPABASE PROJECT</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div><label>Supabase Project URL</label><input type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co" autocomplete="off" /></div>
@@ -259,10 +265,10 @@
 <!-- HEADER -->
 <header style="background:var(--bg);border-bottom:1px solid rgba(245,240,232,.07);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;">
   <div style="display:flex;align-items:center;gap:9px;">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--flash);letter-spacing:.12em;">PRESS SETUP DOC</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--flash);letter-spacing:.12em;" id="appNameHeader">PRESS SETUP DOC</div>
     <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;" id="connDot"></span>
   </div>
-  <button class="btn-ghost" onclick="showConfig()">⚙</button>
+  <button class="btn-ghost" onclick="openAppSettings()">⚙ SETTINGS</button>
 </header>
 
 <!-- TABS -->
@@ -1007,12 +1013,82 @@
   </div>
 </div>
 
+<!-- APP SETTINGS MODAL -->
+<div id="appSettingsModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:540px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.08em;">APP SETTINGS</div>
+      <button class="btn-ghost" onclick="closeAppSettings()">✕</button>
+    </div>
+
+    <!-- App Name -->
+    <div class="report-param-group">
+      <div class="report-param-title">App Name</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;">
+        <div><label>Display Name</label><input type="text" id="as_name" placeholder="Press Setup Doc" maxlength="32" /></div>
+        <button class="btn-secondary" onclick="previewAppName()">PREVIEW</button>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:6px;">Shown in the header, PDF reports, and browser tab.</div>
+    </div>
+
+    <!-- Preset Themes -->
+    <div class="report-param-group">
+      <div class="report-param-title">Preset Themes</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;" id="themeSwatches">
+        <!-- filled by JS -->
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">Pick a preset or customize individual colors below.</div>
+    </div>
+
+    <!-- Custom Colors -->
+    <div class="report-param-group">
+      <div class="report-param-title">Custom Colors</div>
+      <div style="display:flex;flex-direction:column;gap:10px;" id="colorPickers">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- Background style -->
+    <div class="report-param-group">
+      <div class="report-param-title">Background</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="style-btn" id="bgDark" onclick="setBgStyle('dark')">Dark</button>
+        <button class="style-btn" id="bgDarker" onclick="setBgStyle('darker')">Darker</button>
+        <button class="style-btn" id="bgNavy" onclick="setBgStyle('navy')">Deep Navy</button>
+        <button class="style-btn" id="bgSlate" onclick="setBgStyle('slate')">Slate</button>
+      </div>
+    </div>
+
+    <!-- Font style -->
+    <div class="report-param-group">
+      <div class="report-param-title">Header Font</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="style-btn active" id="fontBebas" onclick="setFont('bebas')">BEBAS NEUE</button>
+        <button class="style-btn" id="fontMono" onclick="setFont('mono')">IBM PLEX MONO</button>
+        <button class="style-btn" id="fontSans" onclick="setFont('sans')">IBM PLEX SANS</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn-ghost" onclick="resetAppSettings()">↩ RESET TO DEFAULT</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" onclick="closeAppSettings()">CANCEL</button>
+        <button class="btn-primary" onclick="saveAppSettings()">SAVE SETTINGS</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
 'use strict';
 // ── CONFIG ──────────────────────────────────────────────────
 let sbClient = null;
+function showConfigFromSettings() {
+  closeAppSettings();
+  showConfig();
+}
 function saveConfig(){
   const url=document.getElementById('cfgUrl').value.trim();
   const key=document.getElementById('cfgKey').value.trim();
@@ -1030,6 +1106,9 @@ function initSupabase(url,key){ sbClient=window.supabase.createClient(url,key); 
 
 window.addEventListener('DOMContentLoaded',()=>{
   const url=localStorage.getItem('sb_url'), key=localStorage.getItem('sb_key');
+  // Apply saved app settings on every load
+  applyAppSettings(getAppSettings());
+
   if(url&&key){
     initSupabase(url,key);
     document.getElementById('configModal').style.display='none';
@@ -2980,6 +3059,12 @@ function printQR() {
     .col-sample{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .sr-view-btn{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.88rem;padding:.45rem .9rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;color:var(--muted);white-space:nowrap;touch-action:manipulation;}
     .sr-view-btn.active{color:var(--flash);border-bottom-color:var(--flash);}
+
+    /* ── App Settings ── */
+    .theme-swatch{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;flex-shrink:0;}
+    .theme-swatch.active{border-color:var(--text);transform:scale(1.12);}
+    .color-input-row{display:flex;align-items:center;gap:10px;}
+    .color-preview{width:28px;height:28px;border-radius:3px;border:1px solid var(--border);flex-shrink:0;}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -4164,6 +4249,249 @@ function hexToRgb(hex) {
   if (hex.length===3) hex=hex.split('').map(c=>c+c).join('');
   const n=parseInt(hex,16);
   return [(n>>16)&255,(n>>8)&255,n&255].join(',');
+}
+
+
+
+// ══════════════════════════════════════════════════════
+// APP SETTINGS — NAME & THEME
+// ══════════════════════════════════════════════════════
+const THEMES = {
+  default:   { name:'Default Orange', accent:'#e8500a', accentDim:'rgba(232,80,10,0.15)', cyan:'#00b4d8', green:'#00c853', text:'#f5f0e8' },
+  electric:  { name:'Electric Blue',  accent:'#2979ff', accentDim:'rgba(41,121,255,0.15)', cyan:'#00e5ff', green:'#00c853', text:'#f0f4ff' },
+  neon:      { name:'Neon Green',     accent:'#00e676', accentDim:'rgba(0,230,118,0.15)', cyan:'#00b0ff', green:'#76ff03', text:'#f0fff4' },
+  purple:    { name:'Deep Purple',    accent:'#d500f9', accentDim:'rgba(213,0,249,0.15)', cyan:'#00b4d8', green:'#00c853', text:'#fdf0ff' },
+  red:       { name:'Signal Red',     accent:'#ff1744', accentDim:'rgba(255,23,68,0.15)',  cyan:'#00b4d8', green:'#00e676', text:'#fff0f0' },
+  gold:      { name:'Gold Rush',      accent:'#ffd600', accentDim:'rgba(255,214,0,0.15)',  cyan:'#00b4d8', green:'#00c853', text:'#fffde7' },
+  teal:      { name:'Teal Wave',      accent:'#00bfa5', accentDim:'rgba(0,191,165,0.15)', cyan:'#40c4ff', green:'#b2ff59', text:'#e0faf6' },
+  rose:      { name:'Rose',           accent:'#f06292', accentDim:'rgba(240,98,146,0.15)', cyan:'#80deea', green:'#a5d6a7', text:'#fff0f5' },
+};
+
+const BG_STYLES = {
+  dark:   { bg:'#0a0a0a', surface:'#111118', surface2:'#14141e', text:'#f5f0e8', muted:'rgba(245,240,232,0.4)', dim:'rgba(245,240,232,0.18)' },
+  darker: { bg:'#050507', surface:'#0c0c12', surface2:'#10101a', text:'#f5f0e8', muted:'rgba(245,240,232,0.4)', dim:'rgba(245,240,232,0.18)' },
+  navy:   { bg:'#050d1a', surface:'#0a1628', surface2:'#0f1e36', text:'#e8f0fe', muted:'rgba(232,240,254,0.4)', dim:'rgba(232,240,254,0.18)' },
+  slate:  { bg:'#0f1117', surface:'#171b26', surface2:'#1c2132', text:'#e2e8f0', muted:'rgba(226,232,240,0.4)', dim:'rgba(226,232,240,0.18)' },
+};
+
+const COLOR_DEFS = [
+  { key:'--flash',      label:'Accent / Primary',    desc:'Buttons, active tabs, highlights' },
+  { key:'--cyan',       label:'Secondary Accent',     desc:'Approved badges, info elements' },
+  { key:'--green',      label:'Success / Positive',   desc:'Active status, match indicators' },
+  { key:'--text',       label:'Text Color',           desc:'Main text color' },
+];
+
+let _asSettings = {};
+let _asCurrent = {}; // live preview values
+
+function getAppSettings() {
+  try { return JSON.parse(localStorage.getItem('app_settings') || '{}'); } catch { return {}; }
+}
+
+function applyAppSettings(s, save = false) {
+  if (!s) return;
+  const root = document.documentElement;
+
+  // App name
+  if (s.appName) {
+    const n = s.appName.toUpperCase();
+    ['appNameHeader','appNameConfig'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=n; });
+    document.title = s.appName;
+  }
+
+  // Colors
+  if (s.flash)  { root.style.setProperty('--flash', s.flash); root.style.setProperty('--flash-dim', hexToRgba(s.flash, 0.15)); }
+  if (s.cyan)   root.style.setProperty('--cyan',  s.cyan);
+  if (s.green)  root.style.setProperty('--green', s.green);
+  if (s.text)   { root.style.setProperty('--text', s.text); root.style.setProperty('--muted', hexToRgba(s.text, 0.4)); root.style.setProperty('--dim', hexToRgba(s.text, 0.18)); }
+
+  // Background
+  if (s.bgStyle && BG_STYLES[s.bgStyle]) {
+    const bg = BG_STYLES[s.bgStyle];
+    root.style.setProperty('--bg', bg.bg);
+    root.style.setProperty('--surface', bg.surface);
+    root.style.setProperty('--surface2', bg.surface2);
+    if (!s.text) { root.style.setProperty('--text', bg.text); root.style.setProperty('--muted', bg.muted); root.style.setProperty('--dim', bg.dim); }
+    document.body.style.background = bg.bg;
+  }
+
+  // Font
+  if (s.headerFont) applyFont(s.headerFont);
+
+  if (save) localStorage.setItem('app_settings', JSON.stringify(s));
+}
+
+function applyFont(font) {
+  const fonts = {
+    bebas: "'Bebas Neue', sans-serif",
+    mono:  "'IBM Plex Mono', monospace",
+    sans:  "'IBM Plex Sans', sans-serif",
+  };
+  document.documentElement.style.setProperty('--font-display', fonts[font] || fonts.bebas);
+  // Apply to all Bebas elements via class
+  document.querySelectorAll('.tab,.sl,.section-label,.btn-primary,.kcard-btn,.maint-subtab,.scr-subtab,.sr-view-btn').forEach(el => {
+    if (font === 'bebas') el.style.fontFamily = '';
+    else el.style.fontFamily = fonts[font];
+  });
+}
+
+function openAppSettings() {
+  _asSettings = { ...getAppSettings() };
+  _asCurrent  = { ...getAppSettings() };
+
+  // App name
+  document.getElementById('as_name').value = _asSettings.appName || 'Press Setup Doc';
+
+  // Build theme swatches
+  const swatches = document.getElementById('themeSwatches');
+  swatches.innerHTML = Object.entries(THEMES).map(([key, t]) =>
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;" onclick="applyThemePreset('${key}')">
+      <div class="theme-swatch ${_asSettings.theme===key?'active':''}" id="swatch-${key}"
+        style="background:${t.accent};" title="${t.name}"></div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);text-align:center;max-width:44px;">${t.name.split(' ')[0]}</div>
+    </div>`
+  ).join('');
+
+  // Build color pickers
+  const pickers = document.getElementById('colorPickers');
+  const current = {
+    '--flash': _asSettings.flash || getComputedStyle(document.documentElement).getPropertyValue('--flash').trim(),
+    '--cyan':  _asSettings.cyan  || getComputedStyle(document.documentElement).getPropertyValue('--cyan').trim(),
+    '--green': _asSettings.green || getComputedStyle(document.documentElement).getPropertyValue('--green').trim(),
+    '--text':  _asSettings.text  || getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+  };
+  pickers.innerHTML = COLOR_DEFS.map(c => `
+    <div>
+      <label>${c.label}</label>
+      <div class="color-input-row">
+        <div class="color-preview" id="preview-${c.key.replace('--','')}" style="background:${current[c.key]};"></div>
+        <input type="color" value="${rgbToHex(current[c.key])}" style="width:48px;height:32px;padding:2px;border-radius:3px;cursor:pointer;"
+          oninput="liveColorPreview('${c.key}',this.value)" />
+        <input type="text" value="${current[c.key]}" placeholder="#e8500a"
+          style="flex:1;font-size:.72rem;" oninput="liveColorPreview('${c.key}',this.value)" id="colorText-${c.key.replace('--','')}" />
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);max-width:120px;">${c.desc}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // Bg style buttons
+  const curBg = _asSettings.bgStyle || 'dark';
+  Object.keys(BG_STYLES).forEach(k => {
+    const el = document.getElementById('bg'+k.charAt(0).toUpperCase()+k.slice(1));
+    if (el) el.classList.toggle('selected', k === curBg);
+  });
+
+  // Font buttons
+  const curFont = _asSettings.headerFont || 'bebas';
+  ['bebas','mono','sans'].forEach(f => {
+    const el = document.getElementById('font'+f.charAt(0).toUpperCase()+f.slice(1));
+    if (el) el.classList.toggle('selected', f === curFont);
+  });
+
+  document.getElementById('appSettingsModal').classList.remove('hidden');
+}
+
+function closeAppSettings() {
+  // Revert live preview back to saved settings
+  applyAppSettings(getAppSettings());
+  document.getElementById('appSettingsModal').classList.add('hidden');
+}
+
+function liveColorPreview(cssVar, val) {
+  if (!val || val.length < 4) return;
+  document.documentElement.style.setProperty(cssVar, val);
+  const key = cssVar.replace('--','');
+  const prev = document.getElementById('preview-'+key);
+  if (prev) prev.style.background = val;
+  const txt = document.getElementById('colorText-'+key);
+  if (txt && document.activeElement !== txt) txt.value = val;
+  _asCurrent[key] = val;
+}
+
+function applyThemePreset(key) {
+  const t = THEMES[key];
+  if (!t) return;
+  _asSettings.theme = key;
+  // Update color inputs
+  liveColorPreview('--flash', t.accent);
+  liveColorPreview('--cyan',  t.cyan);
+  liveColorPreview('--green', t.green);
+  liveColorPreview('--text',  t.text);
+  // Update swatch active state
+  document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
+  const sw = document.getElementById('swatch-'+key);
+  if (sw) sw.classList.add('active');
+  // Update text inputs
+  [['--flash',t.accent],['--cyan',t.cyan],['--green',t.green],['--text',t.text]].forEach(([k,v]) => {
+    const el = document.getElementById('colorText-'+k.replace('--',''));
+    if (el) el.value = v;
+    const prev = document.getElementById('preview-'+k.replace('--',''));
+    if (prev) prev.style.background = v;
+  });
+}
+
+function setBgStyle(style) {
+  _asSettings.bgStyle = style;
+  Object.keys(BG_STYLES).forEach(k => {
+    const el = document.getElementById('bg'+k.charAt(0).toUpperCase()+k.slice(1));
+    if (el) el.classList.toggle('selected', k === style);
+  });
+  applyAppSettings({ bgStyle: style });
+}
+
+function setFont(font) {
+  _asSettings.headerFont = font;
+  ['bebas','mono','sans'].forEach(f => {
+    const el = document.getElementById('font'+f.charAt(0).toUpperCase()+f.slice(1));
+    if (el) el.classList.toggle('selected', f === font);
+  });
+  applyFont(font);
+}
+
+function previewAppName() {
+  const n = document.getElementById('as_name').value.trim();
+  if (!n) return;
+  ['appNameHeader','appNameConfig'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=n.toUpperCase(); });
+  document.title = n;
+}
+
+function saveAppSettings() {
+  const name = document.getElementById('as_name').value.trim();
+  const settings = {
+    appName: name || 'Press Setup Doc',
+    flash:   getComputedStyle(document.documentElement).getPropertyValue('--flash').trim(),
+    cyan:    getComputedStyle(document.documentElement).getPropertyValue('--cyan').trim(),
+    green:   getComputedStyle(document.documentElement).getPropertyValue('--green').trim(),
+    text:    getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+    bgStyle: _asSettings.bgStyle || 'dark',
+    headerFont: _asSettings.headerFont || 'bebas',
+    theme:   _asSettings.theme || 'default',
+  };
+  applyAppSettings(settings, true);
+  document.getElementById('appSettingsModal').classList.add('hidden');
+  showToast('Settings saved!', 'success');
+}
+
+function resetAppSettings() {
+  localStorage.removeItem('app_settings');
+  location.reload();
+}
+
+// ── Helpers ───────────────────────────────────────────
+function hexToRgba(hex, alpha) {
+  if (!hex || !hex.startsWith('#')) return hex;
+  hex = hex.replace('#','');
+  if (hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+  const n=parseInt(hex,16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+alpha+')';
+}
+
+function rgbToHex(color) {
+  if (!color) return '#ffffff';
+  if (color.startsWith('#')) return color.length===4 ? '#'+color.slice(1).split('').map(c=>c+c).join('') : color;
+  const m = color.match(/\d+/g);
+  if (!m || m.length < 3) return '#ffffff';
+  return '#'+m.slice(0,3).map(n=>parseInt(n).toString(16).padStart(2,'0')).join('');
 }
 
 
