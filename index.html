@@ -1104,12 +1104,64 @@
       </div>
     </div>
 
+    <!-- Data Management -->
+    <div class="report-param-group" style="border-color:rgba(255,68,68,.2);">
+      <div class="report-param-title" style="color:#ff4444;">DATA MANAGEMENT</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:12px;line-height:1.6;">
+        Export your data as backup before making any changes. Reset operations are permanent and cannot be undone.
+      </div>
+
+      <!-- Export -->
+      <div style="margin-bottom:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;">Export / Backup</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn-secondary" style="font-size:.7rem;" onclick="exportData('json')">⬇ EXPORT JSON</button>
+          <button class="btn-secondary" style="font-size:.7rem;" onclick="exportData('excel')">⬇ EXPORT EXCEL</button>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:5px;">Downloads all tables: jobs, screens, machines, maintenance events.</div>
+      </div>
+
+      <!-- Selective reset -->
+      <div style="margin-bottom:12px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;">Reset Individual Tables</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <button class="btn-danger" style="font-size:.68rem;padding:.4rem .7rem;" onclick="confirmReset('jobs')">🗑 CLEAR PRINT JOBS</button>
+          <button class="btn-danger" style="font-size:.68rem;padding:.4rem .7rem;" onclick="confirmReset('screens')">🗑 CLEAR SCREENS</button>
+          <button class="btn-danger" style="font-size:.68rem;padding:.4rem .7rem;" onclick="confirmReset('machines')">🗑 CLEAR MACHINES</button>
+          <button class="btn-danger" style="font-size:.68rem;padding:.4rem .7rem;" onclick="confirmReset('maintenance')">🗑 CLEAR MAINT. LOGS</button>
+        </div>
+      </div>
+
+      <!-- Full reset -->
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;">Full Reset</div>
+        <button class="btn-danger" style="width:100%;font-size:.75rem;padding:.55rem;" onclick="confirmReset('all')">⚠ RESET ALL DATA</button>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:rgba(255,68,68,.5);margin-top:4px;">Permanently deletes all jobs, screens, machines and maintenance records.</div>
+      </div>
+    </div>
+
     <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
-      <button class="btn-ghost" onclick="resetAppSettings()">↩ RESET TO DEFAULT</button>
+      <button class="btn-ghost" onclick="resetAppSettings()">↩ RESET THEME</button>
       <div style="display:flex;gap:8px;">
         <button class="btn-secondary" onclick="closeAppSettings()">CANCEL</button>
         <button class="btn-primary" onclick="saveAppSettings()">SAVE SETTINGS</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM RESET MODAL -->
+<div id="confirmResetModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:420px;padding:20px;margin:8px auto;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.08em;color:#ff4444;margin-bottom:4px;">⚠ CONFIRM RESET</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);margin-bottom:16px;" id="resetModalDesc"></div>
+    <div style="background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.2);border-radius:3px;padding:12px;margin-bottom:14px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);margin-bottom:7px;">Type <span style="color:#ff4444;font-weight:600;">DELETE</span> to confirm:</div>
+      <input type="text" id="resetConfirmInput" placeholder="Type DELETE here" oninput="checkResetConfirm()" style="border-color:rgba(255,68,68,.3);" />
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn-secondary" onclick="closeConfirmReset()">CANCEL</button>
+      <button class="btn-danger" id="executeResetBtn" onclick="executeReset()" disabled style="opacity:.4;cursor:not-allowed;">DELETE DATA</button>
     </div>
   </div>
 </div>
@@ -4678,6 +4730,184 @@ function flashLiveIndicator() {
     dot.style.transition = 'all .3s';
   }, 200);
 }
+
+
+// ══════════════════════════════════════════════════════
+// DATA MANAGEMENT — EXPORT & RESET
+// ══════════════════════════════════════════════════════
+let _resetTarget = null;
+
+const RESET_CONFIGS = {
+  jobs:        { label: 'all print jobs & setups',    tables: ['print_setups'] },
+  screens:     { label: 'all screen inventory',       tables: ['screens'] },
+  machines:    { label: 'all machines',               tables: ['machines_2'] },
+  maintenance: { label: 'all maintenance event logs', tables: ['maintenance_events'] },
+  all:         { label: 'ALL DATA (jobs, screens, machines, maintenance)', tables: ['print_setups','screens','maintenance_events','machines_2'] },
+};
+
+// ── EXPORT ────────────────────────────────────────────
+async function exportData(format) {
+  if (!sbClient) { showToast('Not connected.', 'error'); return; }
+  showToast('Preparing export…', 'success');
+
+  // Fetch all tables in parallel
+  const [jobs, screens, machines, events] = await Promise.all([
+    sbClient.from('print_setups').select('*').order('job_date', { ascending: false }),
+    sbClient.from('screens').select('*').order('screen_id'),
+    sbClient.from('machines_2').select('*').order('name'),
+    sbClient.from('maintenance_events').select('*').order('event_date', { ascending: false }),
+  ]);
+
+  const dataset = {
+    exported_at: new Date().toISOString(),
+    app: getAppSettings().appName || 'Press Setup Doc',
+    tables: {
+      print_setups:       jobs.data    || [],
+      screens:            screens.data || [],
+      machines_2:         machines.data|| [],
+      maintenance_events: events.data  || [],
+    },
+    counts: {
+      print_setups:       (jobs.data||[]).length,
+      screens:            (screens.data||[]).length,
+      machines_2:         (machines.data||[]).length,
+      maintenance_events: (events.data||[]).length,
+    }
+  };
+
+  const dateStr = new Date().toISOString().split('T')[0];
+
+  if (format === 'json') {
+    const blob = new Blob([JSON.stringify(dataset, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, `press-setup-backup-${dateStr}.json`);
+    showToast(`JSON exported — ${Object.values(dataset.counts).reduce((a,b)=>a+b,0)} total records`, 'success');
+  }
+
+  if (format === 'excel') {
+    const wb = XLSX.utils.book_new();
+    // Jobs sheet — flatten shirt_types for readability
+    const jobRows = (jobs.data||[]).map(j => {
+      const types = (j.shirt_types||[]).map((t,i) =>
+        `Type${i+1}: ${t.style||''} ${t.color||''} (${Object.entries(t.sizes||{}).map(([s,q])=>s+':'+q).join(', ')})`
+      ).join(' | ');
+      return {
+        'Job Name': j.job_name, 'Order #': j.order_number, 'Job Date': j.job_date,
+        'Due Date': j.due_date, 'Customer': j.customer, 'Operator': j.operator,
+        'Status': j.status, 'Quantity': j.quantity, 'Shirt Types': types,
+        'Print Location': j.print_location, 'Notes': j.notes,
+        'Press Speed': j.press_speed, 'Flash Temp': j.flash_temp,
+        'Dryer Temp': j.dryer_temp, 'Pipeline Stage': j.pipeline_stage,
+        'Completed At': j.completed_at,
+      };
+    });
+    wb.SheetNames.push('Print Jobs');
+    wb.Sheets['Print Jobs'] = XLSX.utils.json_to_sheet(jobRows);
+
+    // Screens sheet
+    const scrRows = (screens.data||[]).map(s => ({
+      'Screen ID': s.screen_id, 'Mesh Count': s.mesh_count,
+      'Frame Size': s.frame_size, 'State': s.state,
+      'Current Job': s.current_job, 'Notes': s.notes,
+    }));
+    wb.SheetNames.push('Screens');
+    wb.Sheets['Screens'] = XLSX.utils.json_to_sheet(scrRows);
+
+    // Machines sheet
+    const machRows = (machines.data||[]).map(m => ({
+      'Name': m.name, 'Brand': m.brand, 'Model': m.model,
+      'Serial #': m.serial_number, 'Year': m.year,
+      'Location': m.location, 'Status': m.status,
+      'Last Maintenance': m.last_maintenance,
+      'Next Maintenance': m.next_maintenance, 'Notes': m.notes,
+    }));
+    wb.SheetNames.push('Machines');
+    wb.Sheets['Machines'] = XLSX.utils.json_to_sheet(machRows);
+
+    // Maintenance events sheet
+    const evtRows = (events.data||[]).map(e => ({
+      'Date': e.event_date, 'Machine ID': e.machine_id,
+      'Type': e.event_type, 'Description': e.description,
+      'Technician': e.technician, 'Parts Used': e.parts_used,
+      'Next Scheduled': e.next_scheduled,
+    }));
+    wb.SheetNames.push('Maintenance Events');
+    wb.Sheets['Maintenance Events'] = XLSX.utils.json_to_sheet(evtRows);
+
+    XLSX.writeFile(wb, `press-setup-backup-${dateStr}.xlsx`);
+    showToast(`Excel exported — 4 sheets, ${Object.values(dataset.counts).reduce((a,b)=>a+b,0)} total records`, 'success');
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ── RESET ─────────────────────────────────────────────
+function confirmReset(target) {
+  _resetTarget = target;
+  const cfg = RESET_CONFIGS[target];
+  document.getElementById('resetModalDesc').innerHTML =
+    'This will permanently delete <strong style="color:#ff4444;">' + cfg.label + '</strong>.<br><br>' +
+    'This action <strong>cannot be undone</strong>. Export a backup first if you need to keep the data.';
+  document.getElementById('resetConfirmInput').value = '';
+  document.getElementById('executeResetBtn').disabled = true;
+  document.getElementById('executeResetBtn').style.opacity = '.4';
+  document.getElementById('executeResetBtn').style.cursor = 'not-allowed';
+  document.getElementById('confirmResetModal').classList.remove('hidden');
+}
+
+function checkResetConfirm() {
+  const val = document.getElementById('resetConfirmInput').value.trim().toUpperCase();
+  const btn = document.getElementById('executeResetBtn');
+  const ok = val === 'DELETE';
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.4';
+  btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+function closeConfirmReset() {
+  document.getElementById('confirmResetModal').classList.add('hidden');
+  _resetTarget = null;
+}
+
+async function executeReset() {
+  if (!sbClient || !_resetTarget) return;
+  const cfg = RESET_CONFIGS[_resetTarget];
+  const btn = document.getElementById('executeResetBtn');
+  btn.innerHTML = '<span class="loader"></span>';
+  btn.disabled = true;
+
+  let errors = [];
+  for (const table of cfg.tables) {
+    // Delete all rows using a condition that matches everything
+    const { error } = await sbClient.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) errors.push(table + ': ' + error.message);
+  }
+
+  btn.innerHTML = 'DELETE DATA';
+  closeConfirmReset();
+
+  if (errors.length) {
+    showToast('Some errors: ' + errors.join(', '), 'error');
+  } else {
+    showToast('Data cleared successfully.', 'success');
+    // Refresh whatever is visible
+    const tabs = ['pipeline','search','maint','screens'];
+    tabs.forEach(t => {
+      if (!document.getElementById('pane-'+t)?.classList.contains('hidden')) {
+        if (t === 'pipeline') loadPipeline();
+        if (t === 'search') searchJobs();
+        if (t === 'maint') loadMachines();
+        if (t === 'screens') loadScreens();
+      }
+    });
+  }
+}
+
 
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
