@@ -250,6 +250,22 @@
     .theme-swatch.active{border-color:var(--text);transform:scale(1.12);}
     .color-input-row{display:flex;align-items:center;gap:10px;}
     .color-preview{width:28px;height:28px;border-radius:3px;border:1px solid var(--border);flex-shrink:0;}
+
+    /* ── Ink & Squeegee cards ── */
+    .ink-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:11px 12px;cursor:pointer;transition:border-color .15s;}
+    .ink-card:hover{border-color:rgba(232,80,10,.4);}
+    .ink-dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.2);flex-shrink:0;}
+    .ink-status-instock{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+    .ink-status-low{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.25);}
+    .ink-status-out{background:rgba(255,68,68,.1);color:#ff4444;border:1px solid rgba(255,68,68,.25);}
+    .ink-status-ordered{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.25);}
+    .sq-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:11px 12px;cursor:pointer;transition:border-color .15s;}
+    .sq-card:hover{border-color:rgba(232,80,10,.4);}
+    .sq-cond-new{color:var(--green);}
+    .sq-cond-good{color:var(--cyan);}
+    .sq-cond-fair{color:var(--yellow);}
+    .sq-cond-needs_sharpening{color:var(--flash);}
+    .sq-cond-retired{color:var(--muted);}
   </style>
 </head>
 <body class="grid-bg">
@@ -540,8 +556,10 @@
 
     <!-- Sub-tabs -->
     <div style="display:flex;gap:0;border-bottom:1px solid rgba(245,240,232,.07);margin-bottom:14px;">
-      <div class="scr-subtab active" id="sst-inventory" onclick="switchScrTab('inventory')">INVENTORY</div>
+      <div class="scr-subtab active" id="sst-inventory" onclick="switchScrTab('inventory')">SCREENS</div>
       <div class="scr-subtab" id="sst-planner" onclick="switchScrTab('planner')">JOB PLANNER</div>
+      <div class="scr-subtab" id="sst-ink" onclick="switchScrTab('ink')">INK</div>
+      <div class="scr-subtab" id="sst-squeegee" onclick="switchScrTab('squeegee')">SQUEEGEES</div>
     </div>
 
     <!-- INVENTORY -->
@@ -583,6 +601,32 @@
     </div>
 
   </div>
+    <!-- INK INVENTORY -->
+    <div id="spane-ink" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">INK INVENTORY</div>
+        <div style="display:flex;gap:7px;">
+          <button class="btn-ghost" onclick="loadInks()">↺ REFRESH</button>
+          <button class="btn-primary" onclick="openAddInkModal()">+ ADD INK</button>
+        </div>
+      </div>
+      <div id="inkSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
+      <div id="inkGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;"></div>
+    </div>
+
+    <!-- SQUEEGEE INVENTORY -->
+    <div id="spane-squeegee" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">SQUEEGEE INVENTORY</div>
+        <div style="display:flex;gap:7px;">
+          <button class="btn-ghost" onclick="loadSqueegees()">↺ REFRESH</button>
+          <button class="btn-primary" onclick="openAddSqueegeeModal()">+ ADD SQUEEGEE</button>
+        </div>
+      </div>
+      <div id="squegeeSummary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
+      <div id="squegeeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;"></div>
+    </div>
+
 
 
   <!-- ═══ REPORTS ═══ -->
@@ -1173,6 +1217,111 @@
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn-secondary" onclick="closeConfirmReset()">CANCEL</button>
       <button class="btn-danger" id="executeResetBtn" onclick="executeReset()" disabled style="opacity:.4;cursor:not-allowed;">DELETE DATA</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT INK MODAL -->
+<div id="addInkModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:460px;padding:18px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="inkModalTitle">ADD INK</div>
+      <button class="btn-ghost" onclick="closeAddInkModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div><label>Ink Name / Color</label><input type="text" id="ink_name" placeholder="Bright Red" /></div>
+      <div><label>PMS / Code</label><input type="text" id="ink_pms" placeholder="PMS 485 C" /></div>
+      <div><label>Brand</label><input type="text" id="ink_brand" placeholder="Union Inks" /></div>
+      <div><label>Type</label>
+        <select id="ink_type">
+          <option value="plastisol">Plastisol</option>
+          <option value="waterbased">Water-Based</option>
+          <option value="discharge">Discharge</option>
+          <option value="hsa">HSA</option>
+          <option value="specialty">Specialty</option>
+        </select>
+      </div>
+      <div><label>Container Size</label><input type="text" id="ink_size" placeholder="Gallon / Quart / lb" /></div>
+      <div><label>Quantity in Stock</label><input type="number" id="ink_qty" placeholder="0" min="0" step="0.5" /></div>
+      <div><label>Low Stock Alert At</label><input type="number" id="ink_low" placeholder="2" min="0" step="0.5" /></div>
+      <div>
+        <label>Status</label>
+        <select id="ink_status">
+          <option value="in_stock">In Stock</option>
+          <option value="low">Low</option>
+          <option value="out">Out of Stock</option>
+          <option value="ordered">Ordered</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1"><label>Notes</label><input type="text" id="ink_notes" placeholder="Mixing ratio, supplier, etc." /></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;">
+      <button class="btn-danger" id="deleteInkBtn" onclick="deleteInk()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeAddInkModal()">CANCEL</button>
+        <button class="btn-primary" id="saveInkBtn" onclick="saveInk()">SAVE INK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT SQUEEGEE MODAL -->
+<div id="addSqueegeeModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:460px;padding:18px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="sqModalTitle">ADD SQUEEGEE</div>
+      <button class="btn-ghost" onclick="closeAddSqueegeeModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div><label>Squeegee ID / #</label><input type="text" id="sq_id" placeholder="SQ-001" /></div>
+      <div><label>Durometer</label>
+        <select id="sq_duro">
+          <option value="65">65</option>
+          <option value="70">70</option>
+          <option value="75">75</option>
+          <option value="80">80</option>
+          <option value="65/90/65">65/90/65 Triple</option>
+          <option value="70/90/70">70/90/70 Triple</option>
+        </select>
+      </div>
+      <div><label>Blade Type</label>
+        <select id="sq_blade_type">
+          <option value="straight">Straight</option>
+          <option value="v-notch">V-Notch</option>
+          <option value="double-notch">Double Notch</option>
+          <option value="round">Round Edge</option>
+        </select>
+      </div>
+      <div><label>Length (in)</label><input type="number" id="sq_length" placeholder='18"' step="0.5" /></div>
+      <div>
+        <label>Condition</label>
+        <select id="sq_condition">
+          <option value="new">New</option>
+          <option value="good">Good</option>
+          <option value="fair">Fair</option>
+          <option value="needs_sharpening">Needs Sharpening</option>
+          <option value="retired">Retired</option>
+        </select>
+      </div>
+      <div>
+        <label>Status</label>
+        <select id="sq_status">
+          <option value="available">Available</option>
+          <option value="in_use">In Use</option>
+          <option value="sharpening">Being Sharpened</option>
+          <option value="retired">Retired</option>
+        </select>
+      </div>
+      <div><label>Last Sharpened</label><input type="date" id="sq_sharpened" /></div>
+      <div><label>Print Count</label><input type="number" id="sq_prints" placeholder="0" min="0" /></div>
+      <div style="grid-column:1/-1"><label>Notes</label><input type="text" id="sq_notes" placeholder="Any notes…" /></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;">
+      <button class="btn-danger" id="deleteSqBtn" onclick="deleteSqueegee()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeAddSqueegeeModal()">CANCEL</button>
+        <button class="btn-primary" id="saveSqBtn" onclick="saveSqueegee()">SAVE SQUEEGEE</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2787,11 +2936,13 @@ const MESH_LABELS = {'110':'110','155w':'155 White','155y':'155 Yellow','200':'2
 let _editScreenId = null;
 
 function switchScrTab(tab) {
-  ['inventory','planner'].forEach(t => {
+  ['inventory','planner','ink','squeegee'].forEach(t => {
     document.getElementById('spane-'+t).classList.toggle('hidden', tab !== t);
     document.getElementById('sst-'+t).classList.toggle('active', tab === t);
   });
   if (tab === 'planner') { loadActiveAssignments(); searchPlannerJobs(); }
+  if (tab === 'ink') loadInks();
+  if (tab === 'squeegee') loadSqueegees();
 }
 
 // ── Load inventory ──────────────────────────────────
@@ -3264,6 +3415,22 @@ function printQR() {
     .theme-swatch.active{border-color:var(--text);transform:scale(1.12);}
     .color-input-row{display:flex;align-items:center;gap:10px;}
     .color-preview{width:28px;height:28px;border-radius:3px;border:1px solid var(--border);flex-shrink:0;}
+
+    /* ── Ink & Squeegee cards ── */
+    .ink-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:11px 12px;cursor:pointer;transition:border-color .15s;}
+    .ink-card:hover{border-color:rgba(232,80,10,.4);}
+    .ink-dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.2);flex-shrink:0;}
+    .ink-status-instock{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+    .ink-status-low{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.25);}
+    .ink-status-out{background:rgba(255,68,68,.1);color:#ff4444;border:1px solid rgba(255,68,68,.25);}
+    .ink-status-ordered{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.25);}
+    .sq-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:11px 12px;cursor:pointer;transition:border-color .15s;}
+    .sq-card:hover{border-color:rgba(232,80,10,.4);}
+    .sq-cond-new{color:var(--green);}
+    .sq-cond-good{color:var(--cyan);}
+    .sq-cond-fair{color:var(--yellow);}
+    .sq-cond-needs_sharpening{color:var(--flash);}
+    .sq-cond-retired{color:var(--muted);}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -5080,6 +5247,281 @@ async function checkScreenInventory() {
   alertEl.innerHTML = html;
   alertEl.style.display = 'block';
 }
+
+
+// ══════════════════════════════════════════════════════
+// INK INVENTORY
+// ══════════════════════════════════════════════════════
+const INK_STATUSES = { in_stock:'In Stock', low:'Low', out:'Out of Stock', ordered:'Ordered' };
+const INK_STATUS_CLS = { in_stock:'ink-status-instock', low:'ink-status-low', out:'ink-status-out', ordered:'ink-status-ordered' };
+const INK_TYPES = { plastisol:'Plastisol', waterbased:'Water-Based', discharge:'Discharge', hsa:'HSA', specialty:'Specialty' };
+let _editInkId = null;
+
+async function loadInks() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('inks').select('*').order('ink_name');
+  const grid = document.getElementById('inkGrid');
+  const summary = document.getElementById('inkSummary');
+  if (error) { grid.innerHTML = '<div style="color:#ff4444;font-family:IBM Plex Mono,monospace;font-size:.72rem;">Error: '+error.message+'</div>'; return; }
+
+  // Summary
+  const counts = { in_stock:0, low:0, out:0, ordered:0 };
+  (data||[]).forEach(i => { if(counts[i.status]!==undefined) counts[i.status]++; });
+  summary.innerHTML = Object.entries(counts).filter(([,v])=>v>0).map(([s,v]) =>
+    `<span class="summary-pill ${INK_STATUS_CLS[s]}">${INK_STATUSES[s]}: ${v}</span>`
+  ).join('');
+
+  if (!data||!data.length) {
+    grid.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;">No inks yet — click ADD INK to get started.</div>';
+    return;
+  }
+  grid.innerHTML = '';
+  data.forEach(ink => grid.appendChild(buildInkCard(ink)));
+}
+
+function buildInkCard(ink) {
+  const div = document.createElement('div');
+  div.className = 'ink-card';
+  div.onclick = () => openEditInkModal(ink);
+  const statusCls = INK_STATUS_CLS[ink.status] || 'ink-status-instock';
+  const statusLbl = INK_STATUSES[ink.status] || ink.status;
+  const isLow = ink.status === 'low' || ink.status === 'out' || (ink.low_stock_at && ink.quantity <= ink.low_stock_at);
+
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:6px;">
+      <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+        <span class="ink-dot" style="background:${pmsToApproxHex(ink.pms_code)};"></span>
+        <span style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ink.ink_name}</span>
+      </div>
+      <span class="badge ${statusCls}" style="flex-shrink:0;">${statusLbl}</span>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);display:flex;flex-direction:column;gap:2px;">
+      ${ink.pms_code?`<span>${ink.pms_code}</span>`:''}
+      ${ink.brand?`<span>${ink.brand}</span>`:''}
+      <span>${INK_TYPES[ink.ink_type]||ink.ink_type||''}</span>
+      ${ink.quantity!==null&&ink.quantity!==undefined?`<span style="color:${isLow?'var(--flash)':'var(--text)'};">${ink.quantity} ${ink.container_size||'units'} in stock</span>`:''}
+      ${ink.low_stock_at?`<span style="color:var(--muted);">Alert at: ${ink.low_stock_at}</span>`:''}
+    </div>`;
+  return div;
+}
+
+function pmsToApproxHex(pms) {
+  // Return a generic colored dot — no external lookup needed
+  if (!pms) return 'rgba(245,240,232,.2)';
+  const h = Math.abs(pms.split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % 360;
+  return `hsl(${h},60%,50%)`;
+}
+
+function openAddInkModal() {
+  _editInkId = null;
+  document.getElementById('inkModalTitle').textContent = 'ADD INK';
+  ['ink_name','ink_pms','ink_brand','ink_notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ink_type').value='plastisol';
+  document.getElementById('ink_status').value='in_stock';
+  document.getElementById('ink_qty').value='';
+  document.getElementById('ink_low').value='';
+  document.getElementById('ink_size').value='';
+  document.getElementById('deleteInkBtn').style.display='none';
+  document.getElementById('addInkModal').classList.remove('hidden');
+}
+
+function openEditInkModal(ink) {
+  _editInkId = ink.id;
+  document.getElementById('inkModalTitle').textContent = 'EDIT INK';
+  document.getElementById('ink_name').value = ink.ink_name||'';
+  document.getElementById('ink_pms').value = ink.pms_code||'';
+  document.getElementById('ink_brand').value = ink.brand||'';
+  document.getElementById('ink_type').value = ink.ink_type||'plastisol';
+  document.getElementById('ink_size').value = ink.container_size||'';
+  document.getElementById('ink_qty').value = ink.quantity??'';
+  document.getElementById('ink_low').value = ink.low_stock_at??'';
+  document.getElementById('ink_status').value = ink.status||'in_stock';
+  document.getElementById('ink_notes').value = ink.notes||'';
+  document.getElementById('deleteInkBtn').style.display='inline-block';
+  document.getElementById('addInkModal').classList.remove('hidden');
+}
+
+function closeAddInkModal() { document.getElementById('addInkModal').classList.add('hidden'); _editInkId=null; }
+
+async function saveInk() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveInkBtn');
+  btn.innerHTML='<span class="loader"></span>'; btn.disabled=true;
+  const record = {
+    ink_name: document.getElementById('ink_name').value.trim(),
+    pms_code: document.getElementById('ink_pms').value.trim(),
+    brand: document.getElementById('ink_brand').value.trim(),
+    ink_type: document.getElementById('ink_type').value,
+    container_size: document.getElementById('ink_size').value.trim(),
+    quantity: document.getElementById('ink_qty').value!=='' ? parseFloat(document.getElementById('ink_qty').value) : null,
+    low_stock_at: document.getElementById('ink_low').value!=='' ? parseFloat(document.getElementById('ink_low').value) : null,
+    status: document.getElementById('ink_status').value,
+    notes: document.getElementById('ink_notes').value.trim(),
+  };
+  if (!record.ink_name) { showToast('Ink name required.','error'); btn.innerHTML='SAVE INK'; btn.disabled=false; return; }
+
+  // Auto-set status based on qty vs low threshold
+  if (record.quantity !== null && record.low_stock_at !== null) {
+    if (record.quantity <= 0) record.status = 'out';
+    else if (record.quantity <= record.low_stock_at) record.status = 'low';
+    else record.status = 'in_stock';
+  }
+
+  let error;
+  if (_editInkId) { ({error}=await sbClient.from('inks').update(record).eq('id',_editInkId)); }
+  else { ({error}=await sbClient.from('inks').insert([record])); }
+  btn.innerHTML='SAVE INK'; btn.disabled=false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editInkId?'Ink updated!':'Ink added!','success');
+  closeAddInkModal(); loadInks();
+}
+
+async function deleteInk() {
+  if (!sbClient||!_editInkId) return;
+  if (!confirm('Delete this ink?')) return;
+  const {error}=await sbClient.from('inks').delete().eq('id',_editInkId);
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast('Ink deleted.','success');
+  closeAddInkModal(); loadInks();
+}
+
+// ══════════════════════════════════════════════════════
+// SQUEEGEE INVENTORY
+// ══════════════════════════════════════════════════════
+const SQ_CONDITIONS = { new:'New', good:'Good', fair:'Fair', needs_sharpening:'Needs Sharpening', retired:'Retired' };
+const SQ_STATUSES = { available:'Available', in_use:'In Use', sharpening:'Being Sharpened', retired:'Retired' };
+let _editSqId = null;
+
+async function loadSqueegees() {
+  if (!sbClient) return;
+  const {data,error} = await sbClient.from('squeegees').select('*').order('squeegee_id');
+  const grid = document.getElementById('squegeeGrid');
+  const summary = document.getElementById('squegeeSummary');
+  if (error) { grid.innerHTML='<div style="color:#ff4444;font-family:IBM Plex Mono,monospace;font-size:.72rem;">Error: '+error.message+'</div>'; return; }
+
+  // Summary
+  const counts={available:0,in_use:0,sharpening:0,retired:0};
+  (data||[]).forEach(s=>{ if(counts[s.status]!==undefined) counts[s.status]++; });
+  const statColors={available:'var(--green)',in_use:'var(--flash)',sharpening:'var(--yellow)',retired:'var(--muted)'};
+  summary.innerHTML='<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);padding:4px 8px;align-self:center;">TOTAL: '+(data||[]).length+'</div>'
+    +Object.entries(counts).filter(([,v])=>v>0).map(([s,v])=>
+      `<span class="summary-pill" style="background:rgba(255,255,255,.05);color:${statColors[s]};border:1px solid ${statColors[s].replace(')',', .25)').replace('var(','rgba(')};">${SQ_STATUSES[s]}: ${v}</span>`
+    ).join('');
+
+  if (!data||!data.length) {
+    grid.innerHTML='<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;">No squeegees yet — click ADD SQUEEGEE to get started.</div>';
+    return;
+  }
+  grid.innerHTML='';
+  data.forEach(sq=>grid.appendChild(buildSqCard(sq)));
+}
+
+function buildSqCard(sq) {
+  const div=document.createElement('div');
+  div.className='sq-card';
+  div.onclick=()=>openEditSqModal(sq);
+  const condCls='sq-cond-'+(sq.condition||'good');
+  const condLbl=SQ_CONDITIONS[sq.condition]||sq.condition;
+  const statusLbl=SQ_STATUSES[sq.status]||sq.status;
+  const statusColor={available:'var(--green)',in_use:'var(--flash)',sharpening:'var(--yellow)',retired:'var(--muted)'}[sq.status]||'var(--muted)';
+  const needsSharp=sq.condition==='needs_sharpening';
+
+  div.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+      <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.82rem;">${sq.squeegee_id}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:${statusColor};">● ${statusLbl}</span>
+    </div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--flash);margin-bottom:4px;">
+      ${sq.durometer} Duro${sq.blade_type?' · '+sq.blade_type:''}${sq.length?' · '+sq.length+'"':''}
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);display:flex;flex-direction:column;gap:2px;">
+      <span class="${condCls}" style="font-weight:600;">${needsSharp?'⚠ ':''} ${condLbl}</span>
+      ${sq.last_sharpened?`<span>Last sharpened: ${fmtDate(sq.last_sharpened)}</span>`:''}
+      ${sq.print_count?`<span>Print count: ${sq.print_count.toLocaleString()}</span>`:''}
+      ${sq.notes?`<span style="color:rgba(245,240,232,.3);">${sq.notes}</span>`:''}
+    </div>`;
+  return div;
+}
+
+async function openAddSqueegeeModal() {
+  _editSqId = null;
+  document.getElementById('sqModalTitle').textContent='ADD SQUEEGEE';
+  ['sq_id','sq_notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sq_duro').value='70';
+  document.getElementById('sq_blade_type').value='straight';
+  document.getElementById('sq_length').value='';
+  document.getElementById('sq_condition').value='new';
+  document.getElementById('sq_status').value='available';
+  document.getElementById('sq_sharpened').value='';
+  document.getElementById('sq_prints').value='';
+
+  // Auto-generate ID
+  if (sbClient) {
+    const {data}=await sbClient.from('squeegees').select('squeegee_id').ilike('squeegee_id','SQ-%').order('squeegee_id',{ascending:false}).limit(50);
+    let next=1;
+    if (data&&data.length) {
+      const nums=data.map(s=>parseInt((s.squeegee_id||'').replace(/^SQ-0*/i,''))||0).filter(n=>n>0);
+      if (nums.length) next=Math.max(...nums)+1;
+    }
+    document.getElementById('sq_id').value='SQ-'+String(next).padStart(3,'0');
+  }
+
+  document.getElementById('deleteSqBtn').style.display='none';
+  document.getElementById('addSqueegeeModal').classList.remove('hidden');
+}
+
+function openEditSqModal(sq) {
+  _editSqId=sq.id;
+  document.getElementById('sqModalTitle').textContent='EDIT SQUEEGEE';
+  document.getElementById('sq_id').value=sq.squeegee_id||'';
+  document.getElementById('sq_duro').value=sq.durometer||'70';
+  document.getElementById('sq_blade_type').value=sq.blade_type||'straight';
+  document.getElementById('sq_length').value=sq.length||'';
+  document.getElementById('sq_condition').value=sq.condition||'good';
+  document.getElementById('sq_status').value=sq.status||'available';
+  document.getElementById('sq_sharpened').value=sq.last_sharpened||'';
+  document.getElementById('sq_prints').value=sq.print_count||'';
+  document.getElementById('sq_notes').value=sq.notes||'';
+  document.getElementById('deleteSqBtn').style.display='inline-block';
+  document.getElementById('addSqueegeeModal').classList.remove('hidden');
+}
+
+function closeAddSqueegeeModal() { document.getElementById('addSqueegeeModal').classList.add('hidden'); _editSqId=null; }
+
+async function saveSqueegee() {
+  if (!sbClient) return;
+  const btn=document.getElementById('saveSqBtn');
+  btn.innerHTML='<span class="loader"></span>'; btn.disabled=true;
+  const record={
+    squeegee_id: document.getElementById('sq_id').value.trim(),
+    durometer: document.getElementById('sq_duro').value,
+    blade_type: document.getElementById('sq_blade_type').value,
+    length: document.getElementById('sq_length').value ? parseFloat(document.getElementById('sq_length').value) : null,
+    condition: document.getElementById('sq_condition').value,
+    status: document.getElementById('sq_status').value,
+    last_sharpened: document.getElementById('sq_sharpened').value||null,
+    print_count: document.getElementById('sq_prints').value ? parseInt(document.getElementById('sq_prints').value) : null,
+    notes: document.getElementById('sq_notes').value.trim(),
+  };
+  if (!record.squeegee_id) { showToast('Squeegee ID required.','error'); btn.innerHTML='SAVE SQUEEGEE'; btn.disabled=false; return; }
+  let error;
+  if (_editSqId) { ({error}=await sbClient.from('squeegees').update(record).eq('id',_editSqId)); }
+  else { ({error}=await sbClient.from('squeegees').insert([record])); }
+  btn.innerHTML='SAVE SQUEEGEE'; btn.disabled=false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editSqId?'Squeegee updated!':'Squeegee added!','success');
+  closeAddSqueegeeModal(); loadSqueegees();
+}
+
+async function deleteSqueegee() {
+  if (!sbClient||!_editSqId) return;
+  if (!confirm('Delete this squeegee?')) return;
+  const {error}=await sbClient.from('squeegees').delete().eq('id',_editSqId);
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast('Squeegee deleted.','success');
+  closeAddSqueegeeModal(); loadSqueegees();
+}
+
 
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
