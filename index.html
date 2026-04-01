@@ -361,13 +361,22 @@
         <div id="inkRows" style="display:flex;flex-direction:column;gap:7px;"></div>
       </div>
 
-      <!-- Screen Specs -->
+      <!-- Screen Specs / Picker -->
       <div class="card" style="padding:14px;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="sl" style="margin-bottom:0;">SCREEN / MESH SPECS</div>
-          <button type="button" class="btn-ghost" onclick="addScreenRow()">+ ADD</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+          <div class="sl" style="margin-bottom:0;">SCREEN ASSIGNMENT</div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="checkScreenInventory()">🔍 CHECK INVENTORY</button>
+            <button type="button" class="btn-ghost" onclick="addScreenRow()">+ ADD ROW</button>
+          </div>
         </div>
+        <!-- Inventory alert banner -->
+        <div id="screenInventoryAlert" style="display:none;margin-bottom:10px;"></div>
+        <!-- Screen picker rows (replaces scr#/mesh/tension with screen selector) -->
         <div id="screenRows" style="display:flex;flex-direction:column;gap:7px;"></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:6px;">
+          Select screens from inventory. Only Clean and Burned/Exposed screens shown. Emulsion and frame info auto-fills from inventory.
+        </div>
       </div>
 
       <!-- Squeegee -->
@@ -1329,6 +1338,7 @@ function addHeadRow(d={}){
     <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('hr-${i}').remove()">✕</button></div>
   </div>`;
   document.getElementById('headRows').appendChild(r);
+  checkScreenInventory();
 }
 
 function addInkRow(d={}){
@@ -1345,19 +1355,75 @@ function addInkRow(d={}){
   document.getElementById('inkRows').appendChild(r);
 }
 
-function addScreenRow(d={}){
+async function addScreenRow(d={}){
   scC++;const i=scC;
   const r=document.createElement('div'); r.id='scr-'+i;
   r.className='drow-wrap';
-  r.innerHTML=`<div class="drow" style="grid-template-columns:46px 66px 76px 1fr 80px 22px;min-width:420px;">
-    <div><label>Scr#</label><input type="number" name="sc_num_${i}" value="${d.screen_num||i}" /></div>
-    <div><label>Mesh</label><input type="number" name="sc_mesh_${i}" placeholder="160" value="${d.mesh||''}" /></div>
-    <div><label>Tension N/cm</label><input type="number" step="0.5" name="sc_ten_${i}" placeholder="25" value="${d.tension||''}" /></div>
-    <div><label>Emulsion</label><input type="text" name="sc_emul_${i}" placeholder="Murakami S-Series" value="${d.emulsion||''}" /></div>
-    <div><label>Frame</label><input type="text" name="sc_frame_${i}" placeholder='23"x31"' value="${d.frame||''}" /></div>
-    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('scr-${i}').remove()">✕</button></div>
-  </div>`;
+
+  // Fetch available screens from inventory
+  let screenOptions = '<option value="">Select screen…</option>';
+  let screenMap = {};
+  if (sbClient) {
+    const {data} = await sbClient.from('screens').select('*').in('state',['clean','burned']).order('mesh_count').order('screen_id');
+    if (data && data.length) {
+      // Group by mesh
+      const byMesh = {};
+      data.forEach(s => { const k=(MESH_LABELS[s.mesh_count]||s.mesh_count)+' mesh'; if(!byMesh[k])byMesh[k]=[]; byMesh[k].push(s); });
+      screenOptions += Object.entries(byMesh).map(([grp,screens]) =>
+        `<optgroup label="${grp}">${screens.map(s=>`<option value="${s.id}" data-mesh="${s.mesh_count}" data-frame="${s.frame_size||''}" data-emul="" data-state="${s.state}">${s.screen_id} (${STATE_LABELS[s.state]||s.state})</option>`).join('')}</optgroup>`
+      ).join('');
+      data.forEach(s => { screenMap[s.id] = s; });
+    } else {
+      screenOptions += '<option disabled>No clean screens in inventory</option>';
+    }
+  } else {
+    screenOptions += '<option disabled>Connect Supabase to load inventory</option>';
+  }
+
+  // Pre-select if editing
+  const preselect = d.inventory_id || '';
+
+  r.innerHTML = `<div class="drow" style="grid-template-columns:1fr 80px 1fr 22px;min-width:340px;">
+    <div>
+      <label>Screen from Inventory</label>
+      <select name="sc_inv_${i}" onchange="onScreenSelected(${i},this)">
+        ${screenOptions}
+      </select>
+    </div>
+    <div><label>Head #</label><input type="number" name="sc_head_${i}" value="${d.head_num||i}" min="1" /></div>
+    <div><label>Emulsion / Notes</label><input type="text" name="sc_emul_${i}" placeholder="Auto-fills or type manually" value="${d.emulsion||''}" /></div>
+    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('scr-${i}').remove();checkScreenInventory()">✕</button></div>
+  </div>
+  <div id="scr-info-${i}" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);padding:3px 0 0 4px;"></div>`;
+
   document.getElementById('screenRows').appendChild(r);
+
+  // Store screen map on window for onScreenSelected
+  window._screenMap = window._screenMap || {};
+  Object.assign(window._screenMap, screenMap);
+
+  // Pre-select value if editing
+  if (preselect) {
+    const sel = r.querySelector(`[name="sc_inv_${i}"]`);
+    if (sel) { sel.value = preselect; onScreenSelected(i, sel); }
+  }
+}
+
+function onScreenSelected(i, sel) {
+  const id = sel.value;
+  const s = window._screenMap?.[id];
+  const infoEl = document.getElementById('scr-info-'+i);
+  const emulEl = document.querySelector(`[name="sc_emul_${i}"]`);
+  if (s) {
+    if (infoEl) infoEl.innerHTML =
+      `<span style="color:var(--flash);">${s.screen_id}</span>  ·  ${MESH_LABELS[s.mesh_count]||s.mesh_count} mesh`
+      +(s.frame_size?`  ·  ${s.frame_size}`:'')
+      +`  ·  <span style="color:${s.state==='clean'?'var(--green)':'var(--cyan)'}">${STATE_LABELS[s.state]||s.state}</span>`;
+    if (emulEl && !emulEl.value) emulEl.placeholder = s.notes || 'No notes';
+  } else {
+    if (infoEl) infoEl.innerHTML = '';
+  }
+  checkScreenInventory();
 }
 
 function addSqRow(d={}){
@@ -1386,7 +1452,26 @@ function collectDynRows(prefix,fields){
 }
 const collectHeads=()=>collectDynRows('hr-',[['head_num','h_num_{i}'],['head_type','h_type_{i}'],['head_color','h_color_{i}'],['head_ink','h_ink_{i}']]);
 const collectInks=()=>collectDynRows('ir-',[['color','i_color_{i}'],['pms','i_pms_{i}'],['brand','i_brand_{i}'],['type','i_type_{i}']]);
-const collectScreens=()=>collectDynRows('scr-',[['screen_num','sc_num_{i}'],['mesh','sc_mesh_{i}'],['tension','sc_ten_{i}'],['emulsion','sc_emul_{i}'],['frame','sc_frame_{i}']]);
+function collectScreens() {
+  const rows = document.querySelectorAll('[id^="scr-"]');
+  return Array.from(rows).map(r => {
+    const i = r.id.split('-')[1];
+    const invSel = r.querySelector(`[name="sc_inv_${i}"]`);
+    const screenId = invSel?.value || '';
+    const s = window._screenMap?.[screenId];
+    const headNum = r.querySelector(`[name="sc_head_${i}"]`)?.value || i;
+    const emul = r.querySelector(`[name="sc_emul_${i}"]`)?.value || '';
+    return {
+      inventory_id: screenId,
+      screen_id: s?.screen_id || '',
+      screen_num: headNum,
+      mesh: s?.mesh_count || '',
+      frame: s?.frame_size || '',
+      emulsion: emul,
+      state: s?.state || '',
+    };
+  }).filter(r => r.screen_id || r.mesh);
+}
 const collectSqueegees=()=>collectDynRows('sqr-',[['head_num','sq_hd_{i}'],['blade','sq_bl_{i}'],['angle','sq_ang_{i}'],['pressure','sq_pr_{i}'],['condition','sq_cd_{i}']]);
 
 // ── IMAGE PREVIEW ───────────────────────────────────────────
@@ -4913,6 +4998,88 @@ async function executeReset() {
   }
 }
 
+
+
+// ── SCREEN INVENTORY CHECK ───────────────────────────
+async function checkScreenInventory() {
+  const alertEl = document.getElementById('screenInventoryAlert');
+  if (!alertEl || !sbClient) return;
+
+  // Count how many print heads are active (non-flash)
+  const headRows = document.querySelectorAll('[id^="hr-"]');
+  let printHeadCount = 0;
+  headRows.forEach(r => {
+    const i = r.id.split('-')[1];
+    const type = r.querySelector(`[name="h_type_${i}"]`)?.value || '';
+    if (type !== 'Flash Unit') printHeadCount++;
+  });
+
+  if (printHeadCount === 0) {
+    alertEl.style.display = 'none';
+    return;
+  }
+
+  // Get current clean + burned inventory counts by mesh
+  const {data: inv} = await sbClient.from('screens')
+    .select('mesh_count, state')
+    .in('state', ['clean','burned']);
+
+  const cleanCount = (inv||[]).filter(s => s.state === 'clean').length;
+  const burnedCount = (inv||[]).filter(s => s.state === 'burned').length;
+  const readyCount = cleanCount + burnedCount;
+  const dirtyCount_query = await sbClient.from('screens').select('id', {count:'exact',head:true}).eq('state','dirty');
+  const dirtyCount = dirtyCount_query.count || 0;
+
+  // How many screens already assigned in this form
+  const assigned = document.querySelectorAll('[id^="scr-"]').length;
+  const needed = printHeadCount;
+  const shortage = Math.max(0, needed - readyCount);
+  const toClean = Math.max(0, needed - readyCount);
+
+  // Build alert
+  let html = '';
+  let color = 'var(--green)';
+  let bg = 'rgba(0,200,83,.06)';
+  let border = 'rgba(0,200,83,.25)';
+  let icon = '✓';
+
+  if (shortage > 0) {
+    color = '#ff4444';
+    bg = 'rgba(255,68,68,.06)';
+    border = 'rgba(255,68,68,.3)';
+    icon = '⚠';
+    html = `<div style="background:${bg};border:1px solid ${border};border-radius:3px;padding:10px 12px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:${color};font-weight:600;margin-bottom:4px;">${icon} SCREEN SHORTAGE</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);line-height:1.7;">
+        This job needs <strong style="color:var(--text);">${needed} screen${needed!==1?'s':''}</strong> for ${printHeadCount} print head${printHeadCount!==1?'s':''}.<br>
+        Available (clean + burned): <strong style="color:var(--text);">${readyCount}</strong>
+        ${dirtyCount > 0 ? `&nbsp;·&nbsp;Dirty (need cleaning): <strong style="color:var(--yellow);">${dirtyCount}</strong>` : ''}<br>
+        <strong style="color:#ff4444;">Need to clean ${toClean} more screen${toClean!==1?'s':''} before printing.</strong>
+      </div>
+    </div>`;
+  } else if (readyCount - needed <= 3) {
+    color = 'var(--yellow)';
+    bg = 'rgba(245,200,0,.06)';
+    border = 'rgba(245,200,0,.25)';
+    icon = '⚡';
+    html = `<div style="background:${bg};border:1px solid ${border};border-radius:3px;padding:10px 12px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:${color};font-weight:600;margin-bottom:4px;">${icon} LOW SCREEN STOCK</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);line-height:1.7;">
+        Need <strong style="color:var(--text);">${needed}</strong> screens · Available: <strong style="color:var(--text);">${readyCount}</strong> · Only <strong style="color:var(--yellow);">${readyCount - needed}</strong> spare${(readyCount-needed)!==1?'s':''} after this job.
+        ${dirtyCount > 0 ? `<br>Consider cleaning ${dirtyCount} dirty screen${dirtyCount!==1?'s':''} soon.` : ''}
+      </div>
+    </div>`;
+  } else {
+    html = `<div style="background:${bg};border:1px solid ${border};border-radius:3px;padding:8px 12px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:${color};">
+        ✓ Good — need ${needed} screen${needed!==1?'s':''} · ${readyCount} available (${cleanCount} clean, ${burnedCount} burned)
+      </div>
+    </div>`;
+  }
+
+  alertEl.innerHTML = html;
+  alertEl.style.display = 'block';
+}
 
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
