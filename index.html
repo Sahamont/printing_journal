@@ -339,7 +339,7 @@
           <div><label>Flash Temp (°F)</label><input type="number" name="flash_temp" placeholder="310" /></div>
           <div><label>Flash Dwell (sec)</label><input type="number" name="flash_dwell" placeholder="4" /></div>
           <div><label>Dryer Temp (°F)</label><input type="number" name="dryer_temp" placeholder="320" /></div>
-          <div><label>Belt Speed</label><input type="text" name="belt_speed" placeholder="4 / 10" /></div>
+          <div><label>Belt Speed (V)</label><input type="number" step="0.1" name="belt_speed" placeholder="e.g. 3.5" /></div>
         </div>
       </div>
 
@@ -1656,7 +1656,7 @@ async function openJobDetail(id){
     ${data.image_url?`<img src="${data.image_url}" style="max-height:140px;border-radius:3px;border:1px solid var(--border);margin-bottom:14px;display:block;" />`:''}
     ${shirtHtml?`<div style="margin-bottom:14px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid rgba(232,80,10,.2);padding-bottom:3px;margin-bottom:7px;">SHIRT TYPES</div>${shirtHtml}</div>`:''}
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:14px;">
-      ${[['SPEED',data.press_speed],['STROKE',data.stroke_length?data.stroke_length+'"':''],['OFF-CONTACT',data.off_contact?data.off_contact+'"':''],['STROKES',data.print_strokes],['FLASH TEMP',data.flash_temp?data.flash_temp+'°F':''],['FLASH DWELL',data.flash_dwell?data.flash_dwell+'s':''],['DRYER TEMP',data.dryer_temp?data.dryer_temp+'°F':''],['BELT SPEED',data.belt_speed]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:1px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;color:var(--flash);">${v||'—'}</div></div>`).join('')}
+      ${[['SPEED',data.press_speed],['STROKE',data.stroke_length?data.stroke_length+'"':''],['OFF-CONTACT',data.off_contact?data.off_contact+'"':''],['STROKES',data.print_strokes],['FLASH TEMP',data.flash_temp?data.flash_temp+'°F':''],['FLASH DWELL',data.flash_dwell?data.flash_dwell+'s':''],['DRYER TEMP',data.dryer_temp?data.dryer_temp+'°F':''],['BELT SPEED (V)',data.belt_speed]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:1px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;color:var(--flash);">${v||'—'}</div></div>`).join('')}
     </div>
     ${tbl('HEAD LOCATIONS',data.head_locations,['HEAD','TYPE','COLOR','INK CODE'],['head_num','head_type','head_color','head_ink'])}
     ${tbl('INK COLORS',data.ink_colors,['COLOR','PMS','BRAND','TYPE'],['color','pms','brand','type'])}
@@ -1792,7 +1792,7 @@ function exportPDF(){
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('PRESS SETTINGS',44,y);y+=13;
   doc.setFont('helvetica','normal');doc.setFontSize(10);
   doc.text(`Speed:${data.press_speed||'—'}  Stroke:${data.stroke_length||'—'}"  Off-Contact:${data.off_contact||'—'}"  Strokes:${data.print_strokes||'—'}`,44,y);nl();
-  doc.text(`Flash:${data.flash_temp||'—'}°F  Dwell:${data.flash_dwell||'—'}s  Dryer:${data.dryer_temp||'—'}°F  Belt:${data.belt_speed||'—'}`,44,y);y+=18;
+  doc.text(`Flash:${data.flash_temp||'—'}°F  Dwell:${data.flash_dwell||'—'}s  Dryer:${data.dryer_temp||'—'}°F  Belt:${data.belt_speed||'—'}V`,44,y);y+=18;
   [{title:'HEAD LOCATIONS',rows:data.head_locations||[],hdrs:['HEAD','TYPE','COLOR','INK CODE'],cols:['head_num','head_type','head_color','head_ink']},
    {title:'INK COLORS',rows:data.ink_colors||[],hdrs:['COLOR','PMS','BRAND','TYPE'],cols:['color','pms','brand','type']},
    {title:'SCREEN SPECS',rows:data.screen_specs||[],hdrs:['#','MESH','TENSION','EMULSION','FRAME'],cols:['screen_num','mesh','tension','emulsion','frame']},
