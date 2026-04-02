@@ -357,18 +357,19 @@
           <div style="grid-column:1/-1">
             <label>Print Location</label>
             <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;padding:6px 0;">
-              <label style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;"><input type="checkbox" name="loc_front" style="width:auto;accent-color:var(--flash);" /> Front</label>
-              <label style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;"><input type="checkbox" name="loc_back" style="width:auto;accent-color:var(--flash);" /> Back</label>
-              <label style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;"><input type="checkbox" name="loc_other" id="locOtherCheck" style="width:auto;accent-color:var(--flash);" onchange="document.getElementById('locOtherSpec').style.display=this.checked?'block':'none'" /> Other</label>
+              <label style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;padding:6px 10px;border:1px solid var(--border);border-radius:3px;"><input type="checkbox" name="loc_front" id="locFront" style="width:16px;height:16px;accent-color:var(--flash);flex-shrink:0;" /> Front</label>
+              <label style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;padding:6px 10px;border:1px solid var(--border);border-radius:3px;"><input type="checkbox" name="loc_back" id="locBack" style="width:16px;height:16px;accent-color:var(--flash);flex-shrink:0;" /> Back</label>
+              <label style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;padding:6px 10px;border:1px solid var(--border);border-radius:3px;"><input type="checkbox" name="loc_other" id="locOther" style="width:16px;height:16px;accent-color:var(--flash);flex-shrink:0;" onchange="document.getElementById('locOtherSpec').style.display=this.checked?'block':'none'" /> Other</label>
             </div>
             <div id="locOtherSpec" style="display:none;margin-top:4px;"><input type="text" name="loc_spec" placeholder="Specify location (sleeve, hood, collar…)" /></div>
           </div>
           <div style="grid-column:1/-1">
             <label>Manual Flash</label>
-            <label style="display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;cursor:pointer;margin:0;padding:7px 10px;background:rgba(232,80,10,.06);border:1px solid var(--flash-30);border-radius:3px;">
-              <input type="checkbox" name="manual_flash" style="width:auto;accent-color:var(--flash);" />
-              <span style="color:var(--flash);font-weight:600;">⚡ Using manual flash unit during this job</span>
+            <label style="display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;cursor:pointer;margin:0;padding:7px 10px;background:var(--flash-10);border:1px solid var(--flash-30);border-radius:3px;">
+              <input type="checkbox" name="manual_flash" id="manualFlashCheck" style="width:auto;accent-color:var(--flash);" />
+              <span style="color:var(--flash);font-weight:600;">⚡ This job uses a manual flash unit</span>
             </label>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:4px;">A blinking warning will show in the Active Session screen as a constant reminder.</div>
           </div>
           <div><label>Status</label><select name="status"><option value="active">Active</option><option value="approved">Approved</option><option value="archived">Archived</option></select></div>
           <div style="grid-column:1/-1"><label>Notes</label><input type="text" name="notes" placeholder="Special instructions…" /></div>
@@ -860,6 +861,12 @@
         <input type="number" id="sessionCustomInterval" min="1" max="120" placeholder="min" style="width:70px;display:none;" oninput="updateReminderInterval()" />
         <div class="reminder-countdown" id="reminderCountdown"></div>
       </div>
+    </div>
+
+    <!-- Session controls row: piece counter summary + manual flash toggle -->
+    <div id="sessionManualFlashBar" style="display:none;margin-bottom:10px;">
+      <div class="manual-flash-alert" id="manualFlashAlertMain">⚡ MANUAL FLASH — FLASH UNIT IN USE ⚡</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);text-align:center;margin-top:-6px;margin-bottom:8px;">This job uses a manual flash unit. Stay alert during press operation.</div>
     </div>
 
     <!-- Session cards -->
@@ -5757,9 +5764,8 @@ function renderSessionTab() {
   document.getElementById('sessionJobMeta').textContent = _session.jobMeta;
 
   // Manual flash warning
-  const flashAlert = document.getElementById('manualFlashAlert');
-  if (_session.manualFlash) flashAlert.classList.remove('hidden');
-  else flashAlert.classList.add('hidden');
+  const flashBar = document.getElementById('sessionManualFlashBar');
+  if (flashBar) flashBar.style.display = _session.manualFlash ? 'block' : 'none';
 
   // Build session cards
   const container = document.getElementById('sessionCards');
@@ -5843,12 +5849,23 @@ function controlSession(loc, action) {
     sess.status = 'paused';
     sess.log.push({ time: ts, type: 'pause', msg: 'Session paused' });
     stopClockTimer(loc);
+    // Stop reminder if ALL sessions are now paused or idle/complete
+    const anyRunning = Object.values(_session.sessions).some(s => s.status === 'running');
+    if (!anyRunning) {
+      stopReminderTimer();
+      showToast('Reminders paused — resume a session to restart.', 'success');
+    }
   }
   else if (action === 'resume') {
     sess.status = 'running';
     sess.startTime = now;
     sess.log.push({ time: ts, type: 'resume', msg: 'Session resumed' });
     startClockTimer(loc);
+    // Restart reminder if it was stopped
+    if (!_session.reminderTimer) {
+      startReminderTimer();
+      showToast('Reminders restarted.', 'success');
+    }
   }
   else if (action === 'complete') {
     sess.elapsed += sess.startTime ? now - sess.startTime : 0;
