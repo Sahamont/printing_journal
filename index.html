@@ -68,6 +68,8 @@
     /* Loader */
     .loader{width:15px;height:15px;border:2px solid rgba(245,240,232,.15);border-top-color:var(--flash);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;}
     @keyframes spin{to{transform:rotate(360deg);}}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+    @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
     /* Shirt blocks */
     .shirt-block{border:1px solid var(--border);border-radius:3px;overflow:hidden;margin-bottom:10px;}
     .shirt-block-head{background:var(--surface2);padding:9px 12px;display:flex;align-items:center;gap:8px;}
@@ -272,6 +274,27 @@
     .sq-cond-fair{color:var(--yellow);}
     .sq-cond-needs_sharpening{color:var(--flash);}
     .sq-cond-retired{color:var(--muted);}
+
+    /* ── Print Session ── */
+    .session-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;overflow:hidden;margin-bottom:10px;}
+    .session-header{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(245,240,232,.06);}
+    .session-timer{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;letter-spacing:.05em;line-height:1;color:var(--flash);}
+    .session-status-badge{font-family:'IBM Plex Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;padding:3px 10px;border-radius:2px;}
+    .sess-idle{background:rgba(245,240,232,.06);color:var(--muted);border:1px solid rgba(245,240,232,.1);}
+    .sess-running{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.3);}
+    .sess-paused{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.3);}
+    .sess-complete{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.3);}
+    .session-btn{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:1rem;padding:.5rem 1.1rem;border:none;border-radius:3px;cursor:pointer;touch-action:manipulation;transition:all .12s;}
+    .sess-btn-start{background:var(--green);color:#000;}
+    .sess-btn-pause{background:var(--yellow);color:#000;}
+    .sess-btn-resume{background:var(--cyan);color:#000;}
+    .sess-btn-complete{background:var(--flash);color:#fff;}
+    .temp-log-row{display:grid;grid-template-columns:80px 1fr 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.04);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
+    .manual-flash-alert{background:#ff0000;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:.15em;text-align:center;padding:14px;border-radius:3px;animation:blink .8s step-end infinite;margin-bottom:14px;}
+    .temp-alert-modal{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;}
+    .temp-alert-box{background:var(--surface);border:2px solid var(--flash);border-radius:4px;padding:24px;max-width:360px;width:100%;text-align:center;}
+    .reminder-countdown{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);letter-spacing:.08em;}
+    .session-log-entry{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(245,240,232,.04);display:grid;grid-template-columns:70px 1fr;}
   </style>
 </head>
 <body class="grid-bg">
@@ -308,6 +331,7 @@
   <div class="tab" id="tab-search" onclick="switchTab('search')">SEARCH</div>
   <div class="tab" id="tab-pipeline" onclick="switchTab('pipeline')">PIPELINE</div>
   <div class="tab" id="tab-screens" onclick="switchTab('screens')">SCREENS</div>
+  <div class="tab hidden" id="tab-session" onclick="switchTab('session')" style="color:var(--flash);position:relative;">ACTIVE SESSION <span id="sessionPulse" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flash);margin-left:3px;vertical-align:middle;animation:pulse 1s infinite;"></span></div>
   <div class="tab" id="tab-reports" onclick="switchTab('reports')">REPORTS</div>
   <div class="tab" id="tab-showrooms" onclick="switchTab('showrooms')">SHOWROOMS</div>
   <div class="tab" id="tab-maint" onclick="switchTab('maint')">MAINTENANCE <span id="maintTabBadge" style="display:none;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
@@ -330,7 +354,22 @@
           <div><label>Due Date</label><input type="date" name="due_date" /></div>
           <div><label>Operator</label><input type="text" name="operator" placeholder="Your name" /></div>
           <div style="grid-column:1/-1"><label>Customer</label><input type="text" name="customer" placeholder="Customer name" /></div>
-          <div><label>Print Location</label><input type="text" name="print_location" placeholder="Left chest, full back…" /></div>
+          <div style="grid-column:1/-1">
+            <label>Print Location</label>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;padding:6px 0;">
+              <label style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;"><input type="checkbox" name="loc_front" style="width:auto;accent-color:var(--flash);" /> Front</label>
+              <label style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;"><input type="checkbox" name="loc_back" style="width:auto;accent-color:var(--flash);" /> Back</label>
+              <label style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;margin:0;"><input type="checkbox" name="loc_other" id="locOtherCheck" style="width:auto;accent-color:var(--flash);" onchange="document.getElementById('locOtherSpec').style.display=this.checked?'block':'none'" /> Other</label>
+            </div>
+            <div id="locOtherSpec" style="display:none;margin-top:4px;"><input type="text" name="loc_spec" placeholder="Specify location (sleeve, hood, collar…)" /></div>
+          </div>
+          <div style="grid-column:1/-1">
+            <label>Manual Flash</label>
+            <label style="display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;cursor:pointer;margin:0;padding:7px 10px;background:rgba(232,80,10,.06);border:1px solid var(--flash-30);border-radius:3px;">
+              <input type="checkbox" name="manual_flash" style="width:auto;accent-color:var(--flash);" />
+              <span style="color:var(--flash);font-weight:600;">⚡ Using manual flash unit during this job</span>
+            </label>
+          </div>
           <div><label>Status</label><select name="status"><option value="active">Active</option><option value="approved">Approved</option><option value="archived">Archived</option></select></div>
           <div style="grid-column:1/-1"><label>Notes</label><input type="text" name="notes" placeholder="Special instructions…" /></div>
         </div>
@@ -792,6 +831,65 @@
       </div>
     </div>
 
+  </div>
+
+
+  <!-- ═══ ACTIVE SESSION ═══ -->
+  <div id="pane-session" class="hidden">
+
+    <!-- Manual flash warning -->
+    <div id="manualFlashAlert" class="manual-flash-alert hidden">⚡ MANUAL FLASH — FLASH UNIT IN USE ⚡</div>
+
+    <!-- Job info bar -->
+    <div id="sessionJobBar" class="card" style="padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.08em;" id="sessionJobName">No active job</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);" id="sessionJobMeta"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div>
+          <label style="font-size:.6rem;">Reminder Every</label>
+          <select id="sessionReminderInterval" style="width:auto;" onchange="updateReminderInterval()">
+            <option value="15">15 min</option>
+            <option value="30" selected>30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">60 min</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <input type="number" id="sessionCustomInterval" min="1" max="120" placeholder="min" style="width:70px;display:none;" oninput="updateReminderInterval()" />
+        <div class="reminder-countdown" id="reminderCountdown"></div>
+      </div>
+    </div>
+
+    <!-- Session cards -->
+    <div id="sessionCards"></div>
+
+    <!-- Temperature log -->
+    <div class="card" style="padding:14px;margin-top:12px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;color:var(--flash);margin-bottom:10px;">SESSION LOG</div>
+      <div id="sessionLog" style="max-height:240px;overflow-y:auto;"></div>
+    </div>
+
+  </div>
+
+  <!-- TEMP CHECK MODAL -->
+  <div id="tempCheckModal" class="temp-alert-modal hidden">
+    <div class="temp-alert-box">
+      <div style="font-size:2rem;margin-bottom:6px;">🌡️</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;color:var(--flash);margin-bottom:4px;">TEMPERATURE CHECK</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-bottom:16px;" id="tempCheckPrompt">Please log current readings</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+        <div><label>Curing Temp (°F)</label><input type="number" id="tc_cure" placeholder="320" style="font-size:1.1rem;text-align:center;" /></div>
+        <div id="tc_flash_wrap"><label>Flash Temp (°F)</label><input type="number" id="tc_flash" placeholder="310" style="font-size:1.1rem;text-align:center;" /></div>
+        <div><label>Notes (optional)</label><input type="text" id="tc_notes" placeholder="Everything looks good…" /></div>
+        <div><label>Operator</label><input type="text" id="tc_operator" placeholder="Your name" /></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <button class="btn-secondary" onclick="dismissTempCheck()">SKIP</button>
+        <button class="btn-primary" onclick="saveTempCheck()">LOG READING</button>
+      </div>
+    </div>
   </div>
 
 
@@ -1396,7 +1494,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens','reports','showrooms'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports','showrooms','session'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -1406,6 +1504,7 @@ function switchTab(tab){
   if(tab==='screens') loadScreens();
   if(tab==='reports') initReports();
   if(tab==='showrooms') initShowrooms();
+  if(tab==='session') renderSessionTab();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -1852,6 +1951,15 @@ async function editJob() {
   setVal('status', data.status);
   setVal('notes', data.notes);
   setVal('due_date', data.due_date);
+  // Restore print location checkboxes
+  if (data.print_location) {
+    const loc = data.print_location.toLowerCase();
+    const fn = document.querySelector('[name=loc_front]'); if(fn) fn.checked = loc.includes('front');
+    const bn = document.querySelector('[name=loc_back]');  if(bn) bn.checked = loc.includes('back');
+    const on = document.querySelector('[name=loc_other]'); if(on) on.checked = loc.includes('other');
+    if (loc.includes('other')) { const os=document.getElementById('locOtherSpec'); if(os) os.style.display='block'; }
+  }
+  if (data.manual_flash) { const mf=document.querySelector('[name=manual_flash]'); if(mf) mf.checked=true; }
   setVal('press_speed', data.press_speed);
   setVal('stroke_length', data.stroke_length);
   setVal('off_contact', data.off_contact);
@@ -2026,6 +2134,7 @@ function buildKCard(job,stage){
     <div class="kcard-actions">
       ${idx>0?`<button class="kcard-btn kcard-btn-bk" onclick="moveStage(event,'${job.id}','${STAGES[idx-1]}')">← BACK</button>`:''}
       ${isC?`<button class="kcard-btn kcard-btn-cnt" onclick="openCountModal(event,'${job.id}','${stage}')">📊 COUNT</button>`:''}
+      ${stage==='printing'?`<button class="kcard-btn" style="color:var(--green);border-color:rgba(0,200,83,.3);" onclick="startPrintSession('${job.id}')">▶ SESSION</button>`:''}
       ${idx<STAGES.length-1?`<button class="kcard-btn kcard-btn-adv" onclick="moveStage(event,'${job.id}','${STAGES[idx+1]}')">${STAGES[idx+1]==='complete'?'✓ DONE':'NEXT →'}</button>`:''}
       ${stage==='complete'?`<button class="kcard-btn" style="color:var(--muted);border-color:rgba(245,240,232,.12);margin-top:2px;width:100%;" onclick="archiveJob(event,'${job.id}')">🗄 ARCHIVE &amp; REMOVE</button>`:''}
     </div>`;
@@ -3437,6 +3546,27 @@ function printQR() {
     .sq-cond-fair{color:var(--yellow);}
     .sq-cond-needs_sharpening{color:var(--flash);}
     .sq-cond-retired{color:var(--muted);}
+
+    /* ── Print Session ── */
+    .session-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;overflow:hidden;margin-bottom:10px;}
+    .session-header{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(245,240,232,.06);}
+    .session-timer{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;letter-spacing:.05em;line-height:1;color:var(--flash);}
+    .session-status-badge{font-family:'IBM Plex Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;padding:3px 10px;border-radius:2px;}
+    .sess-idle{background:rgba(245,240,232,.06);color:var(--muted);border:1px solid rgba(245,240,232,.1);}
+    .sess-running{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.3);}
+    .sess-paused{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.3);}
+    .sess-complete{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.3);}
+    .session-btn{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:1rem;padding:.5rem 1.1rem;border:none;border-radius:3px;cursor:pointer;touch-action:manipulation;transition:all .12s;}
+    .sess-btn-start{background:var(--green);color:#000;}
+    .sess-btn-pause{background:var(--yellow);color:#000;}
+    .sess-btn-resume{background:var(--cyan);color:#000;}
+    .sess-btn-complete{background:var(--flash);color:#fff;}
+    .temp-log-row{display:grid;grid-template-columns:80px 1fr 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.04);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
+    .manual-flash-alert{background:#ff0000;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:.15em;text-align:center;padding:14px;border-radius:3px;animation:blink .8s step-end infinite;margin-bottom:14px;}
+    .temp-alert-modal{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;}
+    .temp-alert-box{background:var(--surface);border:2px solid var(--flash);border-radius:4px;padding:24px;max-width:360px;width:100%;text-align:center;}
+    .reminder-countdown{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);letter-spacing:.08em;}
+    .session-log-entry{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(245,240,232,.04);display:grid;grid-template-columns:70px 1fr;}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -5545,6 +5675,356 @@ async function deleteSqueegee() {
   if (error) { showToast('Error: '+error.message,'error'); return; }
   showToast('Squeegee deleted.','success');
   closeAddSqueegeeModal(); loadSqueegees();
+}
+
+
+
+// ══════════════════════════════════════════════════════
+// PRINT SESSION TRACKER
+// ══════════════════════════════════════════════════════
+const SESSION_LOCATIONS = ['Front', 'Back', 'Other'];
+
+// State
+let _session = {
+  jobId: null,
+  jobName: '',
+  jobMeta: '',
+  manualFlash: false,
+  sessions: {},        // { 'Front': { status, startTime, elapsed, piecesGoal, piecesDone, log } }
+  reminderMs: 30 * 60 * 1000,
+  reminderTimer: null,
+  reminderNext: null,
+  clockTimers: {},
+};
+
+// ── Start a session from a pipeline card ─────────────
+async function startPrintSession(jobId) {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('print_setups').select('*').eq('id', jobId).single();
+  if (error || !data) { showToast('Could not load job.', 'error'); return; }
+
+  // Parse locations from print_location string
+  const loc = (data.print_location || '').toLowerCase();
+  const locations = [];
+  if (loc.includes('front')) locations.push('Front');
+  if (loc.includes('back'))  locations.push('Back');
+  if (loc.includes('other') || (!loc.includes('front') && !loc.includes('back'))) locations.push('Other');
+  if (!locations.length) locations.push('Front');
+
+  _session.jobId = jobId;
+  _session.jobName = data.job_name;
+  _session.jobMeta = [data.order_number?'#'+data.order_number:'', data.customer, data.quantity?data.quantity+' pcs':''].filter(Boolean).join('  ·  ');
+  _session.manualFlash = !!data.manual_flash;
+  _session.sessions = {};
+  _session.reminderNext = null;
+
+  locations.forEach(loc => {
+    _session.sessions[loc] = {
+      status: 'idle',    // idle | running | paused | complete
+      startTime: null,
+      elapsed: 0,
+      piecesGoal: data.quantity || 0,
+      piecesDone: 0,
+      log: [],
+    };
+  });
+
+  // Show the session tab
+  document.getElementById('tab-session').classList.remove('hidden');
+  switchTab('session');
+
+  // Move job to printing stage
+  await sbClient.from('print_setups').update({ pipeline_stage: 'printing', stage_printing_at: new Date().toISOString() }).eq('id', jobId);
+  loadPipeline();
+}
+
+// ── Render session tab ────────────────────────────────
+function renderSessionTab() {
+  if (!_session.jobId) {
+    document.getElementById('sessionCards').innerHTML = `
+      <div class="card" style="padding:32px;text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:10px;">🖨</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.08em;margin-bottom:8px;">NO ACTIVE SESSION</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-bottom:16px;">Start a print session from a job in the PRINTING stage on the Pipeline board.</div>
+        <button class="btn-secondary" onclick="switchTab('pipeline')">→ GO TO PIPELINE</button>
+      </div>`;
+    document.getElementById('sessionJobName').textContent = 'No active job';
+    document.getElementById('sessionJobMeta').textContent = '';
+    return;
+  }
+
+  document.getElementById('sessionJobName').textContent = _session.jobName;
+  document.getElementById('sessionJobMeta').textContent = _session.jobMeta;
+
+  // Manual flash warning
+  const flashAlert = document.getElementById('manualFlashAlert');
+  if (_session.manualFlash) flashAlert.classList.remove('hidden');
+  else flashAlert.classList.add('hidden');
+
+  // Build session cards
+  const container = document.getElementById('sessionCards');
+  container.innerHTML = '';
+  Object.entries(_session.sessions).forEach(([loc, sess]) => {
+    container.appendChild(buildSessionCard(loc, sess));
+  });
+
+  renderSessionLog();
+  updateReminderCountdown();
+}
+
+function buildSessionCard(loc, sess) {
+  const div = document.createElement('div');
+  div.className = 'session-card';
+  div.id = 'sess-card-' + loc;
+
+  const statusLabel = { idle:'Ready', running:'PRINTING', paused:'PAUSED', complete:'COMPLETE' }[sess.status];
+  const statusCls   = { idle:'sess-idle', running:'sess-running', paused:'sess-paused', complete:'sess-complete' }[sess.status];
+  const elapsed = formatElapsed(sess.elapsed + (sess.status === 'running' && sess.startTime ? Date.now() - sess.startTime : 0));
+
+  div.innerHTML = `
+    <div class="session-header">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">${loc.toUpperCase()} PRINT</div>
+        <span class="session-status-badge ${statusCls}">${statusLabel}</span>
+      </div>
+      <div style="text-align:right;">
+        <div class="session-timer" id="timer-${loc}">${elapsed}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);">elapsed</div>
+      </div>
+    </div>
+    <div style="padding:12px 14px;">
+      <!-- Piece counter -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;margin-bottom:3px;">Pieces Printed</div>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <button type="button" onclick="adjPieces('${loc}',-1)" style="background:rgba(245,240,232,.08);border:none;color:var(--text);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;touch-action:manipulation;">−</button>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--flash);min-width:60px;text-align:center;" id="pieces-${loc}">${sess.piecesDone}</div>
+            <button type="button" onclick="adjPieces('${loc}',1)" style="background:rgba(245,240,232,.08);border:none;color:var(--text);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;touch-action:manipulation;">+</button>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);">of ${sess.piecesGoal}</div>
+          </div>
+        </div>
+        ${sess.piecesGoal > 0 ? `<div style="flex:1;min-width:80px;">
+          <div style="background:rgba(245,240,232,.08);border-radius:4px;height:8px;overflow:hidden;margin-top:18px;">
+            <div style="background:var(--flash);height:100%;border-radius:4px;width:${Math.min(100,Math.round(sess.piecesDone/sess.piecesGoal*100))}%;transition:width .3s;"></div>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:2px;">${Math.min(100,Math.round(sess.piecesDone/sess.piecesGoal*100))}%</div>
+        </div>` : ''}
+      </div>
+      <!-- Session controls -->
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        ${sess.status === 'idle'    ? `<button class="session-btn sess-btn-start"    onclick="controlSession('${loc}','start')">▶ START</button>` : ''}
+        ${sess.status === 'running' ? `<button class="session-btn sess-btn-pause"    onclick="controlSession('${loc}','pause')">⏸ PAUSE</button>` : ''}
+        ${sess.status === 'paused'  ? `<button class="session-btn sess-btn-resume"   onclick="controlSession('${loc}','resume')">▶ RESUME</button>` : ''}
+        ${sess.status !== 'idle' && sess.status !== 'complete' ? `<button class="session-btn sess-btn-complete" onclick="controlSession('${loc}','complete')">✓ COMPLETE</button>` : ''}
+        ${sess.status === 'complete' ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--cyan);padding:8px 0;">✓ Session completed in ${elapsed}</div>` : ''}
+      </div>
+    </div>`;
+  return div;
+}
+
+function controlSession(loc, action) {
+  const sess = _session.sessions[loc];
+  if (!sess) return;
+  const now = Date.now();
+  const ts = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+
+  if (action === 'start') {
+    sess.status = 'running';
+    sess.startTime = now;
+    sess.log.push({ time: ts, type: 'start', msg: 'Session started' });
+    startClockTimer(loc);
+    // Start reminder if first session starting
+    if (!_session.reminderTimer) startReminderTimer();
+  }
+  else if (action === 'pause') {
+    sess.elapsed += now - sess.startTime;
+    sess.startTime = null;
+    sess.status = 'paused';
+    sess.log.push({ time: ts, type: 'pause', msg: 'Session paused' });
+    stopClockTimer(loc);
+  }
+  else if (action === 'resume') {
+    sess.status = 'running';
+    sess.startTime = now;
+    sess.log.push({ time: ts, type: 'resume', msg: 'Session resumed' });
+    startClockTimer(loc);
+  }
+  else if (action === 'complete') {
+    sess.elapsed += sess.startTime ? now - sess.startTime : 0;
+    sess.startTime = null;
+    sess.status = 'complete';
+    sess.log.push({ time: ts, type: 'complete', msg: 'Session completed — '+sess.piecesDone+' pcs printed' });
+    stopClockTimer(loc);
+    // Check if all sessions complete
+    const allDone = Object.values(_session.sessions).every(s => s.status === 'complete');
+    if (allDone) {
+      stopReminderTimer();
+      showToast('All sessions complete! Move job to Packaging.', 'success');
+    }
+  }
+
+  renderSessionTab();
+}
+
+function adjPieces(loc, delta) {
+  const sess = _session.sessions[loc];
+  if (!sess) return;
+  sess.piecesDone = Math.max(0, sess.piecesDone + delta);
+  const el = document.getElementById('pieces-'+loc);
+  if (el) el.textContent = sess.piecesDone;
+  // Update progress bar
+  renderSessionTab();
+}
+
+// ── Clock timers ──────────────────────────────────────
+function startClockTimer(loc) {
+  stopClockTimer(loc);
+  _session.clockTimers[loc] = setInterval(() => {
+    const sess = _session.sessions[loc];
+    if (!sess || sess.status !== 'running') return;
+    const total = sess.elapsed + (sess.startTime ? Date.now() - sess.startTime : 0);
+    const el = document.getElementById('timer-'+loc);
+    if (el) el.textContent = formatElapsed(total);
+  }, 1000);
+}
+
+function stopClockTimer(loc) {
+  if (_session.clockTimers[loc]) { clearInterval(_session.clockTimers[loc]); delete _session.clockTimers[loc]; }
+}
+
+function formatElapsed(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return h+'h '+String(m).padStart(2,'0')+'m';
+  return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+}
+
+// ── Reminder timer ────────────────────────────────────
+function startReminderTimer() {
+  stopReminderTimer();
+  _session.reminderNext = Date.now() + _session.reminderMs;
+  _session.reminderTimer = setInterval(() => {
+    updateReminderCountdown();
+    if (Date.now() >= _session.reminderNext) {
+      fireReminder();
+      _session.reminderNext = Date.now() + _session.reminderMs;
+    }
+  }, 5000);
+  updateReminderCountdown();
+}
+
+function stopReminderTimer() {
+  if (_session.reminderTimer) { clearInterval(_session.reminderTimer); _session.reminderTimer = null; }
+  _session.reminderNext = null;
+  document.getElementById('reminderCountdown').textContent = '';
+}
+
+function updateReminderInterval() {
+  const sel = document.getElementById('sessionReminderInterval');
+  const custom = document.getElementById('sessionCustomInterval');
+  if (sel.value === 'custom') {
+    custom.style.display = 'inline-block';
+    const mins = parseInt(custom.value) || 30;
+    _session.reminderMs = mins * 60 * 1000;
+  } else {
+    custom.style.display = 'none';
+    _session.reminderMs = parseInt(sel.value) * 60 * 1000;
+  }
+  // Restart timer with new interval
+  const anyRunning = Object.values(_session.sessions).some(s => s.status === 'running');
+  if (anyRunning) startReminderTimer();
+}
+
+function updateReminderCountdown() {
+  const el = document.getElementById('reminderCountdown');
+  if (!el || !_session.reminderNext) return;
+  const ms = Math.max(0, _session.reminderNext - Date.now());
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  el.textContent = 'Next check: ' + m + ':' + String(s).padStart(2,'0');
+}
+
+function fireReminder() {
+  // Browser notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('🌡 Temperature Check', { body: 'Time to log curing temp for ' + _session.jobName });
+  }
+  // Show in-app modal
+  document.getElementById('tempCheckPrompt').textContent = 'Log readings for: ' + _session.jobName;
+  document.getElementById('tc_cure').value = '';
+  document.getElementById('tc_flash').value = '';
+  document.getElementById('tc_notes').value = '';
+  document.getElementById('tc_operator').value = '';
+  // Show flash field only if flash step exists
+  document.getElementById('tc_flash_wrap').style.display = 'block';
+  document.getElementById('tempCheckModal').classList.remove('hidden');
+}
+
+function dismissTempCheck() {
+  document.getElementById('tempCheckModal').classList.add('hidden');
+  const ts = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  addToSessionLog({ time: ts, type: 'skip', msg: 'Temp check skipped' });
+}
+
+function saveTempCheck() {
+  const cure = document.getElementById('tc_cure').value;
+  const flash = document.getElementById('tc_flash').value;
+  const notes = document.getElementById('tc_notes').value.trim();
+  const op = document.getElementById('tc_operator').value.trim();
+  const ts = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+  let msg = '';
+  if (cure) msg += 'Cure: ' + cure + '°F';
+  if (flash) msg += (msg?' · ':'') + 'Flash: ' + flash + '°F';
+  if (notes) msg += (msg?' — ':'') + notes;
+  if (op) msg += ' (' + op + ')';
+  if (!msg) msg = 'Temp check logged';
+
+  addToSessionLog({ time: ts, type: 'temp', msg });
+
+  // Save to supabase if connected
+  if (sbClient && _session.jobId) {
+    sbClient.from('print_setups').select('session_temp_log').eq('id', _session.jobId).single().then(({data}) => {
+      const log = data?.session_temp_log || [];
+      log.push({ time: new Date().toISOString(), cure_temp: cure||null, flash_temp: flash||null, notes, operator: op });
+      sbClient.from('print_setups').update({ session_temp_log: log }).eq('id', _session.jobId);
+    });
+  }
+
+  document.getElementById('tempCheckModal').classList.add('hidden');
+  showToast('Reading logged!', 'success');
+  renderSessionLog();
+}
+
+function addToSessionLog(entry) {
+  // Add to all running sessions
+  Object.values(_session.sessions).forEach(s => { if(s.status==='running'||s.status==='paused') s.log.push(entry); });
+  renderSessionLog();
+}
+
+function renderSessionLog() {
+  const container = document.getElementById('sessionLog');
+  if (!container) return;
+  const allEntries = [];
+  Object.entries(_session.sessions).forEach(([loc, sess]) => {
+    sess.log.forEach(e => allEntries.push({ ...e, loc }));
+  });
+  // Sort by time string (approximate — good enough for same-day sessions)
+  if (!allEntries.length) {
+    container.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--muted);padding:8px 0;">No events logged yet.</div>';
+    return;
+  }
+  const typeColors = { start:'var(--green)', pause:'var(--yellow)', resume:'var(--cyan)', complete:'var(--flash)', temp:'#ff9500', skip:'var(--muted)' };
+  const typeIcons  = { start:'▶', pause:'⏸', resume:'▶', complete:'✓', temp:'🌡', skip:'—' };
+  container.innerHTML = allEntries.slice().reverse().map(e =>
+    `<div class="session-log-entry">
+      <span style="color:var(--muted);">${e.time}</span>
+      <span style="color:${typeColors[e.type]||'var(--muted)'};">${typeIcons[e.type]||''} [${e.loc||''}] ${e.msg}</span>
+    </div>`
+  ).join('');
 }
 
 
