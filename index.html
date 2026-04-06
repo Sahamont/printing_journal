@@ -378,15 +378,7 @@
               <input type="text" name="loc_spec" placeholder="Specify location (sleeve, hood, collar…)" />
             </div>
           </div>
-          <div style="grid-column:1/-1">
-            <label>Manual Flash</label>
-            <button type="button" id="manualFlashBtn" onclick="toggleManualFlash()"
-              style="font-family:'IBM Plex Mono',monospace;font-size:.8rem;padding:9px 18px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;width:100%;text-align:left;">
-              ⚡ MANUAL FLASH UNIT
-            </button>
-            <input type="hidden" name="manual_flash" id="manualFlashVal" value="" />
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:4px;">Tap to toggle. A blinking warning will appear in the Active Session screen when enabled.</div>
-          </div>
+
           <div><label>Status</label><select name="status"><option value="active">Active</option><option value="approved">Approved</option><option value="archived">Archived</option></select></div>
           <div style="grid-column:1/-1"><label>Notes</label><input type="text" name="notes" placeholder="Special instructions…" /></div>
         </div>
@@ -864,6 +856,10 @@
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);" id="sessionJobMeta"></div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button type="button" id="sessionManualFlashToggle" onclick="toggleSessionManualFlash()"
+          style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;">
+          ⚡ MANUAL FLASH
+        </button>
         <div>
           <label style="font-size:.6rem;">Reminder Every</label>
           <select id="sessionReminderInterval" style="width:auto;" onchange="updateReminderInterval()">
@@ -5772,9 +5768,19 @@ function renderSessionTab() {
   document.getElementById('sessionJobName').textContent = _session.jobName;
   document.getElementById('sessionJobMeta').textContent = _session.jobMeta;
 
-  // Manual flash warning
+  // Manual flash warning + toggle button state
   const flashBar = document.getElementById('sessionManualFlashBar');
   if (flashBar) flashBar.style.display = _session.manualFlash ? 'block' : 'none';
+  const mfToggle = document.getElementById('sessionManualFlashToggle');
+  if (mfToggle) {
+    if (_session.manualFlash) {
+      mfToggle.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--flash);background:var(--flash);color:#fff;cursor:pointer;touch-action:manipulation;transition:all .15s;';
+      mfToggle.textContent = '⚡ MANUAL FLASH ON';
+    } else {
+      mfToggle.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;';
+      mfToggle.textContent = '⚡ MANUAL FLASH';
+    }
+  }
 
   // Build session cards
   const container = document.getElementById('sessionCards');
@@ -6072,15 +6078,23 @@ function toggleLocBtn(loc) {
   }
 }
 
-function toggleManualFlash() {
-  const btn = document.getElementById('manualFlashBtn');
-  const val = document.getElementById('manualFlashVal');
-  if (!btn || !val) return;
-  const active = val.value === 'on';
-  val.value = active ? '' : 'on';
-  btn.style.cssText = (active ? LOC_IDLE_STYLE : LOC_ACTIVE_STYLE.replace('#fff','#000')) + 'width:100%;text-align:left;';
-  btn.textContent = (active ? '⚡ MANUAL FLASH UNIT' : '⚡ MANUAL FLASH UNIT  ✓ ENABLED');
+function toggleSessionManualFlash() {
+  _session.manualFlash = !_session.manualFlash;
+  const btn = document.getElementById('sessionManualFlashToggle');
+  if (btn) {
+    if (_session.manualFlash) {
+      btn.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--flash);background:var(--flash);color:#fff;cursor:pointer;touch-action:manipulation;transition:all .15s;';
+      btn.textContent = '⚡ MANUAL FLASH ON';
+    } else {
+      btn.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;';
+      btn.textContent = '⚡ MANUAL FLASH';
+    }
+  }
+  const bar = document.getElementById('sessionManualFlashBar');
+  if (bar) bar.style.display = _session.manualFlash ? 'block' : 'none';
 }
+
+// toggleManualFlash removed — use toggleSessionManualFlash in session tab
 
 function resetLocButtons() {
   ['front','back','other'].forEach(loc => {
@@ -6102,7 +6116,7 @@ function restoreLocButtons(printLocation, manualFlash) {
   if (loc.includes('front')) toggleLocBtn('front');
   if (loc.includes('back'))  toggleLocBtn('back');
   if (loc.includes('other')) toggleLocBtn('other');
-  if (manualFlash) toggleManualFlash();
+  // manual flash is set in session tab, not here
 }
 
 // ── TOAST ───────────────────────────────────────────────────
