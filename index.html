@@ -1776,7 +1776,7 @@ async function submitForm(e){
   const grandTotal=shirtTypes.reduce((s,t)=>s+Object.values(t.sizes).reduce((a,b)=>a+b,0),0);
 
   const record={
-    job_name:d.job_name, order_number:d.order_number, job_date:d.job_date,
+    job_name:d.job_name, order_number:d.order_number, job_date:d.job_date, due_date:d.due_date||null,
     operator:d.operator, customer:d.customer, print_location:d.print_location,
     quantity:grandTotal||null, status:d.status, notes:d.notes,
     press_speed:d.press_speed,
