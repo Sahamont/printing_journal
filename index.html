@@ -5703,6 +5703,7 @@ let _session = {
   jobMeta: '',
   manualFlash: false,
   sessions: {},        // { 'Front': { status, startTime, elapsed, piecesGoal, piecesDone, log } }
+  activeLocation: null, // which session tab is visible
   reminderMs: 30 * 60 * 1000,
   reminderTimer: null,
   reminderNext: null,
@@ -5782,12 +5783,41 @@ function renderSessionTab() {
     }
   }
 
-  // Build session cards
+  // Build session tab switcher + single active card
+  const locs = Object.keys(_session.sessions);
+  if (!_session.activeLocation || !_session.sessions[_session.activeLocation]) {
+    _session.activeLocation = locs[0];
+  }
+
   const container = document.getElementById('sessionCards');
   container.innerHTML = '';
-  Object.entries(_session.sessions).forEach(([loc, sess]) => {
-    container.appendChild(buildSessionCard(loc, sess));
-  });
+
+  // Tab switcher (only show if more than one location)
+  if (locs.length > 1) {
+    const tabBar = document.createElement('div');
+    tabBar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;';
+    locs.forEach(loc => {
+      const sess = _session.sessions[loc];
+      const isActive = loc === _session.activeLocation;
+      const statusColors = { idle:'var(--muted)', running:'var(--green)', paused:'var(--yellow)', complete:'var(--cyan)' };
+      const dot = `<span style="width:8px;height:8px;border-radius:50%;background:${statusColors[sess.status]};display:inline-block;margin-right:5px;flex-shrink:0;"></span>`;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = dot + loc.toUpperCase() + ' PRINT';
+      btn.style.cssText = isActive
+        ? 'font-family:Bebas Neue,sans-serif;letter-spacing:.08em;font-size:1rem;padding:8px 18px;border-radius:3px;border:2px solid var(--flash);background:var(--flash);color:#fff;cursor:pointer;touch-action:manipulation;transition:all .15s;display:flex;align-items:center;'
+        : 'font-family:Bebas Neue,sans-serif;letter-spacing:.08em;font-size:1rem;padding:8px 18px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;display:flex;align-items:center;';
+      btn.onclick = () => { _session.activeLocation = loc; renderSessionTab(); };
+      tabBar.appendChild(btn);
+    });
+    container.appendChild(tabBar);
+  }
+
+  // Show only the active session card
+  const activeSess = _session.sessions[_session.activeLocation];
+  if (activeSess) {
+    container.appendChild(buildSessionCard(_session.activeLocation, activeSess));
+  }
 
   renderSessionLog();
   updateReminderCountdown();
