@@ -5716,12 +5716,12 @@ async function startPrintSession(jobId) {
   if (error || !data) { showToast('Could not load job.', 'error'); return; }
 
   // Parse locations from print_location string
-  const loc = (data.print_location || '').toLowerCase();
+  const locStr = (data.print_location || '').toLowerCase();
   const locations = [];
-  if (loc.includes('front')) locations.push('Front');
-  if (loc.includes('back'))  locations.push('Back');
-  if (loc.includes('other') || (!loc.includes('front') && !loc.includes('back'))) locations.push('Other');
-  if (!locations.length) locations.push('Front');
+  if (locStr.includes('front')) locations.push('Front');
+  if (locStr.includes('back'))  locations.push('Back');
+  if (locStr.includes('other')) locations.push('Other');
+  if (!locations.length) locations.push('Front'); // fallback
 
   _session.jobId = jobId;
   _session.jobName = data.job_name;
