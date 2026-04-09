@@ -1449,6 +1449,32 @@
   </div>
 </div>
 
+<!-- SESSION LOCATION PICKER MODAL -->
+<div id="sessionLocPickerModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:400px;padding:20px;margin:8px auto;text-align:center;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;color:var(--flash);margin-bottom:4px;">SELECT PRINT LOCATIONS</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);margin-bottom:16px;" id="sessionLocPickerJob"></div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;">
+      <button type="button" id="slp_front" onclick="toggleSLP('front')"
+        style="font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:1.1rem;padding:14px 24px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;min-width:100px;">
+        FRONT
+      </button>
+      <button type="button" id="slp_back" onclick="toggleSLP('back')"
+        style="font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:1.1rem;padding:14px 24px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;min-width:100px;">
+        BACK
+      </button>
+      <button type="button" id="slp_other" onclick="toggleSLP('other')"
+        style="font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:1.1rem;padding:14px 24px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;min-width:100px;">
+        OTHER
+      </button>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn-secondary" onclick="resolveSLP(null)">CANCEL</button>
+      <button class="btn-primary" onclick="resolveSLP('confirm')">▶ START SESSION</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -5722,7 +5748,13 @@ async function startPrintSession(jobId) {
   if (locStr.includes('front')) locations.push('Front');
   if (locStr.includes('back'))  locations.push('Back');
   if (locStr.includes('other')) locations.push('Other');
-  if (!locations.length) locations.push('Front'); // fallback
+
+  // If no locations found, show a picker before starting
+  if (!locations.length) {
+    const picked = await pickSessionLocations(data.job_name);
+    if (!picked || !picked.length) return; // cancelled
+    picked.forEach(l => locations.push(l));
+  }
 
   _session.jobId = jobId;
   _session.jobName = data.job_name;
@@ -6148,6 +6180,50 @@ function restoreLocButtons(printLocation, manualFlash) {
   if (loc.includes('back'))  toggleLocBtn('back');
   if (loc.includes('other')) toggleLocBtn('other');
   // manual flash is set in session tab, not here
+}
+
+
+// ── SESSION LOCATION PICKER ───────────────────────────
+let _slpResolve = null;
+const SLP_ACTIVE = 'font-family:Bebas Neue,sans-serif;letter-spacing:.08em;font-size:1.1rem;padding:14px 24px;border-radius:3px;border:2px solid var(--flash);background:var(--flash);color:#fff;cursor:pointer;transition:all .15s;min-width:100px;';
+const SLP_IDLE   = 'font-family:Bebas Neue,sans-serif;letter-spacing:.08em;font-size:1.1rem;padding:14px 24px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;min-width:100px;';
+
+function pickSessionLocations(jobName) {
+  return new Promise(resolve => {
+    _slpResolve = resolve;
+    // Reset buttons
+    ['front','back','other'].forEach(l => {
+      const btn = document.getElementById('slp_'+l);
+      if (btn) { btn.style.cssText = SLP_IDLE; btn.dataset.active = ''; }
+    });
+    document.getElementById('sessionLocPickerJob').textContent = jobName || '';
+    document.getElementById('sessionLocPickerModal').classList.remove('hidden');
+  });
+}
+
+function toggleSLP(loc) {
+  const btn = document.getElementById('slp_'+loc);
+  if (!btn) return;
+  const isActive = btn.dataset.active === 'on';
+  btn.dataset.active = isActive ? '' : 'on';
+  btn.style.cssText = isActive ? SLP_IDLE : SLP_ACTIVE;
+}
+
+function resolveSLP(action) {
+  document.getElementById('sessionLocPickerModal').classList.add('hidden');
+  if (!_slpResolve) return;
+  if (!action) { _slpResolve(null); _slpResolve = null; return; }
+  const selected = [];
+  ['front','back','other'].forEach(l => {
+    const btn = document.getElementById('slp_'+l);
+    if (btn && btn.dataset.active === 'on') {
+      selected.push(l.charAt(0).toUpperCase() + l.slice(1));
+    }
+  });
+  // Default to Front if nothing selected
+  if (!selected.length) selected.push('Front');
+  _slpResolve(selected);
+  _slpResolve = null;
 }
 
 // ── TOAST ───────────────────────────────────────────────────
