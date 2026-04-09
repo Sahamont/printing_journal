@@ -2127,7 +2127,7 @@ async function openJobDetail(id){
         + '<span>' + (t.cure_temp ? '🌡 Cure: ' + t.cure_temp + '°F' : '') + (t.flash_temp ? '  Flash: ' + t.flash_temp + '°F' : '') + (t.operator ? '  (' + t.operator + ')' : '') + (t.notes ? '  — ' + t.notes : '') + '</span>'
         + '</div>').join('')}
     </div>` : ''}
-    ${data.notes?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:3px;">NOTES</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;">${data.notes}</div></div>`:''}
+    ${data.notes?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:3px;">NOTES</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;white-space:pre-wrap;line-height:1.6;">${data.notes}</div></div>`:''}
   `;
   document.getElementById('jobDetailModal').classList.remove('hidden');
 }
@@ -2588,7 +2588,7 @@ async function openMachDetail(id) {
         +'<span class="evt-type-badge '+tc+'">'+tl+'</span>'
       +'</div>'
       +'<div>'
-        +'<div style="font-size:.82rem;margin-bottom:3px;">'+(e.description||'—')+'</div>'
+        +'<div style="font-size:.82rem;margin-bottom:3px;white-space:pre-wrap;line-height:1.5;">'+(e.description||'—')+'</div>'
         +partsHtml+techHtml
       +'</div>'
       +nextHtml
@@ -2617,7 +2617,7 @@ async function openMachDetail(id) {
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:16px;">
       ${[['BRAND',m.brand],['MODEL',m.model],['SERIAL #',m.serial_number],['YEAR',m.year],['PURCHASED',fmtDate(m.purchase_date)],['LOCATION',m.location]].map(([l,v])=>v?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;">${v}</div></div>`:'').filter(Boolean).join('')}
     </div>
-    ${m.notes ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;">${m.notes}</div>` : ''}
+    ${m.notes ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:.75rem;white-space:pre-wrap;line-height:1.6;">${m.notes}</div>` : ''}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;color:var(--flash);">MAINTENANCE HISTORY</div>
       <button class="btn-ghost" onclick="closeMachDetail();switchMaintTab('log');setTimeout(()=>{document.getElementById('evt_machine_id').value='${m.id}';},100);">+ LOG EVENT</button>
@@ -2858,7 +2858,7 @@ async function loadSchedule() {
           +(e.event_date ? '<span>Last done: '+fmtDate(e.event_date)+'</span>' : '')
           +(e.technician ? '<span>Tech: '+e.technician+'</span>' : '')
         +'</div>'
-        +(e.description ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:rgba(245,240,232,.55);padding:5px 8px;background:rgba(245,240,232,.04);border-left:2px solid rgba(245,240,232,.12);border-radius:0 2px 2px 0;">'+e.description+'</div>' : '')
+        +(e.description ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:rgba(245,240,232,.55);padding:5px 8px;background:rgba(245,240,232,.04);border-left:2px solid rgba(245,240,232,.12);border-radius:0 2px 2px 0;white-space:pre-wrap;line-height:1.6;">'+e.description+'</div>' : '')
       +'</div>';
 
     row.innerHTML = '<span class="sched-dot" style="background:'+dotColor+';flex-shrink:0;margin-top:3px;"></span>'
