@@ -4400,7 +4400,21 @@ function generateReport() {
     .filter(i => i >= 0);
   const headers = activeCols.map(i => rt.columns[i]);
   const keys    = activeCols.map(i => rt.colKeys[i]);
-  const cw = TW / headers.length;
+  // Custom column widths for maintenance — give description more room
+  let colWidths;
+  if (_rptType === 'maintenance') {
+    // Date, Machine, Type, Description, Technician, Parts, Next Due
+    const activeCnt = activeCols.length;
+    // Map active col indices to proportional widths
+    const baseWidths = { 0:58, 1:80, 2:62, 3:0, 4:70, 5:70, 6:62 };
+    const fixed = activeCols.reduce((s,i) => s + (baseWidths[i]||0), 0);
+    const descIdx = activeCols.indexOf(3); // description col
+    const descW = Math.max(80, TW - fixed);
+    colWidths = activeCols.map(i => i === 3 ? descW : (baseWidths[i] || TW/activeCnt));
+  } else {
+    colWidths = activeCols.map(() => TW / headers.length);
+  }
+  const cw = TW / headers.length; // fallback
 
   // ── Table header ──
   if (bold) {
@@ -4413,7 +4427,11 @@ function generateReport() {
     doc.setTextColor(100,100,100);
   }
   doc.setFont('helvetica','bold'); doc.setFontSize(8);
-  headers.forEach((h,i) => doc.text(h, ML+i*cw+2, y));
+  let cx = ML;
+  headers.forEach((h,i) => {
+    doc.text(h, cx+2, y);
+    cx += colWidths[i] || cw;
+  });
   y += bold ? 10 : 12;
   doc.setTextColor(0,0,0);
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
@@ -4425,16 +4443,28 @@ function generateReport() {
   _rptData.forEach(row => {
     checkPage(14);
     if (bold && rowNum % 2 === 0) { doc.setFillColor(14,14,25); doc.rect(ML, y-9, TW, 13, 'F'); }
-    keys.forEach((k,i) => {
+    let rowX = ML;
+    let rowH = 13;
+    // First pass — measure max height needed
+    const cellTexts = keys.map((k,i) => {
       let val = row[k] !== undefined && row[k] !== null ? String(row[k]) : '—';
       if (k === 'state') val = stateLabels[val] || val;
       if (k === 'event_type') val = typeLabels[val] || val;
       if (k === 'quantity' && parseInt(val)) val = parseInt(val).toLocaleString();
-      const txt = doc.splitTextToSize(val, cw-4);
-      doc.text(txt[0], ML+i*cw+2, y);
+      const w = (colWidths[i] || cw) - 4;
+      const lines = doc.splitTextToSize(val, w);
+      if (lines.length > 1) rowH = Math.max(rowH, lines.length * 11);
+      return lines;
     });
-    if (!bold) { doc.setDrawColor(230,230,230); doc.setLineWidth(0.2); doc.line(ML, y+3, MR, y+3); }
-    y += 13; rowNum++;
+    checkPage(rowH + 4);
+    if (bold && rowNum % 2 === 0) { doc.setFillColor(14,14,25); doc.rect(ML, y-9, TW, rowH+2, 'F'); }
+    rowX = ML;
+    cellTexts.forEach((lines, i) => {
+      doc.text(lines, rowX+2, y);
+      rowX += colWidths[i] || cw;
+    });
+    if (!bold) { doc.setDrawColor(230,230,230); doc.setLineWidth(0.2); doc.line(ML, y+rowH-10, MR, y+rowH-10); }
+    y += rowH; rowNum++;
   });
 
   // ── Summary totals ──
