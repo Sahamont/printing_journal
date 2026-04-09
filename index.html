@@ -1962,6 +1962,41 @@ async function openJobDetail(id){
     ${tbl('INK COLORS',data.ink_colors,['COLOR','PMS','BRAND','TYPE'],['color','pms','brand','type'])}
     ${tbl('SCREEN SPECS',data.screen_specs,['#','MESH','TENSION','EMULSION','FRAME'],['screen_num','mesh','tension','emulsion','frame'])}
     ${tbl('SQUEEGEE',data.squeegee_settings,['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'],['head_num','blade','angle','pressure','condition'])}
+    ${(data.session_log && data.session_log.length) ? `
+    <div style="margin-top:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin-bottom:10px;">SESSION HISTORY</div>
+      ${data.session_log.map(s => {
+        const mins = Math.round((s.elapsed_ms||0)/60000);
+        const pct = s.pieces_goal > 0 ? Math.min(100,Math.round(s.pieces_done/s.pieces_goal*100)) : 0;
+        const typeColors = {start:'var(--green)',pause:'var(--yellow)',resume:'var(--cyan)',complete:'var(--flash)',temp:'#ff9500',skip:'var(--muted)'};
+        const typeIcons = {start:'▶',pause:'⏸',resume:'▶',complete:'✓',temp:'🌡',skip:'—'};
+        return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;margin-bottom:8px;">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px;">'
+            + '<span style="font-family:Bebas Neue,sans-serif;font-size:1rem;letter-spacing:.08em;">' + s.location.toUpperCase() + ' PRINT</span>'
+            + '<div style="display:flex;gap:10px;font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);">'
+              + '<span>⏱ ' + mins + ' min</span>'
+              + '<span style="color:var(--flash);">' + (s.pieces_done||0) + ' / ' + (s.pieces_goal||0) + ' pcs</span>'
+              + '<span style="color:' + (s.status==='complete'?'var(--green)':'var(--yellow)') + ';">● ' + (s.status||'').toUpperCase() + '</span>'
+            + '</div>'
+          + '</div>'
+          + (s.pieces_goal > 0 ? '<div style="background:rgba(245,240,232,.08);border-radius:4px;height:5px;overflow:hidden;margin-bottom:8px;"><div style="background:var(--flash);height:100%;width:' + pct + '%;"></div></div>' : '')
+          + (s.log && s.log.length ? '<div style="border-top:1px solid rgba(245,240,232,.06);padding-top:6px;max-height:120px;overflow-y:auto;">'
+            + s.log.map(e => '<div style="display:grid;grid-template-columns:60px 1fr;font-family:IBM Plex Mono,monospace;font-size:.62rem;padding:2px 0;border-bottom:1px solid rgba(245,240,232,.04);">'
+              + '<span style="color:var(--muted);">' + (e.time||'') + '</span>'
+              + '<span style="color:' + (typeColors[e.type]||'var(--muted)') + ';">' + (typeIcons[e.type]||'') + ' ' + (e.msg||'') + '</span>'
+              + '</div>').join('')
+            + '</div>' : '')
+          + '</div>';
+      }).join('')}
+    </div>` : ''}
+    ${data.session_temp_log && data.session_temp_log.length ? `
+    <div style="margin-top:10px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--cyan);letter-spacing:.08em;border-bottom:1px solid rgba(0,180,216,.2);padding-bottom:3px;margin-bottom:8px;">🌡 TEMPERATURE LOG</div>
+      ${data.session_temp_log.map(t => '<div style="display:grid;grid-template-columns:90px 1fr;font-family:IBM Plex Mono,monospace;font-size:.65rem;padding:4px 0;border-bottom:1px solid rgba(245,240,232,.04);">'
+        + '<span style="color:var(--muted);">' + (t.time ? new Date(t.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '') + '</span>'
+        + '<span>' + (t.cure_temp ? '🌡 Cure: ' + t.cure_temp + '°F' : '') + (t.flash_temp ? '  Flash: ' + t.flash_temp + '°F' : '') + (t.operator ? '  (' + t.operator + ')' : '') + (t.notes ? '  — ' + t.notes : '') + '</span>'
+        + '</div>').join('')}
+    </div>` : ''}
     ${data.notes?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:3px;">NOTES</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;">${data.notes}</div></div>`:''}
   `;
   document.getElementById('jobDetailModal').classList.remove('hidden');
@@ -5955,6 +5990,7 @@ function controlSession(loc, action) {
     const allDone = Object.values(_session.sessions).every(s => s.status === 'complete');
     if (allDone) {
       stopReminderTimer();
+      saveSessionLogToDB();
       showToast('All sessions complete! Move job to Packaging.', 'success');
     }
   }
@@ -6224,6 +6260,24 @@ function resolveSLP(action) {
   if (!selected.length) selected.push('Front');
   _slpResolve(selected);
   _slpResolve = null;
+}
+
+
+// ── SAVE SESSION LOG TO DB ───────────────────────────
+async function saveSessionLogToDB() {
+  if (!sbClient || !_session.jobId) return;
+  const sessionSummary = Object.entries(_session.sessions).map(([loc, sess]) => ({
+    location: loc,
+    status: sess.status,
+    elapsed_ms: sess.elapsed,
+    pieces_done: sess.piecesDone,
+    pieces_goal: sess.piecesGoal,
+    log: sess.log,
+    completed_at: new Date().toISOString(),
+  }));
+  await sbClient.from('print_setups')
+    .update({ session_log: sessionSummary })
+    .eq('id', _session.jobId);
 }
 
 // ── TOAST ───────────────────────────────────────────────────
