@@ -876,6 +876,7 @@
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);" id="sessionJobMeta"></div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button type="button" id="sessionNoteBtn" onclick="toggleSessionNoteBar()" style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;">✏ NOTE</button>
         <button type="button" id="sessionManualFlashToggle" onclick="toggleSessionManualFlash()"
           style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;">
           ⚡ MANUAL FLASH
@@ -895,8 +896,18 @@
       </div>
     </div>
 
+    <!-- Quick note entry -->
+    <div id="sessionNoteBar" style="display:none;margin-bottom:10px;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="sessionNoteInput" placeholder="Type a note… press Enter or Save" style="flex:1;"
+          onkeydown="if(event.key==='Enter')saveSessionNote()" />
+        <button class="btn-primary" style="white-space:nowrap;font-size:.85rem;" onclick="saveSessionNote()">SAVE NOTE</button>
+        <button class="btn-ghost" onclick="toggleSessionNoteBar()">✕</button>
+      </div>
+    </div>
+
     <!-- Session controls row: piece counter summary + manual flash toggle -->
-    <div id="sessionManualFlashBar" style="display:none;margin-bottom:10px;">
+    <div id="sessionManualFlashBar"  style="display:none;margin-bottom:10px;">
       <div class="manual-flash-alert" id="manualFlashAlertMain">⚡ MANUAL FLASH — FLASH UNIT IN USE ⚡</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);text-align:center;margin-top:-6px;margin-bottom:8px;">This job uses a manual flash unit. Stay alert during press operation.</div>
     </div>
@@ -2087,7 +2098,7 @@ async function openJobDetail(id){
       ${data.session_log.map(s => {
         const mins = Math.round((s.elapsed_ms||0)/60000);
         const pct = s.pieces_goal > 0 ? Math.min(100,Math.round(s.pieces_done/s.pieces_goal*100)) : 0;
-        const typeColors = {start:'var(--green)',pause:'var(--yellow)',resume:'var(--cyan)',complete:'var(--flash)',temp:'#ff9500',skip:'var(--muted)'};
+        const typeColors = {start:'var(--green)',pause:'var(--yellow)',resume:'var(--cyan)',complete:'var(--flash)',temp:'#ff9500',skip:'var(--muted)',note:'var(--text)'};
         const typeIcons = {start:'▶',pause:'⏸',resume:'▶',complete:'✓',temp:'🌡',skip:'—'};
         return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;margin-bottom:8px;">'
           + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px;">'
@@ -6733,6 +6744,34 @@ function clearPayJob() {
     'No job linked — <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="togglePayJobSearch()">link a job</button>';
 }
 
+
+
+// ── SESSION MANUAL NOTE ───────────────────────────────
+function toggleSessionNoteBar() {
+  const bar = document.getElementById('sessionNoteBar');
+  const btn = document.getElementById('sessionNoteBtn');
+  if (!bar) return;
+  const visible = bar.style.display !== 'none';
+  bar.style.display = visible ? 'none' : 'block';
+  if (btn) {
+    btn.style.cssText = visible
+      ? "font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;"
+      : "font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:6px 14px;border-radius:3px;border:2px solid var(--flash);background:var(--flash-dim);color:var(--text);cursor:pointer;touch-action:manipulation;transition:all .15s;";
+  }
+  if (!visible) setTimeout(() => document.getElementById('sessionNoteInput')?.focus(), 50);
+}
+
+function saveSessionNote() {
+  const input = document.getElementById('sessionNoteInput');
+  if (!input) return;
+  const note = input.value.trim();
+  if (!note) { input.focus(); return; }
+  const ts = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  addToSessionLog({ time: ts, type: 'note', msg: note });
+  input.value = '';
+  toggleSessionNoteBar();
+  showToast('Note logged.', 'success');
+}
 
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
