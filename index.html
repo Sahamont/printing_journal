@@ -7473,7 +7473,6 @@ function printQR() {
     <div class="info-side">
       <div class="info-id">${label}</div>
       <div class="info-mesh">${sublabel}</div>
-      <div class="info-sub">${new Date().toLocaleDateString()}</div>
       ${shop.name ? `<div class="info-shop">${shop.name}</div>` : ''}
     </div>
     <script>window.onload=()=>{window.print();window.close();}<\/script>
@@ -7582,7 +7581,6 @@ async function printBatchQR() {
             <div class="info-id">${l.id}</div>
             <div class="info-mesh">${l.mesh}</div>
             ${l.frame ? `<div class="info-sub">${l.frame}</div>` : ''}
-            <div class="info-sub">${l.state}</div>
             ${shop.name ? `<div class="info-shop">${shop.name}</div>` : ''}
           </div>
         </div>`).join('')}
