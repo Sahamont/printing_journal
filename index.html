@@ -4765,7 +4765,13 @@ function drawFooter(doc, PW, PH, pageNum, bold) {
 
 // ── Shop settings ─────────────────────────────────────
 function getShopSettings() {
-  try { return JSON.parse(localStorage.getItem('shop_settings') || '{}'); } catch { return {}; }
+  try {
+    const shop = JSON.parse(localStorage.getItem('shop_settings') || '{}');
+    const app  = JSON.parse(localStorage.getItem('app_settings')  || '{}');
+    // Use shop.name if set, otherwise fall back to app name
+    if (!shop.name && app.appName) shop.name = app.appName;
+    return shop;
+  } catch { return {}; }
 }
 
 function loadShopSettings() {
