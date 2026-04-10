@@ -1217,11 +1217,12 @@
 
 <!-- QR CODE MODAL -->
 <div id="qrModal" class="modal hidden">
-  <div class="card modal-box" style="max-width:320px;padding:20px;margin:8px auto;text-align:center;">
+  <div class="card modal-box" style="max-width:340px;padding:20px;margin:8px auto;text-align:center;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="qrModalTitle">QR CODE</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="qrModalTitle">QR LABEL</div>
       <button class="btn-ghost" onclick="closeQRModal()">✕</button>
     </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:10px;">1.25" × 2.5" label — QR + ID + Mesh</div>
     <div style="display:flex;justify-content:center;margin-bottom:14px;">
       <div class="qr-print-area" id="qrPrintArea">
         <div id="qrCodeCanvas"></div>
@@ -1231,7 +1232,8 @@
     </div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:14px;" id="qrUrlText"></div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-      <button class="btn-secondary" onclick="printQR()">🖨 PRINT LABEL</button>
+      <button class="btn-primary" onclick="printQR()">🖨 PRINT SINGLE LABEL</button>
+      <button class="btn-secondary" onclick="openBatchQRModal()">🖨 BATCH PRINT</button>
       <button class="btn-ghost" onclick="downloadQR()">⬇ SAVE IMAGE</button>
     </div>
   </div>
@@ -1748,6 +1750,72 @@
       <button class="btn-secondary" onclick="closeTaskCompleteModal()">CANCEL</button>
       <button class="btn-primary" style="background:var(--green);" onclick="confirmTaskComplete()">✓ MARK DONE</button>
     </div>
+  </div>
+</div>
+
+<!-- BATCH QR MODAL -->
+<div id="batchQRModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:480px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;">BATCH QR LABELS</div>
+      <button class="btn-ghost" onclick="closeBatchQRModal()">✕</button>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);margin-bottom:14px;">
+      Select which screens to print labels for. Labels print 1.25" × 2.5" (2 per row, standard label sheets).
+    </div>
+    <div class="report-param-group">
+      <div class="report-param-title">Filter by Mesh Count</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;" id="batchMeshFilters">
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchMesh('all')">All Screens</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchMesh('110')">110</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchMesh('155w')">155 White</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchMesh('155y')">155 Yellow</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchMesh('200')">200</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchMesh('230')">230</button>
+      </div>
+    </div>
+    <div class="report-param-group">
+      <div class="report-param-title">Filter by State</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchState('all')">All States</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchState('clean')">Clean</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchState('burned')">Burned</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="selectBatchState('onpress')">On Press</button>
+      </div>
+    </div>
+    <div id="batchQRCount" style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn-secondary" onclick="closeBatchQRModal()">CANCEL</button>
+      <button class="btn-primary" onclick="printBatchQR()">🖨 PRINT LABELS</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN HISTORY MODAL -->
+<div id="screenHistoryModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:520px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="screenHistTitle">SCREEN HISTORY</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);" id="screenHistSubtitle"></div>
+      </div>
+      <button class="btn-ghost" onclick="closeScreenHistModal()">✕</button>
+    </div>
+    <!-- Add manual entry -->
+    <div class="report-param-group" style="margin-bottom:12px;">
+      <div class="report-param-title">Add Manual Entry</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><label>Job / Description</label><input type="text" id="sh_job" placeholder="Job name or description" /></div>
+        <div><label>Ink Color</label><input type="text" id="sh_ink" placeholder="e.g. Red PMS 485" /></div>
+        <div><label>Operator</label><input type="text" id="sh_op" placeholder="Name" /></div>
+        <div><label>Date</label><input type="date" id="sh_date" /></div>
+        <div style="grid-column:1/-1;"><label>Notes</label><input type="text" id="sh_notes" placeholder="Any notes about this use…" /></div>
+      </div>
+      <button class="btn-secondary" style="margin-top:8px;width:100%;" onclick="addScreenHistEntry()">+ ADD ENTRY</button>
+    </div>
+    <!-- History list -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.08em;color:var(--flash);margin-bottom:8px;">USE HISTORY</div>
+    <div id="screenHistList" style="max-height:300px;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -3497,6 +3565,12 @@ function buildScreenCard(s) {
   qrBtn.style.cssText = 'color:var(--cyan);border-color:rgba(0,180,216,.3);';
   qrBtn.textContent = '⬛ QR';
   qrBtn.onclick = (e) => { e.stopPropagation(); showQR('screen', s.screen_id, s.screen_id, (MESH_LABELS[s.mesh_count]||s.mesh_count)+' mesh · '+(s.frame_size||'')); };
+  const histBtn = document.createElement('button');
+  histBtn.className = 'kcard-btn';
+  histBtn.style.cssText = 'color:var(--cyan);border-color:rgba(0,180,216,.3);font-size:.65rem;';
+  histBtn.textContent = '📋 HISTORY';
+  histBtn.onclick = (e) => { e.stopPropagation(); openScreenHistModal(s); };
+  btnWrap.appendChild(histBtn);
   btnWrap.appendChild(qrBtn);
 
   return div;
@@ -7365,6 +7439,254 @@ async function confirmTaskComplete() {
 }
 
 function openManageTasksModal() { openAddTaskModal(); }
+
+
+
+// ══════════════════════════════════════════════════════
+// NEW QR LABEL FORMAT — 1.25" × 2.5" RECTANGLE
+// ══════════════════════════════════════════════════════
+function printQR() {
+  const canvas = document.querySelector('#qrPrintArea canvas');
+  if (!canvas) return;
+  const dataUrl = canvas.toDataURL('image/png');
+  const label = document.getElementById('qrLabel')?.textContent || '';
+  const sublabel = document.getElementById('qrSublabel')?.textContent || '';
+  const shop = getShopSettings();
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>QR Label</title>
+    <style>
+      @page { size: 2.5in 1.25in; margin: 0; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { width: 2.5in; height: 1.25in; display: flex; align-items: stretch; font-family: 'Courier New', monospace; background: #fff; }
+      .qr-side { width: 1.25in; height: 1.25in; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ccc; padding: 4px; flex-shrink: 0; }
+      .qr-side img { width: 1.1in; height: 1.1in; }
+      .info-side { flex: 1; padding: 6px 8px; display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden; }
+      .info-id { font-size: 18px; font-weight: 900; color: #000; letter-spacing: -0.5px; line-height: 1; }
+      .info-mesh { font-size: 11px; font-weight: 700; color: #333; line-height: 1.2; }
+      .info-shop { font-size: 8px; color: #888; margin-top: 4px; }
+      .info-sub { font-size: 9px; color: #555; }
+      @media print { body { -webkit-print-color-adjust: exact; } }
+    </style>
+  </head><body>
+    <div class="qr-side"><img src="${dataUrl}" /></div>
+    <div class="info-side">
+      <div class="info-id">${label}</div>
+      <div class="info-mesh">${sublabel}</div>
+      <div class="info-sub">${new Date().toLocaleDateString()}</div>
+      ${shop.name ? `<div class="info-shop">${shop.name}</div>` : ''}
+    </div>
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+// ══════════════════════════════════════════════════════
+// BATCH QR PRINTING
+// ══════════════════════════════════════════════════════
+let _batchMeshFilter = 'all';
+let _batchStateFilter = 'all';
+let _allScreensCache = [];
+
+async function openBatchQRModal() {
+  closeQRModal();
+  if (!sbClient) return;
+  const { data } = await sbClient.from('screens').select('*').order('mesh_count').order('screen_id');
+  _allScreensCache = data || [];
+  updateBatchCount();
+  document.getElementById('batchQRModal').classList.remove('hidden');
+}
+
+function closeBatchQRModal() {
+  document.getElementById('batchQRModal').classList.add('hidden');
+}
+
+function selectBatchMesh(mesh) {
+  _batchMeshFilter = mesh;
+  updateBatchCount();
+}
+
+function selectBatchState(state) {
+  _batchStateFilter = state;
+  updateBatchCount();
+}
+
+function getBatchScreens() {
+  let screens = _allScreensCache;
+  if (_batchMeshFilter !== 'all') screens = screens.filter(s => String(s.mesh_count) === _batchMeshFilter || s.mesh_type === _batchMeshFilter);
+  if (_batchStateFilter !== 'all') screens = screens.filter(s => s.state === _batchStateFilter);
+  return screens;
+}
+
+function updateBatchCount() {
+  const el = document.getElementById('batchQRCount');
+  const n = getBatchScreens().length;
+  if (el) el.textContent = `${n} screen${n!==1?'s':''} selected — ${Math.ceil(n/2)} label sheet row${Math.ceil(n/2)!==1?'s':''}`;
+}
+
+async function printBatchQR() {
+  const screens = getBatchScreens();
+  if (!screens.length) { showToast('No screens match the selected filters.', 'error'); return; }
+  const shop = getShopSettings();
+
+  // Generate QR data URLs for each screen
+  const labels = await Promise.all(screens.map(s => new Promise(resolve => {
+    const tmp = document.createElement('div');
+    tmp.style.cssText = 'position:fixed;left:-9999px;top:0;';
+    document.body.appendChild(tmp);
+    const qr = new QRCode(tmp, {
+      text: s.screen_id + '|' + s.mesh_count + '|' + s.id,
+      width: 128, height: 128,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+    setTimeout(() => {
+      const canvas = tmp.querySelector('canvas');
+      const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+      document.body.removeChild(tmp);
+      resolve({
+        dataUrl,
+        id: s.screen_id,
+        mesh: (MESH_LABELS[s.mesh_count] || s.mesh_count) + ' mesh',
+        frame: s.frame_size || '',
+        state: STATE_LABELS[s.state] || s.state || '',
+      });
+    }, 150);
+  })));
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>QR Labels — Batch</title>
+    <style>
+      @page { size: letter; margin: 0.25in; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Courier New', monospace; background: #fff; }
+      .label-grid { display: grid; grid-template-columns: 2.5in 2.5in; gap: 0.25in; }
+      .label { width: 2.5in; height: 1.25in; display: flex; align-items: stretch; border: 1px solid #ddd; border-radius: 2px; overflow: hidden; page-break-inside: avoid; }
+      .qr-side { width: 1.25in; height: 1.25in; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ddd; padding: 4px; flex-shrink: 0; }
+      .qr-side img { width: 1.1in; height: 1.1in; }
+      .info-side { flex: 1; padding: 5px 7px; display: flex; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; }
+      .info-id   { font-size: 17px; font-weight: 900; color: #000; letter-spacing: -0.3px; line-height: 1; }
+      .info-mesh { font-size: 11px; font-weight: 700; color: #333; }
+      .info-sub  { font-size: 8px; color: #666; }
+      .info-shop { font-size: 7px; color: #aaa; margin-top: 3px; }
+      h2 { font-size: 10px; color: #888; margin-bottom: 8px; font-family: monospace; }
+      @media print { body { -webkit-print-color-adjust: exact; } }
+    </style>
+  </head><body>
+    <h2>${shop.name||'PRESS SETUP DOC'} · Screen QR Labels · ${new Date().toLocaleDateString()} · ${screens.length} screens</h2>
+    <div class="label-grid">
+      ${labels.map(l => `
+        <div class="label">
+          <div class="qr-side"><img src="${l.dataUrl}" /></div>
+          <div class="info-side">
+            <div class="info-id">${l.id}</div>
+            <div class="info-mesh">${l.mesh}</div>
+            ${l.frame ? `<div class="info-sub">${l.frame}</div>` : ''}
+            <div class="info-sub">${l.state}</div>
+            ${shop.name ? `<div class="info-shop">${shop.name}</div>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>
+    <script>window.onload=()=>{window.print();window.close();}<\/script>
+  </body></html>`);
+  win.document.close();
+  closeBatchQRModal();
+}
+
+// ══════════════════════════════════════════════════════
+// SCREEN HISTORY LOG
+// ══════════════════════════════════════════════════════
+let _currentScreenId = null;
+
+async function openScreenHistModal(screen) {
+  _currentScreenId = screen.id;
+  document.getElementById('screenHistTitle').textContent = 'HISTORY — ' + screen.screen_id;
+  document.getElementById('screenHistSubtitle').textContent =
+    (MESH_LABELS[screen.mesh_count]||screen.mesh_count) + ' mesh' +
+    (screen.frame_size ? ' · ' + screen.frame_size : '') +
+    ' · ' + (STATE_LABELS[screen.state]||screen.state||'');
+  document.getElementById('sh_date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('sh_job').value = '';
+  document.getElementById('sh_ink').value = '';
+  document.getElementById('sh_op').value = '';
+  document.getElementById('sh_notes').value = '';
+  document.getElementById('screenHistoryModal').classList.remove('hidden');
+  await loadScreenHistList();
+}
+
+function closeScreenHistModal() {
+  document.getElementById('screenHistoryModal').classList.add('hidden');
+  _currentScreenId = null;
+}
+
+async function loadScreenHistList() {
+  if (!sbClient || !_currentScreenId) return;
+  const { data } = await sbClient.from('screen_history')
+    .select('*')
+    .eq('screen_id', _currentScreenId)
+    .order('used_date', { ascending: false });
+  const el = document.getElementById('screenHistList');
+  if (!data || !data.length) {
+    el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--muted);padding:12px 0;">No history yet.</div>';
+    return;
+  }
+  el.innerHTML = data.map(e => `
+    <div style="display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid rgba(245,240,232,.06);">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">${fmtDate(e.used_date)}</div>
+      <div>
+        <div style="font-size:.8rem;font-weight:600;">${e.job_name||'—'}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
+          ${e.ink_color?`<span style="color:var(--flash);">● ${e.ink_color}</span>`:''}
+          ${e.operator?`<span>👤 ${e.operator}</span>`:''}
+          ${e.notes?`<span style="color:rgba(245,240,232,.35);">${e.notes}</span>`:''}
+        </div>
+      </div>
+      <button onclick="deleteScreenHistEntry('${e.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.72rem;padding:2px 6px;" title="Delete">✕</button>
+    </div>`).join('');
+}
+
+async function addScreenHistEntry() {
+  if (!sbClient || !_currentScreenId) return;
+  const job = document.getElementById('sh_job').value.trim();
+  const date = document.getElementById('sh_date').value;
+  if (!job) { showToast('Job name / description is required.', 'error'); return; }
+  const record = {
+    screen_id:  _currentScreenId,
+    used_date:  date || new Date().toISOString().split('T')[0],
+    job_name:   job,
+    ink_color:  document.getElementById('sh_ink').value.trim()||null,
+    operator:   document.getElementById('sh_op').value.trim()||null,
+    notes:      document.getElementById('sh_notes').value.trim()||null,
+    source:     'manual',
+  };
+  const {error} = await sbClient.from('screen_history').insert([record]);
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast('Entry added!','success');
+  document.getElementById('sh_job').value = '';
+  document.getElementById('sh_ink').value = '';
+  document.getElementById('sh_op').value = '';
+  document.getElementById('sh_notes').value = '';
+  await loadScreenHistList();
+}
+
+async function deleteScreenHistEntry(id) {
+  if (!sbClient) return;
+  const {error} = await sbClient.from('screen_history').delete().eq('id', id);
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  await loadScreenHistList();
+}
+
+// Auto-log when screen is assigned to a job in submitForm
+async function logScreenUsage(screenInventoryId, jobName, operator) {
+  if (!sbClient || !screenInventoryId) return;
+  await sbClient.from('screen_history').insert([{
+    screen_id: screenInventoryId,
+    used_date: new Date().toISOString().split('T')[0],
+    job_name:  jobName || 'Unnamed Job',
+    operator:  operator || null,
+    source:    'auto',
+  }]);
+}
 
 
 // ── TOAST ───────────────────────────────────────────────────
