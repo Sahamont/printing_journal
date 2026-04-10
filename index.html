@@ -332,6 +332,23 @@
     .cat-section-lbl{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em;color:var(--flash);border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin:16px 0 8px;}
     .task-filter-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:5px 12px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;white-space:nowrap;}
     .task-filter-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+
+    /* ── Shirt Inventory ── */
+    .inv-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;cursor:pointer;transition:border-color .15s;}
+    .inv-card:hover{border-color:var(--flash-40);}
+    .inv-card.low{border-color:rgba(245,200,0,.35);}
+    .inv-card.out{border-color:rgba(255,51,51,.4);}
+    .inv-size-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:5px;margin-top:8px;}
+    .inv-size-box{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:5px 4px;text-align:center;}
+    .inv-size-lbl{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);}
+    .inv-size-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;line-height:1;}
+    .inv-size-val.needed{color:var(--flash);}
+    .inv-size-val.ok{color:var(--green);}
+    .inv-size-val.low{color:var(--yellow);}
+    .po-row{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.72rem;}
+    .po-row-header{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+    .inv-tab-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:6px 14px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;}
+    .inv-tab-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
   </style>
 </head>
 <body class="grid-bg">
@@ -371,6 +388,7 @@
   <div class="tab hidden" id="tab-session" onclick="switchTab('session')" style="color:var(--flash);position:relative;">ACTIVE SESSION <span id="sessionPulse" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flash);margin-left:3px;vertical-align:middle;animation:pulse 1s infinite;"></span></div>
   <div class="tab" id="tab-reports" onclick="switchTab('reports')">REPORTS</div>
   <div class="tab" id="tab-showrooms" onclick="switchTab('showrooms')">SHOWROOMS</div>
+  <div class="tab" id="tab-inventory" onclick="switchTab('inventory')">INVENTORY <span id="inventoryBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-tasks" onclick="switchTab('tasks')">TASKS <span id="tasksBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-payments" onclick="switchTab('payments')">PAYMENTS <span id="paymentsBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-maint" onclick="switchTab('maint')">MAINTENANCE <span id="maintTabBadge" style="display:none;background:var(--flash);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
@@ -1030,6 +1048,46 @@
 
     <!-- Task list -->
     <div id="tasksList"></div>
+
+  </div>
+
+
+  <!-- ═══ INVENTORY ═══ -->
+  <div id="pane-inventory" class="hidden">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">SHIRT INVENTORY</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="loadInventory()">↺ REFRESH</button>
+        <button class="btn-secondary" onclick="openGeneratePOModal()">📋 GENERATE PO</button>
+        <button class="btn-primary" onclick="openAddInvModal()">+ ADD ITEM</button>
+      </div>
+    </div>
+
+    <!-- Summary bar -->
+    <div id="invSummaryBar" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px;"></div>
+
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <button class="inv-tab-btn active" id="invt-stock"  onclick="switchInvTab('stock')">STOCK ON HAND</button>
+      <button class="inv-tab-btn" id="invt-needed" onclick="switchInvTab('needed')">JOB REQUIREMENTS</button>
+      <button class="inv-tab-btn" id="invt-gap"    onclick="switchInvTab('gap')">ORDER GAP</button>
+    </div>
+
+    <!-- Search / filter -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <input type="text" id="invSearch" placeholder="Search style or color…" style="flex:1;min-width:160px;" oninput="renderInventoryList()" />
+      <select id="invFilterStatus" onchange="renderInventoryList()" style="width:auto;">
+        <option value="">All Status</option>
+        <option value="ok">In Stock</option>
+        <option value="low">Low Stock</option>
+        <option value="out">Out of Stock</option>
+      </select>
+    </div>
+
+    <!-- Content area -->
+    <div id="inventoryContent"></div>
 
   </div>
 
@@ -1819,6 +1877,51 @@
   </div>
 </div>
 
+<!-- ADD/EDIT INVENTORY MODAL -->
+<div id="addInvModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:560px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="invModalTitle">ADD INVENTORY ITEM</div>
+      <button class="btn-ghost" onclick="closeAddInvModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px;">
+      <div><label>Style</label><input type="text" id="inv_style" placeholder="Gildan 5000" /></div>
+      <div><label>Color</label><input type="text" id="inv_color" placeholder="Black" /></div>
+      <div><label>Supplier / Vendor</label><input type="text" id="inv_supplier" placeholder="SanMar, AlphaBroder…" /></div>
+      <div><label>Cost Per Unit ($)</label><input type="number" id="inv_cost" step="0.01" min="0" placeholder="3.50" /></div>
+      <div><label>Min Stock Alert At</label><input type="number" id="inv_min" min="0" placeholder="12" /></div>
+      <div><label>Notes</label><input type="text" id="inv_notes" placeholder="Any notes…" /></div>
+    </div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.08em;color:var(--flash);margin-bottom:10px;">SIZES ON HAND</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px;" id="invSizeInputs"></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" id="deleteInvBtn" onclick="deleteInvItem()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeAddInvModal()">CANCEL</button>
+        <button class="btn-primary" id="saveInvBtn" onclick="saveInvItem()">SAVE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GENERATE PO MODAL -->
+<div id="generatePOModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:560px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;">GENERATE PURCHASE ORDER</div>
+      <button class="btn-ghost" onclick="closeGeneratePOModal()">✕</button>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);margin-bottom:14px;">
+      Pulls shirt requirements from all jobs in <strong style="color:var(--flash);">Order Intake</strong> stage, subtracts current stock, and shows what needs to be ordered.
+    </div>
+    <div id="poPreview" style="margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn-secondary" onclick="closeGeneratePOModal()">CLOSE</button>
+      <button class="btn-primary" onclick="exportPOPDF()">⬇ EXPORT PO PDF</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -1883,7 +1986,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -1896,6 +1999,7 @@ function switchTab(tab){
   if(tab==='session') renderSessionTab();
   if(tab==='payments') loadPayments();
   if(tab==='tasks') loadTasks();
+  if(tab==='inventory') loadInventory();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -4029,6 +4133,23 @@ function printQR() {
     .cat-section-lbl{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em;color:var(--flash);border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin:16px 0 8px;}
     .task-filter-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:5px 12px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;white-space:nowrap;}
     .task-filter-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+
+    /* ── Shirt Inventory ── */
+    .inv-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;cursor:pointer;transition:border-color .15s;}
+    .inv-card:hover{border-color:var(--flash-40);}
+    .inv-card.low{border-color:rgba(245,200,0,.35);}
+    .inv-card.out{border-color:rgba(255,51,51,.4);}
+    .inv-size-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:5px;margin-top:8px;}
+    .inv-size-box{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:5px 4px;text-align:center;}
+    .inv-size-lbl{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);}
+    .inv-size-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;line-height:1;}
+    .inv-size-val.needed{color:var(--flash);}
+    .inv-size-val.ok{color:var(--green);}
+    .inv-size-val.low{color:var(--yellow);}
+    .po-row{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.72rem;}
+    .po-row-header{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+    .inv-tab-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:6px 14px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;}
+    .inv-tab-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -7473,7 +7594,24 @@ function printQR() {
       .info-shop { font-size: 8px; color: #888; margin-top: 4px; }
       .info-sub { font-size: 9px; color: #555; }
       @media print { body { -webkit-print-color-adjust: exact; } }
-    </style>
+  
+    /* ── Shirt Inventory ── */
+    .inv-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;cursor:pointer;transition:border-color .15s;}
+    .inv-card:hover{border-color:var(--flash-40);}
+    .inv-card.low{border-color:rgba(245,200,0,.35);}
+    .inv-card.out{border-color:rgba(255,51,51,.4);}
+    .inv-size-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:5px;margin-top:8px;}
+    .inv-size-box{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:5px 4px;text-align:center;}
+    .inv-size-lbl{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);}
+    .inv-size-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;line-height:1;}
+    .inv-size-val.needed{color:var(--flash);}
+    .inv-size-val.ok{color:var(--green);}
+    .inv-size-val.low{color:var(--yellow);}
+    .po-row{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.72rem;}
+    .po-row-header{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+    .inv-tab-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:6px 14px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;}
+    .inv-tab-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+  </style>
   </head><body>
     <div class="qr-side"><img src="${dataUrl}" /></div>
     <div class="info-side">
@@ -7576,7 +7714,24 @@ async function printBatchQR() {
       .info-shop { font-size: 7px; color: #aaa; margin-top: 3px; }
       h2 { font-size: 10px; color: #888; margin-bottom: 8px; font-family: monospace; }
       @media print { body { -webkit-print-color-adjust: exact; } }
-    </style>
+  
+    /* ── Shirt Inventory ── */
+    .inv-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;cursor:pointer;transition:border-color .15s;}
+    .inv-card:hover{border-color:var(--flash-40);}
+    .inv-card.low{border-color:rgba(245,200,0,.35);}
+    .inv-card.out{border-color:rgba(255,51,51,.4);}
+    .inv-size-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:5px;margin-top:8px;}
+    .inv-size-box{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:5px 4px;text-align:center;}
+    .inv-size-lbl{font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);}
+    .inv-size-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;line-height:1;}
+    .inv-size-val.needed{color:var(--flash);}
+    .inv-size-val.ok{color:var(--green);}
+    .inv-size-val.low{color:var(--yellow);}
+    .po-row{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.72rem;}
+    .po-row-header{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+    .inv-tab-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:6px 14px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;}
+    .inv-tab-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+  </style>
   </head><body>
     <h2>${shop.name||'PRESS SETUP DOC'} · Screen QR Labels · ${new Date().toLocaleDateString()} · ${screens.length} screens</h2>
     <div class="label-grid">
@@ -7690,6 +7845,442 @@ async function logScreenUsage(screenInventoryId, jobName, operator) {
     operator:  operator || null,
     source:    'auto',
   }]);
+}
+
+
+
+// ══════════════════════════════════════════════════════
+// SHIRT INVENTORY
+// ══════════════════════════════════════════════════════
+const INV_SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL','5XL','YS','YM','YL'];
+let _invItems = [];
+let _invJobReqs = {};   // aggregated job requirements from intake jobs
+let _invTab = 'stock';
+let _editInvId = null;
+
+// ── Load ──────────────────────────────────────────────
+async function loadInventory() {
+  if (!sbClient) return;
+  const [{ data: items }, { data: jobs }] = await Promise.all([
+    sbClient.from('shirt_inventory').select('*').order('style').order('color'),
+    sbClient.from('print_setups')
+      .select('id,job_name,shirt_types,pipeline_stage')
+      .eq('pipeline_stage', 'intake'),
+  ]);
+  _invItems = items || [];
+  // Aggregate shirt requirements from intake jobs
+  _invJobReqs = {};
+  (jobs || []).forEach(job => {
+    (job.shirt_types || []).forEach(t => {
+      const key = (t.style||'Unknown').trim().toLowerCase() + '|' + (t.color||'').trim().toLowerCase();
+      if (!_invJobReqs[key]) _invJobReqs[key] = { style: t.style||'Unknown', color: t.color||'', sizes: {}, jobs: [] };
+      Object.entries(t.sizes || {}).forEach(([sz, qty]) => {
+        _invJobReqs[key].sizes[sz] = (_invJobReqs[key].sizes[sz]||0) + (parseInt(qty)||0);
+      });
+      _invJobReqs[key].jobs.push(job.job_name);
+    });
+  });
+  renderInvSummary();
+  renderInventoryList();
+  updateInventoryBadge();
+}
+
+function renderInvSummary() {
+  const el = document.getElementById('invSummaryBar');
+  if (!el) return;
+  const totalStyles = _invItems.length;
+  const totalUnits = _invItems.reduce((s,i) => s + Object.values(i.sizes_on_hand||{}).reduce((a,b)=>a+(parseInt(b)||0),0), 0);
+  const lowItems = _invItems.filter(i => isInvLow(i));
+  const outItems = _invItems.filter(i => isInvOut(i));
+  const intakeJobCount = [...new Set(Object.values(_invJobReqs).flatMap(r=>r.jobs))].length;
+
+  el.innerHTML = [
+    ['STYLES TRACKED', totalStyles, 'var(--text)'],
+    ['TOTAL UNITS ON HAND', totalUnits.toLocaleString(), 'var(--cyan)'],
+    ['LOW STOCK', lowItems.length, lowItems.length > 0 ? 'var(--yellow)' : 'var(--green)'],
+    ['OUT OF STOCK', outItems.length, outItems.length > 0 ? '#ff3333' : 'var(--green)'],
+    ['INTAKE JOBS', intakeJobCount, 'var(--flash)'],
+  ].map(([l,v,c]) => `<div class="task-stat-card">
+    <div class="task-stat-val" style="color:${c};">${v}</div>
+    <div class="task-stat-lbl">${l}</div>
+  </div>`).join('');
+}
+
+function isInvLow(item) {
+  if (!item.min_stock) return false;
+  const total = Object.values(item.sizes_on_hand||{}).reduce((a,b)=>a+(parseInt(b)||0),0);
+  return total > 0 && total <= item.min_stock;
+}
+function isInvOut(item) {
+  const total = Object.values(item.sizes_on_hand||{}).reduce((a,b)=>a+(parseInt(b)||0),0);
+  return total === 0;
+}
+
+function switchInvTab(tab) {
+  _invTab = tab;
+  ['stock','needed','gap'].forEach(t => {
+    const btn = document.getElementById('invt-'+t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  renderInventoryList();
+}
+
+function renderInventoryList() {
+  const el = document.getElementById('inventoryContent');
+  const q = (document.getElementById('invSearch')?.value||'').toLowerCase();
+  const statusF = document.getElementById('invFilterStatus')?.value||'';
+
+  if (_invTab === 'stock') renderStockView(el, q, statusF);
+  else if (_invTab === 'needed') renderNeededView(el, q);
+  else if (_invTab === 'gap') renderGapView(el, q);
+}
+
+// ── STOCK VIEW ────────────────────────────────────────
+function renderStockView(el, q, statusF) {
+  let items = _invItems;
+  if (q) items = items.filter(i => (i.style||'').toLowerCase().includes(q) || (i.color||'').toLowerCase().includes(q));
+  if (statusF === 'ok')  items = items.filter(i => !isInvLow(i) && !isInvOut(i));
+  if (statusF === 'low') items = items.filter(i => isInvLow(i));
+  if (statusF === 'out') items = items.filter(i => isInvOut(i));
+
+  if (!items.length) { el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;text-align:center;">No items found. Click + ADD ITEM to get started.</div>'; return; }
+
+  // Group by style
+  const groups = {};
+  items.forEach(i => { if (!groups[i.style]) groups[i.style]=[]; groups[i.style].push(i); });
+
+  el.innerHTML = '';
+  Object.entries(groups).forEach(([style, styleItems]) => {
+    const grpLbl = document.createElement('div');
+    grpLbl.style.cssText = "font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em;color:var(--flash);border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin:16px 0 8px;";
+    grpLbl.textContent = style.toUpperCase();
+    el.appendChild(grpLbl);
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;';
+    styleItems.forEach(item => grid.appendChild(buildInvCard(item)));
+    el.appendChild(grid);
+  });
+}
+
+function buildInvCard(item) {
+  const div = document.createElement('div');
+  const low = isInvLow(item), out = isInvOut(item);
+  div.className = `inv-card ${out?'out':low?'low':''}`;
+  div.onclick = () => openEditInvModal(item);
+
+  const total = Object.values(item.sizes_on_hand||{}).reduce((a,b)=>a+(parseInt(b)||0),0);
+  const statusColor = out ? '#ff3333' : low ? 'var(--yellow)' : 'var(--green)';
+  const statusLabel = out ? 'OUT OF STOCK' : low ? 'LOW STOCK' : 'IN STOCK';
+
+  // Get job requirements for this item
+  const key = (item.style||'').toLowerCase() + '|' + (item.color||'').toLowerCase();
+  const req = _invJobReqs[key];
+
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div>
+        <div style="font-weight:600;font-size:.88rem;">${item.style}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${item.color||''}${item.supplier?' · '+item.supplier:''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:${statusColor};">${total}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:${statusColor};">${statusLabel}</div>
+      </div>
+    </div>
+    <div class="inv-size-grid">
+      ${INV_SIZES.map(sz => {
+        const onHand = parseInt(item.sizes_on_hand?.[sz])||0;
+        const needed = parseInt(req?.sizes?.[sz])||0;
+        const shortage = needed - onHand;
+        const color = onHand === 0 && needed > 0 ? 'var(--flash)' : onHand <= needed && needed > 0 ? 'var(--yellow)' : onHand > 0 ? 'var(--green)' : 'var(--muted)';
+        if (onHand === 0 && needed === 0) return '';
+        return `<div class="inv-size-box">
+          <div class="inv-size-lbl">${sz}</div>
+          <div class="inv-size-val" style="color:${color};">${onHand}</div>
+          ${needed > 0 ? `<div style="font-family:IBM Plex Mono,monospace;font-size:.5rem;color:var(--muted);">need ${needed}</div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
+    ${req ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--cyan);margin-top:6px;">📋 Needed for: ${[...new Set(req.jobs)].slice(0,3).join(', ')}${req.jobs.length>3?' +more':''}</div>` : ''}
+    ${item.cost_per_unit ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:3px;">$${parseFloat(item.cost_per_unit).toFixed(2)}/unit · Stock value: $${(total*parseFloat(item.cost_per_unit)).toFixed(2)}</div>` : ''}`;
+  return div;
+}
+
+// ── NEEDED VIEW ───────────────────────────────────────
+function renderNeededView(el, q) {
+  const reqs = Object.entries(_invJobReqs);
+  if (!reqs.length) { el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px;text-align:center;">No jobs in Order Intake stage.</div>'; return; }
+
+  el.innerHTML = `
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);margin-bottom:12px;">
+      Shirt requirements aggregated from all jobs currently in <strong style="color:var(--flash);">Order Intake</strong>.
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;">
+      ${reqs.filter(([k,r]) => !q || r.style.toLowerCase().includes(q) || r.color.toLowerCase().includes(q)).map(([key,r]) => `
+        <div class="inv-card">
+          <div style="font-weight:600;font-size:.88rem;">${r.style}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:8px;">${r.color} · ${[...new Set(r.jobs)].join(', ')}</div>
+          <div class="inv-size-grid">
+            ${Object.entries(r.sizes).filter(([,q])=>q>0).sort(([a],[b])=>INV_SIZES.indexOf(a)-INV_SIZES.indexOf(b)).map(([sz,qty]) =>
+              `<div class="inv-size-box">
+                <div class="inv-size-lbl">${sz}</div>
+                <div class="inv-size-val" style="color:var(--flash);">${qty}</div>
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ── GAP VIEW (what to order) ──────────────────────────
+function renderGapView(el, q) {
+  const gaps = [];
+  Object.entries(_invJobReqs).forEach(([key, req]) => {
+    const invItem = _invItems.find(i =>
+      i.style.toLowerCase() === req.style.toLowerCase() &&
+      (i.color||'').toLowerCase() === (req.color||'').toLowerCase()
+    );
+    const sizeGaps = {};
+    INV_SIZES.forEach(sz => {
+      const needed = parseInt(req.sizes[sz])||0;
+      const onHand = parseInt(invItem?.sizes_on_hand?.[sz])||0;
+      const gap = needed - onHand;
+      if (gap > 0) sizeGaps[sz] = gap;
+    });
+    if (Object.keys(sizeGaps).length > 0) {
+      gaps.push({ style: req.style, color: req.color, sizeGaps, jobs: req.jobs,
+        supplier: invItem?.supplier||'', cost: invItem?.cost_per_unit||null });
+    }
+  });
+
+  if (!gaps.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;">
+      <div style="font-size:2.5rem;margin-bottom:10px;">✓</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.08em;color:var(--green);">ALL INTAKE JOBS COVERED</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-top:6px;">Current stock covers all Order Intake job requirements.</div>
+    </div>`;
+    return;
+  }
+
+  const totalGapUnits = gaps.reduce((s,g) => s + Object.values(g.sizeGaps).reduce((a,b)=>a+b,0), 0);
+  el.innerHTML = `
+    <div style="background:rgba(232,80,10,.06);border:1px solid var(--flash-30);border-radius:3px;padding:10px 14px;margin-bottom:14px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--flash);font-weight:600;">⚠ ${totalGapUnits} UNITS NEED TO BE ORDERED across ${gaps.length} style/color combination${gaps.length!==1?'s':''}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;">
+      ${gaps.filter(g => !q || g.style.toLowerCase().includes(q) || g.color.toLowerCase().includes(q)).map(g => {
+        const gapTotal = Object.values(g.sizeGaps).reduce((a,b)=>a+b,0);
+        const cost = g.cost ? (gapTotal * parseFloat(g.cost)).toFixed(2) : null;
+        return `<div class="inv-card out" style="border-color:rgba(232,80,10,.4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div>
+              <div style="font-weight:600;font-size:.88rem;">${g.style}</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${g.color}${g.supplier?' · '+g.supplier:''}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--flash);">${gapTotal}</div>
+              ${cost?`<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);">~$${cost}</div>`:''}
+            </div>
+          </div>
+          <div class="inv-size-grid">
+            ${Object.entries(g.sizeGaps).sort(([a],[b])=>INV_SIZES.indexOf(a)-INV_SIZES.indexOf(b)).map(([sz,qty]) =>
+              `<div class="inv-size-box" style="border-color:var(--flash-30);">
+                <div class="inv-size-lbl">${sz}</div>
+                <div class="inv-size-val needed">${qty}</div>
+              </div>`).join('')}
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--cyan);margin-top:6px;">📋 ${[...new Set(g.jobs)].slice(0,2).join(', ')}${g.jobs.length>2?' +more':''}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function updateInventoryBadge() {
+  const out = _invItems.filter(isInvOut).length;
+  const low = _invItems.filter(isInvLow).length;
+  const total = out + low;
+  const badge = document.getElementById('inventoryBadge');
+  if (!badge) return;
+  if (total > 0) { badge.textContent = total; badge.style.display = 'inline'; }
+  else badge.style.display = 'none';
+}
+
+// ── Add / Edit ────────────────────────────────────────
+function buildInvSizeInputs(existing) {
+  const container = document.getElementById('invSizeInputs');
+  container.innerHTML = INV_SIZES.map(sz => `
+    <div>
+      <label style="text-align:center;">${sz}</label>
+      <input type="number" id="invSz_${sz}" min="0" placeholder="0" value="${existing?.[sz]||''}"
+        style="text-align:center;padding:.4rem .2rem;" />
+    </div>`).join('');
+}
+
+function openAddInvModal() {
+  _editInvId = null;
+  document.getElementById('invModalTitle').textContent = 'ADD INVENTORY ITEM';
+  ['inv_style','inv_color','inv_supplier','inv_notes'].forEach(id => document.getElementById(id).value = '');
+  ['inv_cost','inv_min'].forEach(id => document.getElementById(id).value = '');
+  buildInvSizeInputs({});
+  document.getElementById('deleteInvBtn').style.display = 'none';
+  document.getElementById('addInvModal').classList.remove('hidden');
+}
+
+function openEditInvModal(item) {
+  _editInvId = item.id;
+  document.getElementById('invModalTitle').textContent = 'EDIT — '+item.style+' '+item.color;
+  document.getElementById('inv_style').value = item.style||'';
+  document.getElementById('inv_color').value = item.color||'';
+  document.getElementById('inv_supplier').value = item.supplier||'';
+  document.getElementById('inv_cost').value = item.cost_per_unit||'';
+  document.getElementById('inv_min').value = item.min_stock||'';
+  document.getElementById('inv_notes').value = item.notes||'';
+  buildInvSizeInputs(item.sizes_on_hand||{});
+  document.getElementById('deleteInvBtn').style.display = 'inline-block';
+  document.getElementById('addInvModal').classList.remove('hidden');
+}
+
+function closeAddInvModal() { document.getElementById('addInvModal').classList.add('hidden'); _editInvId = null; }
+
+async function saveInvItem() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveInvBtn');
+  btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true;
+  const sizes = {};
+  INV_SIZES.forEach(sz => {
+    const v = parseInt(document.getElementById('invSz_'+sz)?.value)||0;
+    if (v > 0) sizes[sz] = v;
+  });
+  const record = {
+    style:         document.getElementById('inv_style').value.trim(),
+    color:         document.getElementById('inv_color').value.trim(),
+    supplier:      document.getElementById('inv_supplier').value.trim()||null,
+    cost_per_unit: parseFloat(document.getElementById('inv_cost').value)||null,
+    min_stock:     parseInt(document.getElementById('inv_min').value)||null,
+    notes:         document.getElementById('inv_notes').value.trim()||null,
+    sizes_on_hand: sizes,
+  };
+  if (!record.style) { showToast('Style name required.','error'); btn.innerHTML='SAVE'; btn.disabled=false; return; }
+  let error;
+  if (_editInvId) { ({error}=await sbClient.from('shirt_inventory').update(record).eq('id',_editInvId)); }
+  else { ({error}=await sbClient.from('shirt_inventory').insert([record])); }
+  btn.innerHTML='SAVE'; btn.disabled=false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editInvId?'Item updated!':'Item added!','success');
+  closeAddInvModal(); loadInventory();
+}
+
+async function deleteInvItem() {
+  if (!sbClient||!_editInvId) return;
+  if (!confirm('Delete this inventory item?')) return;
+  const {error}=await sbClient.from('shirt_inventory').delete().eq('id',_editInvId);
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast('Item deleted.','success');
+  closeAddInvModal(); loadInventory();
+}
+
+// ── Purchase Order ────────────────────────────────────
+async function openGeneratePOModal() {
+  document.getElementById('generatePOModal').classList.remove('hidden');
+  await loadInventory();
+  const gaps = buildGapData();
+  const el = document.getElementById('poPreview');
+  if (!gaps.length) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--green);">✓ No items need to be ordered — current stock covers all Order Intake jobs.</div>`;
+    return;
+  }
+  const totalUnits = gaps.reduce((s,g)=>s+Object.values(g.sizeGaps).reduce((a,b)=>a+b,0),0);
+  const totalCost = gaps.reduce((s,g)=>s+(g.cost?Object.values(g.sizeGaps).reduce((a,b)=>a+b,0)*parseFloat(g.cost):0),0);
+  el.innerHTML = `
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:10px;">${gaps.length} item${gaps.length!==1?'s':''} · ${totalUnits} total units${totalCost>0?' · Est. $'+totalCost.toFixed(2):''}</div>
+    <div class="po-row po-row-header"><span>STYLE / COLOR</span><span>SIZES NEEDED</span><span>SUPPLIER</span><span>EST. COST</span></div>
+    ${gaps.map(g => {
+      const gTotal = Object.values(g.sizeGaps).reduce((a,b)=>a+b,0);
+      const szStr = Object.entries(g.sizeGaps).sort(([a],[b])=>INV_SIZES.indexOf(a)-INV_SIZES.indexOf(b)).map(([sz,q])=>sz+':'+q).join(' · ');
+      const est = g.cost ? '$'+(gTotal*parseFloat(g.cost)).toFixed(2) : '—';
+      return `<div class="po-row">
+        <div><div style="font-weight:600;">${g.style}</div><div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);">${g.color}</div></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--flash);">${szStr}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${g.supplier||'—'}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;">${est}</div>
+      </div>`;
+    }).join('')}`;
+}
+
+function closeGeneratePOModal() { document.getElementById('generatePOModal').classList.add('hidden'); }
+
+function buildGapData() {
+  const gaps = [];
+  Object.entries(_invJobReqs).forEach(([key, req]) => {
+    const invItem = _invItems.find(i => i.style.toLowerCase()===req.style.toLowerCase() && (i.color||'').toLowerCase()===(req.color||'').toLowerCase());
+    const sizeGaps = {};
+    INV_SIZES.forEach(sz => {
+      const needed = parseInt(req.sizes[sz])||0;
+      const onHand = parseInt(invItem?.sizes_on_hand?.[sz])||0;
+      const gap = needed - onHand;
+      if (gap > 0) sizeGaps[sz] = gap;
+    });
+    if (Object.keys(sizeGaps).length > 0) {
+      gaps.push({ style:req.style, color:req.color, sizeGaps, jobs:req.jobs, supplier:invItem?.supplier||'', cost:invItem?.cost_per_unit||null });
+    }
+  });
+  return gaps;
+}
+
+function exportPOPDF() {
+  const gaps = buildGapData();
+  if (!gaps.length) { showToast('Nothing to order!', 'success'); return; }
+  const shop = getShopSettings();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'letter', orientation:'portrait' });
+  const PW = doc.internal.pageSize.getWidth();
+  const ML=40, MR=PW-40, TW=MR-ML; let y=50;
+
+  // Header
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(0,0,0);
+  doc.text('PURCHASE ORDER', ML, y); y+=16;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text((shop.name||'Press Setup Doc') + '   ·   Generated: '+new Date().toLocaleDateString()+'   ·   Source: Order Intake Jobs', ML, y); y+=8;
+  doc.setDrawColor(200,200,200); doc.line(ML,y,MR,y); y+=14;
+
+  // Summary
+  const totalUnits = gaps.reduce((s,g)=>s+Object.values(g.sizeGaps).reduce((a,b)=>a+b,0),0);
+  const totalCost = gaps.reduce((s,g)=>s+(g.cost?Object.values(g.sizeGaps).reduce((a,b)=>a+b,0)*parseFloat(g.cost):0),0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.text(`${gaps.length} items  ·  ${totalUnits} total units${totalCost>0?'  ·  Estimated total: $'+totalCost.toFixed(2):''}`, ML, y); y+=18;
+
+  // Table header
+  doc.setFillColor(230,230,230); doc.rect(ML,y-10,TW,14,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+  doc.text('STYLE', ML+4, y); doc.text('COLOR', ML+130, y); doc.text('SIZES TO ORDER', ML+200, y); doc.text('SUPPLIER', ML+370, y); doc.text('EST.', ML+460, y);
+  y+=14;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+
+  gaps.forEach((g,idx) => {
+    if (y > 700) { doc.addPage(); y=50; }
+    if (idx%2===0) { doc.setFillColor(248,248,248); doc.rect(ML,y-9,TW,13,'F'); }
+    const szStr = Object.entries(g.sizeGaps).sort(([a],[b])=>INV_SIZES.indexOf(a)-INV_SIZES.indexOf(b)).map(([sz,q])=>sz+':'+q).join('  ');
+    const gTotal = Object.values(g.sizeGaps).reduce((a,b)=>a+b,0);
+    const est = g.cost ? '$'+(gTotal*parseFloat(g.cost)).toFixed(2) : '—';
+    doc.text(g.style, ML+4, y);
+    doc.text(g.color||'—', ML+130, y);
+    const szLines = doc.splitTextToSize(szStr, 160);
+    doc.text(szLines[0], ML+200, y);
+    doc.text(g.supplier||'—', ML+370, y);
+    doc.text(est, ML+460, y);
+    y += szLines.length > 1 ? 18 : 13;
+    // Jobs
+    doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+    doc.text('For: '+[...new Set(g.jobs)].slice(0,4).join(', ')+(g.jobs.length>4?'…':''), ML+200, y); y+=10;
+    doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+    doc.setDrawColor(220,220,220); doc.line(ML,y-2,MR,y-2);
+  });
+
+  y+=10;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('TOTAL UNITS TO ORDER: '+totalUnits, ML, y);
+  if (totalCost>0) { y+=12; doc.text('ESTIMATED TOTAL COST: $'+totalCost.toFixed(2), ML, y); }
+
+  doc.save('purchase-order-'+new Date().toISOString().split('T')[0]+'.pdf');
 }
 
 
