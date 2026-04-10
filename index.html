@@ -2581,10 +2581,10 @@ async function openMachDetail(id) {
     const tl = typeLabel[e.event_type]||e.event_type;
     const partsHtml = e.parts_used ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:var(--muted);">Parts: '+e.parts_used+'</div>' : '';
     const techHtml = e.technician ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:var(--muted);">Tech: '+e.technician+'</div>' : '';
-    const nextHtml = e.next_scheduled ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--yellow);white-space:nowrap;">Next:<br>'+e.next_scheduled+'</div>' : '<div></div>';
+    const nextHtml = e.next_scheduled ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--yellow);white-space:nowrap;">Next:<br>'+fmtDate(e.next_scheduled)+'</div>' : '<div></div>';
     return '<div class="evt-row" style="grid-template-columns:80px 1fr auto auto;">'
       +'<div>'
-        +'<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);margin-bottom:4px;">'+(e.event_date||'—')+'</div>'
+        +'<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);margin-bottom:4px;">'+fmtDate(e.event_date)+'</div>'
         +'<span class="evt-type-badge '+tc+'">'+tl+'</span>'
       +'</div>'
       +'<div>'
@@ -2854,7 +2854,7 @@ async function loadSchedule() {
         +'</div>'
         +'<div class="sched-meta" style="margin-bottom:5px;">'
           +(m.location ? '<span>📍 '+m.location+'</span>' : '')
-          +'<span>Due: '+e.next_scheduled+'</span>'
+          +'<span>Due: '+fmtDate(e.next_scheduled)+'</span>'
           +(e.event_date ? '<span>Last done: '+fmtDate(e.event_date)+'</span>' : '')
           +(e.technician ? '<span>Tech: '+e.technician+'</span>' : '')
         +'</div>'
@@ -3166,8 +3166,8 @@ function exportMaintPDF(allMachines = false) {
       m.serial_number ? 'S/N: '+m.serial_number : null,
       m.location ? 'Location: '+m.location : null,
       m.status ? 'Status: '+m.status : null,
-      m.last_maintenance ? 'Last Service: '+m.last_maintenance : null,
-      m.next_maintenance ? 'Next Due: '+m.next_maintenance : null,
+      m.last_maintenance ? 'Last Service: '+fmtDate(m.last_maintenance) : null,
+      m.next_maintenance ? 'Next Due: '+fmtDate(m.next_maintenance) : null,
     ].filter(Boolean).join('   ');
     if (meta) { doc.text(meta, ML, y); y += 12; }
     y += 6;
