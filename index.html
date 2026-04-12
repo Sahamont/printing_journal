@@ -349,6 +349,24 @@
     .po-row-header{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
     .inv-tab-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:6px 14px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;}
     .inv-tab-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+
+    /* ── Quotes ── */
+    .quote-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:13px 15px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+    .quote-card:hover{border-color:var(--flash-40);}
+    .quote-card.draft{border-left:3px solid var(--muted);}
+    .quote-card.sent{border-left:3px solid var(--cyan);}
+    .quote-card.approved{border-left:3px solid var(--green);}
+    .quote-card.rejected{border-left:3px solid #ff4444;}
+    .quote-card.expired{border-left:3px solid var(--yellow);}
+    .quote-qs-draft{background:rgba(245,240,232,.07);color:var(--muted);border:1px solid rgba(245,240,232,.12);}
+    .quote-qs-sent{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.25);}
+    .quote-qs-approved{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+    .quote-qs-rejected{background:rgba(255,68,68,.1);color:#ff4444;border:1px solid rgba(255,68,68,.25);}
+    .quote-qs-expired{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.25);}
+    .qli-row{display:grid;grid-template-columns:1fr 80px 80px 90px 28px;gap:8px;align-items:start;margin-bottom:8px;}
+    .qli-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+    .quote-total-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;}
+    .quote-total-line.grand{border-top:2px solid var(--flash);margin-top:4px;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--flash);}
   </style>
 </head>
 <body class="grid-bg">
@@ -388,6 +406,7 @@
   <div class="tab hidden" id="tab-session" onclick="switchTab('session')" style="color:var(--flash);position:relative;">ACTIVE SESSION <span id="sessionPulse" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flash);margin-left:3px;vertical-align:middle;animation:pulse 1s infinite;"></span></div>
   <div class="tab" id="tab-reports" onclick="switchTab('reports')">REPORTS</div>
   <div class="tab" id="tab-showrooms" onclick="switchTab('showrooms')">SHOWROOMS</div>
+  <div class="tab" id="tab-quotes" onclick="switchTab('quotes')">QUOTES <span id="quotesBadge" style="display:none;background:var(--cyan);color:#000;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-inventory" onclick="switchTab('inventory')">INVENTORY <span id="inventoryBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-tasks" onclick="switchTab('tasks')">TASKS <span id="tasksBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-payments" onclick="switchTab('payments')">PAYMENTS <span id="paymentsBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
@@ -1089,6 +1108,29 @@
     <!-- Content area -->
     <div id="inventoryContent"></div>
 
+  </div>
+
+
+  <!-- ═══ QUOTES ═══ -->
+  <div id="pane-quotes" class="hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">QUOTES</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="loadQuotes()">↺ REFRESH</button>
+        <button class="btn-primary" onclick="openQuoteBuilder()">+ NEW QUOTE</button>
+      </div>
+    </div>
+    <!-- Summary -->
+    <div id="quotesSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:14px;"></div>
+    <!-- Filters -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="pay-filter-btn active" id="qf-all"      onclick="setQuoteFilter('all')">All</button>
+      <button class="pay-filter-btn" id="qf-draft"    onclick="setQuoteFilter('draft')">Draft</button>
+      <button class="pay-filter-btn" id="qf-sent"     onclick="setQuoteFilter('sent')">Sent</button>
+      <button class="pay-filter-btn" id="qf-approved" onclick="setQuoteFilter('approved')">✓ Approved</button>
+      <button class="pay-filter-btn" id="qf-expired"  onclick="setQuoteFilter('expired')">Expired</button>
+    </div>
+    <div id="quotesList"></div>
   </div>
 
 
@@ -1922,6 +1964,145 @@
   </div>
 </div>
 
+<!-- QUOTE BUILDER MODAL -->
+<div id="quoteBuilderModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:720px;padding:22px;margin:8px auto;width:100%;">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.08em;" id="quoteBuilderTitle">NEW QUOTE</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="previewQuotePDF()">👁 PREVIEW PDF</button>
+        <button class="btn-primary" onclick="saveQuote()">💾 SAVE</button>
+        <button class="btn-ghost" onclick="closeQuoteBuilder()">✕</button>
+      </div>
+    </div>
+
+    <!-- Two column header info -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div class="report-param-group">
+        <div class="report-param-title">Customer Info</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div><label>Customer / Company</label><input type="text" id="q_customer" placeholder="Customer name" /></div>
+          <div><label>Contact / Email</label><input type="text" id="q_contact" placeholder="Email or phone" /></div>
+          <div><label>Job Name</label><input type="text" id="q_jobname" placeholder="e.g. Tournament Shirts" /></div>
+        </div>
+      </div>
+      <div class="report-param-group">
+        <div class="report-param-title">Quote Details</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div><label>Quote #</label><input type="text" id="q_number" placeholder="QT-001" /></div>
+          <div><label>Quote Date</label><input type="date" id="q_date" /></div>
+          <div><label>Expiration Date</label><input type="date" id="q_expiry" /></div>
+          <div>
+            <label>Status</label>
+            <select id="q_status">
+              <option value="draft">Draft</option>
+              <option value="sent">Sent to Customer</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line items -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;color:var(--flash);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+      <span>LINE ITEMS</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addQLineItem('garment')">+ GARMENT</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addQLineItem('screen_setup')">+ SCREEN SETUP</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addQLineItem('print')">+ PRINT COST</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addQLineItem('shipping')">+ SHIPPING</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addQLineItem('art')">+ ART FEE</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addQLineItem('custom')">+ CUSTOM</button>
+      </div>
+    </div>
+    <!-- Column headers -->
+    <div class="qli-row" style="padding-bottom:4px;border-bottom:1px solid rgba(245,240,232,.1);margin-bottom:6px;">
+      <div class="qli-label">Description</div>
+      <div class="qli-label" style="text-align:center;">Qty</div>
+      <div class="qli-label" style="text-align:center;">Unit Price</div>
+      <div class="qli-label" style="text-align:right;">Total</div>
+      <div></div>
+    </div>
+    <div id="qLineItems"></div>
+
+    <!-- Totals -->
+    <div style="margin-top:14px;padding:12px 14px;background:var(--bg);border:1px solid rgba(245,240,232,.08);border-radius:3px;">
+      <div class="quote-total-line">
+        <span style="color:var(--muted);">SUBTOTAL</span>
+        <span id="qSubtotal">$0.00</span>
+      </div>
+      <div class="quote-total-line" style="align-items:center;gap:8px;">
+        <span style="color:var(--muted);">DISCOUNT</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" id="q_discount" min="0" placeholder="0" style="width:70px;text-align:right;" oninput="recalcQuote()" />
+          <select id="q_discount_type" style="width:auto;" onchange="recalcQuote()">
+            <option value="flat">$ Flat</option>
+            <option value="pct">% Off</option>
+          </select>
+        </div>
+        <span id="qDiscountAmt" style="color:var(--yellow);">-$0.00</span>
+      </div>
+      <div class="quote-total-line" style="align-items:center;gap:8px;">
+        <span style="color:var(--muted);">TAX</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" id="q_tax" min="0" step="0.1" placeholder="0" style="width:70px;text-align:right;" oninput="recalcQuote()" />
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);">%</span>
+        </div>
+        <span id="qTaxAmt">+$0.00</span>
+      </div>
+      <div class="quote-total-line grand">
+        <span>TOTAL</span>
+        <span id="qTotal">$0.00</span>
+      </div>
+    </div>
+
+    <!-- Footer fields -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
+      <div class="report-param-group">
+        <div class="report-param-title">Deposit & Payment</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div><label>Deposit Required ($)</label><input type="number" id="q_deposit" min="0" step="0.01" placeholder="0.00" /></div>
+          <div><label>Payment Terms</label>
+            <select id="q_terms">
+              <option value="Due on receipt">Due on Receipt</option>
+              <option value="Net 15">Net 15</option>
+              <option value="Net 30">Net 30</option>
+              <option value="Net 45">Net 45</option>
+              <option value="50% deposit, 50% on pickup">50% Deposit, 50% on Pickup</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div id="customTermsWrap" style="display:none;"><input type="text" id="q_custom_terms" placeholder="Custom payment terms…" /></div>
+        </div>
+      </div>
+      <div class="report-param-group">
+        <div class="report-param-title">Notes & Terms</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div><label>Notes to Customer</label><textarea id="q_notes" rows="2" placeholder="Any notes visible on the quote…"></textarea></div>
+          <div><label>Terms & Conditions</label><textarea id="q_terms_text" rows="2" placeholder="e.g. Prices valid for 30 days. 50% deposit required to begin production…"></textarea></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action bar -->
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <div style="display:flex;gap:7px;">
+        <button class="btn-danger" id="deleteQuoteBtn" onclick="deleteQuote()" style="display:none;">🗑 DELETE</button>
+        <button class="btn-secondary" id="convertToJobBtn" onclick="convertQuoteToJob()" style="display:none;">→ CONVERT TO JOB</button>
+      </div>
+      <div style="display:flex;gap:7px;">
+        <button class="btn-secondary" onclick="exportQuotePDF()">⬇ EXPORT PDF</button>
+        <button class="btn-primary" onclick="saveQuote()">💾 SAVE QUOTE</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -1986,7 +2167,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -2000,6 +2181,7 @@ function switchTab(tab){
   if(tab==='payments') loadPayments();
   if(tab==='tasks') loadTasks();
   if(tab==='inventory') loadInventory();
+  if(tab==='quotes') loadQuotes();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -4150,6 +4332,24 @@ function printQR() {
     .po-row-header{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
     .inv-tab-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:6px 14px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;}
     .inv-tab-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+
+    /* ── Quotes ── */
+    .quote-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:13px 15px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+    .quote-card:hover{border-color:var(--flash-40);}
+    .quote-card.draft{border-left:3px solid var(--muted);}
+    .quote-card.sent{border-left:3px solid var(--cyan);}
+    .quote-card.approved{border-left:3px solid var(--green);}
+    .quote-card.rejected{border-left:3px solid #ff4444;}
+    .quote-card.expired{border-left:3px solid var(--yellow);}
+    .quote-qs-draft{background:rgba(245,240,232,.07);color:var(--muted);border:1px solid rgba(245,240,232,.12);}
+    .quote-qs-sent{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.25);}
+    .quote-qs-approved{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+    .quote-qs-rejected{background:rgba(255,68,68,.1);color:#ff4444;border:1px solid rgba(255,68,68,.25);}
+    .quote-qs-expired{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.25);}
+    .qli-row{display:grid;grid-template-columns:1fr 80px 80px 90px 28px;gap:8px;align-items:start;margin-bottom:8px;}
+    .qli-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+    .quote-total-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;}
+    .quote-total-line.grand{border-top:2px solid var(--flash);margin-top:4px;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--flash);}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -7611,6 +7811,24 @@ function printQR() {
     .po-row-header{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
     .inv-tab-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:6px 14px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;}
     .inv-tab-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+
+    /* ── Quotes ── */
+    .quote-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:13px 15px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+    .quote-card:hover{border-color:var(--flash-40);}
+    .quote-card.draft{border-left:3px solid var(--muted);}
+    .quote-card.sent{border-left:3px solid var(--cyan);}
+    .quote-card.approved{border-left:3px solid var(--green);}
+    .quote-card.rejected{border-left:3px solid #ff4444;}
+    .quote-card.expired{border-left:3px solid var(--yellow);}
+    .quote-qs-draft{background:rgba(245,240,232,.07);color:var(--muted);border:1px solid rgba(245,240,232,.12);}
+    .quote-qs-sent{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.25);}
+    .quote-qs-approved{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+    .quote-qs-rejected{background:rgba(255,68,68,.1);color:#ff4444;border:1px solid rgba(255,68,68,.25);}
+    .quote-qs-expired{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.25);}
+    .qli-row{display:grid;grid-template-columns:1fr 80px 80px 90px 28px;gap:8px;align-items:start;margin-bottom:8px;}
+    .qli-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+    .quote-total-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;}
+    .quote-total-line.grand{border-top:2px solid var(--flash);margin-top:4px;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--flash);}
   </style>
   </head><body>
     <div class="qr-side"><img src="${dataUrl}" /></div>
@@ -7731,6 +7949,24 @@ async function printBatchQR() {
     .po-row-header{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
     .inv-tab-btn{font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:6px 14px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;touch-action:manipulation;}
     .inv-tab-btn.active{background:var(--flash-dim);border-color:var(--flash);color:var(--text);}
+
+    /* ── Quotes ── */
+    .quote-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:13px 15px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+    .quote-card:hover{border-color:var(--flash-40);}
+    .quote-card.draft{border-left:3px solid var(--muted);}
+    .quote-card.sent{border-left:3px solid var(--cyan);}
+    .quote-card.approved{border-left:3px solid var(--green);}
+    .quote-card.rejected{border-left:3px solid #ff4444;}
+    .quote-card.expired{border-left:3px solid var(--yellow);}
+    .quote-qs-draft{background:rgba(245,240,232,.07);color:var(--muted);border:1px solid rgba(245,240,232,.12);}
+    .quote-qs-sent{background:rgba(0,180,216,.1);color:var(--cyan);border:1px solid rgba(0,180,216,.25);}
+    .quote-qs-approved{background:rgba(0,200,83,.1);color:var(--green);border:1px solid rgba(0,200,83,.25);}
+    .quote-qs-rejected{background:rgba(255,68,68,.1);color:#ff4444;border:1px solid rgba(255,68,68,.25);}
+    .quote-qs-expired{background:rgba(245,200,0,.1);color:var(--yellow);border:1px solid rgba(245,200,0,.25);}
+    .qli-row{display:grid;grid-template-columns:1fr 80px 80px 90px 28px;gap:8px;align-items:start;margin-bottom:8px;}
+    .qli-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+    .quote-total-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;}
+    .quote-total-line.grand{border-top:2px solid var(--flash);margin-top:4px;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--flash);}
   </style>
   </head><body>
     <h2>${shop.name||'PRESS SETUP DOC'} · Screen QR Labels · ${new Date().toLocaleDateString()} · ${screens.length} screens</h2>
@@ -8282,6 +8518,451 @@ function exportPOPDF() {
 
   doc.save('purchase-order-'+new Date().toISOString().split('T')[0]+'.pdf');
 }
+
+
+
+// ══════════════════════════════════════════════════════
+// QUOTES
+// ══════════════════════════════════════════════════════
+const Q_STATUSES = { draft:'Draft', sent:'Sent', approved:'Approved', rejected:'Rejected', expired:'Expired' };
+const Q_STATUS_CLS = { draft:'quote-qs-draft', sent:'quote-qs-sent', approved:'quote-qs-approved', rejected:'quote-qs-rejected', expired:'quote-qs-expired' };
+
+const Q_LINE_DEFAULTS = {
+  garment:      { desc:'Garments (Style / Color)', qty:1,  unit:0, note:'' },
+  screen_setup: { desc:'Screen Setup Fee',         qty:1,  unit:25, note:'Per color/screen' },
+  print:        { desc:'Print Cost Per Piece',     qty:1,  unit:0, note:'' },
+  shipping:     { desc:'Shipping & Handling',      qty:1,  unit:0, note:'' },
+  art:          { desc:'Art / Digitizing Fee',     qty:1,  unit:0, note:'' },
+  rush:         { desc:'Rush Fee',                 qty:1,  unit:0, note:'' },
+  finishing:    { desc:'Folding / Bagging',        qty:1,  unit:0, note:'' },
+  custom:       { desc:'',                         qty:1,  unit:0, note:'' },
+};
+
+let _allQuotes = [];
+let _editQuoteId = null;
+let _qLineCount = 0;
+let _qFilter = 'all';
+
+// ── Load & render list ────────────────────────────────
+async function loadQuotes() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('quotes').select('*').order('created_at', { ascending: false });
+  _allQuotes = (data || []).map(q => enrichQuote(q));
+  renderQuotesSummary();
+  renderQuotesList();
+  updateQuotesBadge();
+}
+
+function enrichQuote(q) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const exp = q.expiry_date ? new Date(q.expiry_date+'T00:00:00') : null;
+  let status = q.status || 'draft';
+  if (status !== 'approved' && status !== 'rejected' && exp && exp < now) status = 'expired';
+  return { ...q, _status: status };
+}
+
+function renderQuotesSummary() {
+  const el = document.getElementById('quotesSummary');
+  if (!el) return;
+  const total = _allQuotes.length;
+  const pending = _allQuotes.filter(q => q._status === 'sent').length;
+  const approved = _allQuotes.filter(q => q._status === 'approved').length;
+  const totalVal = _allQuotes.filter(q => q._status !== 'rejected').reduce((s,q) => s+(parseFloat(q.total)||0), 0);
+  const approvedVal = _allQuotes.filter(q => q._status === 'approved').reduce((s,q) => s+(parseFloat(q.total)||0), 0);
+
+  el.innerHTML = [
+    ['TOTAL QUOTES', total, 'var(--text)'],
+    ['PENDING', pending, 'var(--cyan)'],
+    ['APPROVED', approved, 'var(--green)'],
+    ['PIPELINE VALUE', '$'+totalVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), 'var(--flash)'],
+    ['APPROVED VALUE', '$'+approvedVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), 'var(--green)'],
+  ].map(([l,v,c]) => `<div class="task-stat-card">
+    <div class="task-stat-val" style="color:${c};font-size:1.3rem;">${v}</div>
+    <div class="task-stat-lbl">${l}</div>
+  </div>`).join('');
+}
+
+function setQuoteFilter(f) {
+  _qFilter = f;
+  document.querySelectorAll('.pay-filter-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('qf-'+f);
+  if (btn) btn.classList.add('active');
+  renderQuotesList();
+}
+
+function renderQuotesList() {
+  const el = document.getElementById('quotesList');
+  if (!el) return;
+  let quotes = _allQuotes;
+  if (_qFilter !== 'all') quotes = quotes.filter(q => q._status === _qFilter);
+  if (!quotes.length) {
+    el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;text-align:center;">No quotes found. Click + NEW QUOTE to get started.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  quotes.forEach(q => {
+    const div = document.createElement('div');
+    div.className = 'quote-card ' + (q._status||'draft');
+    div.onclick = () => openQuoteBuilder(q);
+    const exp = q.expiry_date ? new Date(q.expiry_date+'T00:00:00') : null;
+    const now = new Date(); now.setHours(0,0,0,0);
+    const daysLeft = exp ? Math.round((exp-now)/86400000) : null;
+    div.innerHTML = `
+      <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="font-weight:600;font-size:.92rem;">${q.customer||'Unknown Customer'}</span>
+            <span class="pay-status ${Q_STATUS_CLS[q._status]||'quote-qs-draft'}">${Q_STATUSES[q._status]||q._status}</span>
+            ${q.quote_number?`<span style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${q.quote_number}</span>`:''}
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;">
+            ${q.job_name?`<span>📋 ${q.job_name}</span>`:''}
+            ${q.quote_date?`<span>📅 ${fmtDate(q.quote_date)}</span>`:''}
+            ${daysLeft!==null?`<span style="color:${daysLeft<0?'#ff4444':daysLeft<=7?'var(--yellow)':'var(--muted)'};">${daysLeft<0?'⚠ EXPIRED':daysLeft===0?'Expires today':'Expires in '+daysLeft+'d'}</span>`:''}
+          </div>
+          ${q.notes?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:rgba(245,240,232,.3);margin-top:4px;">${q.notes}</div>`:''}
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--flash);line-height:1;">$${parseFloat(q.total||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          ${q.deposit_required?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">Deposit: $${parseFloat(q.deposit_required).toFixed(2)}</div>`:''}
+          <div style="margin-top:6px;display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap;">
+            <button class="btn-ghost" style="font-size:.6rem;padding:3px 8px;" onclick="event.stopPropagation();exportQuotePDFById('${q.id}')">⬇ PDF</button>
+            ${q._status==='approved'?`<button class="btn-ghost" style="font-size:.6rem;padding:3px 8px;color:var(--green);" onclick="event.stopPropagation();openQuoteBuilder(${JSON.stringify(q).replace(/"/g,'&quot;')});setTimeout(convertQuoteToJob,200)">→ JOB</button>`:''}
+          </div>
+        </div>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function updateQuotesBadge() {
+  const pending = _allQuotes.filter(q => q._status === 'sent').length;
+  const badge = document.getElementById('quotesBadge');
+  if (!badge) return;
+  if (pending > 0) { badge.textContent = pending; badge.style.display = 'inline'; }
+  else badge.style.display = 'none';
+}
+
+// ── Quote builder ─────────────────────────────────────
+function openQuoteBuilder(existing) {
+  _qLineCount = 0;
+  _editQuoteId = existing?.id || null;
+  document.getElementById('quoteBuilderTitle').textContent = existing ? 'EDIT QUOTE' : 'NEW QUOTE';
+  document.getElementById('deleteQuoteBtn').style.display = existing ? 'inline-block' : 'none';
+  document.getElementById('convertToJobBtn').style.display = existing?._status === 'approved' ? 'inline-block' : 'none';
+
+  // Header fields
+  document.getElementById('q_customer').value = existing?.customer || '';
+  document.getElementById('q_contact').value  = existing?.contact  || '';
+  document.getElementById('q_jobname').value  = existing?.job_name || '';
+  document.getElementById('q_status').value   = existing?.status   || 'draft';
+  document.getElementById('q_date').value     = existing?.quote_date   || new Date().toISOString().split('T')[0];
+  document.getElementById('q_expiry').value   = existing?.expiry_date  || '';
+  document.getElementById('q_deposit').value  = existing?.deposit_required || '';
+  document.getElementById('q_discount').value = existing?.discount_value || '';
+  document.getElementById('q_discount_type').value = existing?.discount_type || 'flat';
+  document.getElementById('q_tax').value      = existing?.tax_pct || '';
+  document.getElementById('q_notes').value    = existing?.notes   || '';
+  document.getElementById('q_terms_text').value = existing?.terms_text || 'Prices valid through expiration date. 50% deposit required to begin production. Balance due upon pickup.';
+  document.getElementById('q_terms').value    = existing?.payment_terms || 'Due on receipt';
+
+  // Auto quote number
+  if (!existing) {
+    const next = _allQuotes.length + 1;
+    document.getElementById('q_number').value = 'QT-' + String(next).padStart(3,'0');
+  } else {
+    document.getElementById('q_number').value = existing.quote_number || '';
+  }
+
+  // Line items
+  const container = document.getElementById('qLineItems');
+  container.innerHTML = '';
+  const lines = existing?.line_items || [];
+  if (lines.length) {
+    lines.forEach(l => addQLineItem(l.type || 'custom', l));
+  } else {
+    addQLineItem('garment');
+    addQLineItem('screen_setup');
+    addQLineItem('print');
+  }
+
+  recalcQuote();
+  document.getElementById('quoteBuilderModal').classList.remove('hidden');
+}
+
+function closeQuoteBuilder() {
+  document.getElementById('quoteBuilderModal').classList.add('hidden');
+  _editQuoteId = null;
+}
+
+function addQLineItem(type, existing) {
+  _qLineCount++;
+  const i = _qLineCount;
+  const def = Q_LINE_DEFAULTS[type] || Q_LINE_DEFAULTS.custom;
+  const container = document.getElementById('qLineItems');
+  const row = document.createElement('div');
+  row.id = 'qli-'+i;
+  row.className = 'qli-row';
+  row.innerHTML = `
+    <div>
+      <input type="text" id="qli_desc_${i}" value="${existing?.desc||def.desc}" placeholder="Description" oninput="recalcQuote()" />
+      <input type="text" id="qli_note_${i}" value="${existing?.note||def.note||''}" placeholder="Note (optional)" style="font-size:.65rem;margin-top:3px;color:var(--muted);" />
+    </div>
+    <div>
+      <input type="number" id="qli_qty_${i}" value="${existing?.qty||def.qty||1}" min="0" step="1" style="text-align:center;" oninput="recalcQuote()" />
+    </div>
+    <div>
+      <input type="number" id="qli_unit_${i}" value="${existing?.unit||def.unit||''}" min="0" step="0.01" placeholder="0.00" style="text-align:right;" oninput="recalcQuote()" />
+    </div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);text-align:right;padding-top:8px;" id="qli_total_${i}">$0.00</div>
+    <div style="padding-top:6px;">
+      <button type="button" onclick="document.getElementById('qli-${i}').remove();recalcQuote()"
+        style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
+    </div>`;
+  container.appendChild(row);
+  recalcQuote();
+}
+
+function recalcQuote() {
+  let subtotal = 0;
+  const rows = document.querySelectorAll('[id^="qli-"]');
+  rows.forEach(row => {
+    const i = row.id.split('-')[1];
+    const qty  = parseFloat(document.getElementById('qli_qty_'+i)?.value)||0;
+    const unit = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
+    const total = qty * unit;
+    subtotal += total;
+    const el = document.getElementById('qli_total_'+i);
+    if (el) el.textContent = '$'+total.toFixed(2);
+  });
+
+  const discVal = parseFloat(document.getElementById('q_discount')?.value)||0;
+  const discType = document.getElementById('q_discount_type')?.value||'flat';
+  const discAmt = discType === 'pct' ? subtotal * (discVal/100) : discVal;
+  const taxPct = parseFloat(document.getElementById('q_tax')?.value)||0;
+  const taxAmt = (subtotal - discAmt) * (taxPct/100);
+  const total = subtotal - discAmt + taxAmt;
+
+  const fmt = n => '$'+Math.max(0,n).toFixed(2);
+  const sub = document.getElementById('qSubtotal');
+  const disc = document.getElementById('qDiscountAmt');
+  const tax = document.getElementById('qTaxAmt');
+  const tot = document.getElementById('qTotal');
+  if (sub) sub.textContent = fmt(subtotal);
+  if (disc) disc.textContent = discAmt > 0 ? '-'+fmt(discAmt) : '-$0.00';
+  if (tax) tax.textContent = taxAmt > 0 ? '+'+fmt(taxAmt) : '+$0.00';
+  if (tot) tot.textContent = fmt(total);
+}
+
+function collectQuoteData() {
+  const lineItems = [];
+  document.querySelectorAll('[id^="qli-"]').forEach(row => {
+    const i = row.id.split('-')[1];
+    const desc = document.getElementById('qli_desc_'+i)?.value.trim();
+    const qty  = parseFloat(document.getElementById('qli_qty_'+i)?.value)||0;
+    const unit = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
+    if (desc) lineItems.push({ desc, qty, unit, total: qty*unit, note: document.getElementById('qli_note_'+i)?.value.trim()||'' });
+  });
+
+  const discVal = parseFloat(document.getElementById('q_discount')?.value)||0;
+  const discType = document.getElementById('q_discount_type')?.value||'flat';
+  const subtotal = lineItems.reduce((s,l)=>s+l.total,0);
+  const discAmt  = discType==='pct' ? subtotal*(discVal/100) : discVal;
+  const taxPct   = parseFloat(document.getElementById('q_tax')?.value)||0;
+  const taxAmt   = (subtotal-discAmt)*(taxPct/100);
+  const terms    = document.getElementById('q_terms')?.value;
+
+  return {
+    customer:        document.getElementById('q_customer').value.trim(),
+    contact:         document.getElementById('q_contact').value.trim()||null,
+    job_name:        document.getElementById('q_jobname').value.trim()||null,
+    quote_number:    document.getElementById('q_number').value.trim(),
+    status:          document.getElementById('q_status').value,
+    quote_date:      document.getElementById('q_date').value||null,
+    expiry_date:     document.getElementById('q_expiry').value||null,
+    deposit_required:parseFloat(document.getElementById('q_deposit').value)||null,
+    discount_value:  discVal||null,
+    discount_type:   discType,
+    tax_pct:         taxPct||null,
+    notes:           document.getElementById('q_notes').value.trim()||null,
+    terms_text:      document.getElementById('q_terms_text').value.trim()||null,
+    payment_terms:   terms==='custom'?(document.getElementById('q_custom_terms')?.value.trim()||''):terms,
+    line_items:      lineItems,
+    subtotal:        Math.round(subtotal*100)/100,
+    discount_amount: Math.round(discAmt*100)/100,
+    tax_amount:      Math.round(taxAmt*100)/100,
+    total:           Math.round(Math.max(0,subtotal-discAmt+taxAmt)*100)/100,
+  };
+}
+
+async function saveQuote() {
+  if (!sbClient) return;
+  const record = collectQuoteData();
+  if (!record.customer) { showToast('Customer name required.','error'); return; }
+  let error;
+  if (_editQuoteId) { ({error}=await sbClient.from('quotes').update(record).eq('id',_editQuoteId)); }
+  else { ({error}=await sbClient.from('quotes').insert([record])); }
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editQuoteId?'Quote updated!':'Quote saved!','success');
+  closeQuoteBuilder(); loadQuotes();
+}
+
+async function deleteQuote() {
+  if (!sbClient||!_editQuoteId) return;
+  if (!confirm('Delete this quote?')) return;
+  await sbClient.from('quotes').delete().eq('id',_editQuoteId);
+  showToast('Quote deleted.','success');
+  closeQuoteBuilder(); loadQuotes();
+}
+
+async function convertQuoteToJob() {
+  const q = collectQuoteData();
+  closeQuoteBuilder();
+  // Pre-fill the new job form with quote data
+  switchTab('new');
+  await new Promise(r=>setTimeout(r,300));
+  const setV = (name, val) => { const el=document.querySelector('[name="'+name+'"]'); if(el&&val) el.value=val; };
+  setV('job_name', q.job_name || q.customer + ' — Quote');
+  setV('customer', q.customer);
+  setV('notes', 'Converted from Quote '+q.quote_number+'\nTotal: $'+q.total);
+  showToast('Quote data loaded into New Setup form. Review and save to create the job.','success');
+}
+
+// ── PDF Export ────────────────────────────────────────
+async function exportQuotePDFById(id) {
+  const q = _allQuotes.find(x=>x.id===id);
+  if (q) { openQuoteBuilder(q); setTimeout(exportQuotePDF, 100); }
+}
+
+function exportQuotePDF() {
+  const q = collectQuoteData();
+  const shop = getShopSettings();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'letter', orientation:'portrait' });
+  const PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+  const ML=50, MR=PW-50, TW=MR-ML; let y=50;
+
+  // ── Shop header ──
+  doc.setFillColor(10,10,18); doc.rect(0,0,PW,55,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(18);
+  doc.setTextColor(232,80,10);
+  doc.text((shop.name||'PRESS SETUP DOC').toUpperCase(), ML, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(180,180,180);
+  if(shop.addr1) doc.text(shop.addr1+(shop.addr2?' | '+shop.addr2:''), ML, y+14);
+  if(shop.phone) doc.text((shop.phone||'')+(shop.email?' | '+shop.email:''), ML, y+24);
+  // QUOTE label right side
+  doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(232,80,10);
+  doc.text('QUOTE', MR, y, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(180,180,180);
+  doc.text(q.quote_number||'', MR, y+14, {align:'right'});
+  doc.text('Date: '+fmtDate(q.quote_date), MR, y+24, {align:'right'});
+  y=70;
+
+  // ── Customer + quote details block ──
+  doc.setTextColor(0,0,0);
+  y+=14;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('PREPARED FOR:', ML, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text(q.customer||'', ML, y+12);
+  if(q.contact) doc.text(q.contact, ML, y+22);
+  if(q.job_name) doc.text('Re: '+q.job_name, ML, y+32);
+
+  // Right side: quote meta
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('Quote #:', MR-140, y); doc.setFont('helvetica','normal'); doc.text(q.quote_number||'—', MR, y, {align:'right'});
+  doc.setFont('helvetica','bold');
+  doc.text('Valid Until:', MR-140, y+12); doc.setFont('helvetica','normal'); doc.text(q.expiry_date?fmtDate(q.expiry_date):'—', MR, y+12, {align:'right'});
+  doc.setFont('helvetica','bold');
+  doc.text('Payment Terms:', MR-140, y+22); doc.setFont('helvetica','normal'); doc.text(q.payment_terms||'—', MR, y+22, {align:'right'});
+
+  y+=50;
+  doc.setDrawColor(200,200,200); doc.line(ML,y,MR,y); y+=14;
+
+  // ── Line items table ──
+  doc.setFillColor(235,235,235); doc.rect(ML,y-10,TW,14,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+  doc.text('DESCRIPTION', ML+4, y);
+  doc.text('QTY', MR-160, y, {align:'right'});
+  doc.text('UNIT PRICE', MR-90, y, {align:'right'});
+  doc.text('TOTAL', MR, y, {align:'right'});
+  y+=14;
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  q.line_items.forEach((l,idx) => {
+    if(y>680){doc.addPage();y=50;}
+    if(idx%2===1){doc.setFillColor(248,248,248);doc.rect(ML,y-10,TW,13+(l.note?8:0),'F');}
+    doc.setTextColor(0,0,0);
+    doc.text(l.desc, ML+4, y);
+    doc.text(String(l.qty), MR-160, y, {align:'right'});
+    doc.text('$'+parseFloat(l.unit||0).toFixed(2), MR-90, y, {align:'right'});
+    doc.text('$'+parseFloat(l.total||0).toFixed(2), MR, y, {align:'right'});
+    if(l.note){doc.setTextColor(120,120,120);doc.setFontSize(7.5);doc.text(l.note,ML+4,y+9);doc.setFontSize(9);doc.setTextColor(0,0,0);y+=9;}
+    y+=13;
+    doc.setDrawColor(220,220,220); doc.line(ML,y-1,MR,y-1);
+  });
+
+  // ── Totals ──
+  y+=10;
+  const totals = [
+    ['Subtotal', '$'+q.subtotal.toFixed(2), false],
+    q.discount_amount>0 ? ['Discount', '-$'+q.discount_amount.toFixed(2), false] : null,
+    q.tax_amount>0 ? ['Tax ('+q.tax_pct+'%)', '+$'+q.tax_amount.toFixed(2), false] : null,
+    ['TOTAL', '$'+q.total.toFixed(2), true],
+  ].filter(Boolean);
+  totals.forEach(([lbl,val,bold]) => {
+    if(bold){doc.setDrawColor(232,80,10);doc.line(MR-160,y-5,MR,y-5);y+=4;}
+    doc.setFont('helvetica',bold?'bold':'normal');
+    doc.setFontSize(bold?12:9);
+    doc.setTextColor(bold?232:0,bold?80:0,bold?10:0);
+    doc.text(lbl, MR-160, y);
+    doc.text(val, MR, y, {align:'right'});
+    y+=bold?16:12;
+  });
+
+  if(q.deposit_required){
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100,100,100);
+    y+=4; doc.text('Deposit Required: $'+parseFloat(q.deposit_required).toFixed(2), MR, y, {align:'right'});
+  }
+
+  // ── Notes ──
+  if(q.notes){
+    y+=16;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+    doc.text('NOTES', ML, y); y+=12;
+    doc.setFont('helvetica','normal');
+    doc.splitTextToSize(q.notes,TW).forEach(l=>{doc.text(l,ML,y);y+=11;});
+  }
+
+  // ── Terms ──
+  if(q.terms_text){
+    y+=10;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,100,100);
+    doc.text('TERMS & CONDITIONS', ML, y); y+=10;
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.splitTextToSize(q.terms_text,TW).forEach(l=>{doc.text(l,ML,y);y+=9;});
+  }
+
+  // ── Signature line ──
+  y+=20;
+  if(y>680){doc.addPage();y=50;}
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.setDrawColor(0,0,0);
+  doc.line(ML, y+20, ML+200, y+20);
+  doc.line(MR-160, y+20, MR, y+20);
+  doc.setFontSize(8); doc.setTextColor(100,100,100);
+  doc.text('Customer Signature & Date', ML, y+28);
+  doc.text('Authorized By', MR-160, y+28);
+
+  // Footer
+  doc.setFontSize(7); doc.setTextColor(150,150,150);
+  doc.text('Page 1  ·  '+( shop.name||'Press Setup Doc')+'  ·  Generated '+new Date().toLocaleDateString(), PW/2, PH-20, {align:'center'});
+
+  const fname = 'quote-'+(q.quote_number||'draft').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'.pdf';
+  doc.save(fname);
+}
+
+function previewQuotePDF() { exportQuotePDF(); }
 
 
 // ── TOAST ───────────────────────────────────────────────────
