@@ -8702,35 +8702,116 @@ function addQLineItem(type, existing) {
   const container = document.getElementById('qLineItems');
   const row = document.createElement('div');
   row.id = 'qli-'+i;
-  row.className = 'qli-row';
-  row.innerHTML = `
-    <div>
-      <input type="text" id="qli_desc_${i}" value="${existing?.desc||def.desc}" placeholder="Description" oninput="recalcQuote()" />
-      <input type="text" id="qli_note_${i}" value="${existing?.note||def.note||''}" placeholder="Note (optional)" style="font-size:.65rem;margin-top:3px;color:var(--muted);" />
-    </div>
-    <div>
-      <input type="number" id="qli_qty_${i}" value="${existing?.qty||def.qty||1}" min="0" step="1" style="text-align:center;" oninput="recalcQuote()" />
-    </div>
-    <div>
-      <input type="number" id="qli_unit_${i}" value="${existing?.unit||def.unit||''}" min="0" step="0.01" placeholder="0.00" style="text-align:right;" oninput="recalcQuote()" />
-    </div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);text-align:right;padding-top:8px;" id="qli_total_${i}">$0.00</div>
-    <div style="padding-top:6px;">
-      <button type="button" onclick="document.getElementById('qli-${i}').remove();recalcQuote()"
-        style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
-    </div>`;
+  row.dataset.type = type;
+
+  if (type === 'garment') {
+    // Garment gets full size breakdown
+    const sizes = existing?.sizes || {};
+    const upcharge = existing?.upcharge || 0;
+    const basePx = existing?.unit || 0;
+    const STANDARD_SIZES = ['XS','S','M','L','XL'];
+    const OVERSIZE_SIZES = ['2XL','3XL','4XL','5XL'];
+    row.innerHTML = `
+      <div style="grid-column:1/-1;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div style="flex:1;min-width:160px;">
+            <input type="text" id="qli_desc_${i}" value="${existing?.desc||'Garments'}" placeholder="Style / Color (e.g. Gildan 5000 Black)" oninput="recalcQuote()" style="width:100%;" />
+            <input type="text" id="qli_note_${i}" value="${existing?.note||''}" placeholder="Note (optional)" style="font-size:.65rem;margin-top:4px;color:var(--muted);width:100%;" />
+          </div>
+          <button type="button" onclick="document.getElementById('qli-${i}').remove();recalcQuote()"
+            style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-bottom:10px;">
+          ${STANDARD_SIZES.map(sz=>`<div style="text-align:center;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:3px;">${sz}</div>
+            <input type="number" id="qli_sz_${i}_${sz}" min="0" placeholder="0" value="${sizes[sz]||''}"
+              style="text-align:center;padding:.3rem .2rem;" oninput="recalcQuote()" />
+          </div>`).join('')}
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--flash);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <span>⬆ Oversize (2XL+)</span>
+          <span style="color:var(--muted);font-size:.58rem;">Enter upcharge amount per unit</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-bottom:10px;">
+          ${OVERSIZE_SIZES.map(sz=>`<div style="text-align:center;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--flash);margin-bottom:3px;">${sz}</div>
+            <input type="number" id="qli_sz_${i}_${sz}" min="0" placeholder="0" value="${sizes[sz]||''}"
+              style="text-align:center;padding:.3rem .2rem;border-color:var(--flash-30);" oninput="recalcQuote()" />
+          </div>`).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;">
+          <div>
+            <div class="qli-label">Base Price / Unit</div>
+            <input type="number" id="qli_unit_${i}" min="0" step="0.01" placeholder="0.00"
+              value="${basePx||''}" style="text-align:right;" oninput="recalcQuote()" />
+          </div>
+          <div>
+            <div class="qli-label">Oversize Upcharge / Unit</div>
+            <input type="number" id="qli_upcharge_${i}" min="0" step="0.01" placeholder="0.00"
+              value="${upcharge||''}" style="text-align:right;border-color:var(--flash-30);" oninput="recalcQuote()" />
+          </div>
+          <div>
+            <div class="qli-label">Total Qty</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--cyan);padding-top:4px;" id="qli_qty_${i}">0</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="qli-label">Line Total</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--flash);" id="qli_total_${i}">$0.00</div>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    // Standard line item
+    row.className = 'qli-row';
+    row.innerHTML = `
+      <div>
+        <input type="text" id="qli_desc_${i}" value="${existing?.desc||def.desc}" placeholder="Description" oninput="recalcQuote()" />
+        <input type="text" id="qli_note_${i}" value="${existing?.note||def.note||''}" placeholder="Note (optional)" style="font-size:.65rem;margin-top:3px;color:var(--muted);" />
+      </div>
+      <div>
+        <input type="number" id="qli_qty_${i}" value="${existing?.qty||def.qty||1}" min="0" step="1" style="text-align:center;" oninput="recalcQuote()" />
+      </div>
+      <div>
+        <input type="number" id="qli_unit_${i}" value="${existing?.unit||def.unit||''}" min="0" step="0.01" placeholder="0.00" style="text-align:right;" oninput="recalcQuote()" />
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);text-align:right;padding-top:8px;" id="qli_total_${i}">$0.00</div>
+      <div style="padding-top:6px;">
+        <button type="button" onclick="document.getElementById('qli-${i}').remove();recalcQuote()"
+          style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
+      </div>`;
+  }
   container.appendChild(row);
   recalcQuote();
 }
+
+const STANDARD_SZ = ['XS','S','M','L','XL'];
+const OVERSIZE_SZ = ['2XL','3XL','4XL','5XL'];
+const ALL_GARMENT_SZ = [...STANDARD_SZ, ...OVERSIZE_SZ];
 
 function recalcQuote() {
   let subtotal = 0;
   const rows = document.querySelectorAll('[id^="qli-"]');
   rows.forEach(row => {
     const i = row.id.split('-')[1];
-    const qty  = parseFloat(document.getElementById('qli_qty_'+i)?.value)||0;
-    const unit = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
-    const total = qty * unit;
+    const isGarment = row.dataset.type === 'garment';
+    let total = 0;
+
+    if (isGarment) {
+      const basePrice    = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
+      const upcharge     = parseFloat(document.getElementById('qli_upcharge_'+i)?.value)||0;
+      let stdQty = 0, oversizeQty = 0;
+      STANDARD_SZ.forEach(sz => { stdQty += parseInt(document.getElementById('qli_sz_'+i+'_'+sz)?.value)||0; });
+      OVERSIZE_SZ.forEach(sz => { oversizeQty += parseInt(document.getElementById('qli_sz_'+i+'_'+sz)?.value)||0; });
+      const totalQty = stdQty + oversizeQty;
+      total = stdQty * basePrice + oversizeQty * (basePrice + upcharge);
+      const qtyEl = document.getElementById('qli_qty_'+i);
+      if (qtyEl) qtyEl.textContent = totalQty;
+    } else {
+      const qty  = parseFloat(document.getElementById('qli_qty_'+i)?.value)||0;
+      const unit = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
+      total = qty * unit;
+    }
+
     subtotal += total;
     const el = document.getElementById('qli_total_'+i);
     if (el) el.textContent = '$'+total.toFixed(2);
@@ -8758,10 +8839,29 @@ function collectQuoteData() {
   const lineItems = [];
   document.querySelectorAll('[id^="qli-"]').forEach(row => {
     const i = row.id.split('-')[1];
+    const isGarment = row.dataset.type === 'garment';
     const desc = document.getElementById('qli_desc_'+i)?.value.trim();
-    const qty  = parseFloat(document.getElementById('qli_qty_'+i)?.value)||0;
-    const unit = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
-    if (desc) lineItems.push({ desc, qty, unit, total: qty*unit, note: document.getElementById('qli_note_'+i)?.value.trim()||'' });
+    const note = document.getElementById('qli_note_'+i)?.value.trim()||'';
+    if (!desc) return;
+
+    if (isGarment) {
+      const basePrice = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
+      const upcharge  = parseFloat(document.getElementById('qli_upcharge_'+i)?.value)||0;
+      const sizes = {};
+      ALL_GARMENT_SZ.forEach(sz => {
+        const q = parseInt(document.getElementById('qli_sz_'+i+'_'+sz)?.value)||0;
+        if (q > 0) sizes[sz] = q;
+      });
+      let stdQty=0, overQty=0;
+      STANDARD_SZ.forEach(sz => { stdQty += sizes[sz]||0; });
+      OVERSIZE_SZ.forEach(sz => { overQty += sizes[sz]||0; });
+      const total = stdQty*basePrice + overQty*(basePrice+upcharge);
+      lineItems.push({ type:'garment', desc, note, unit: basePrice, upcharge, sizes, qty: stdQty+overQty, total });
+    } else {
+      const qty  = parseFloat(document.getElementById('qli_qty_'+i)?.value)||0;
+      const unit = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
+      lineItems.push({ desc, qty, unit, total: qty*unit, note });
+    }
   });
 
   const discVal = parseFloat(document.getElementById('q_discount')?.value)||0;
@@ -8890,15 +8990,28 @@ function exportQuotePDF() {
 
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
   q.line_items.forEach((l,idx) => {
-    if(y>680){doc.addPage();y=50;}
-    if(idx%2===1){doc.setFillColor(248,248,248);doc.rect(ML,y-10,TW,13+(l.note?8:0),'F');}
+    if(y>650){doc.addPage();y=50;}
+    const isGarment = l.type === 'garment';
+    const rowH = isGarment ? 13 + (l.note?8:0) + 20 : 13 + (l.note?8:0);
+    if(idx%2===1){doc.setFillColor(248,248,248);doc.rect(ML,y-10,TW,rowH+4,'F');}
     doc.setTextColor(0,0,0);
     doc.text(l.desc, ML+4, y);
-    doc.text(String(l.qty), MR-160, y, {align:'right'});
-    doc.text('$'+parseFloat(l.unit||0).toFixed(2), MR-90, y, {align:'right'});
+    doc.text(String(l.qty||0), MR-160, y, {align:'right'});
+    doc.text('$'+parseFloat(l.unit||0).toFixed(2)+'/unit', MR-90, y, {align:'right'});
     doc.text('$'+parseFloat(l.total||0).toFixed(2), MR, y, {align:'right'});
     if(l.note){doc.setTextColor(120,120,120);doc.setFontSize(7.5);doc.text(l.note,ML+4,y+9);doc.setFontSize(9);doc.setTextColor(0,0,0);y+=9;}
     y+=13;
+    if(isGarment && l.sizes && Object.keys(l.sizes).length){
+      // Size breakdown line
+      doc.setFontSize(7.5); doc.setTextColor(80,80,80);
+      const szParts = Object.entries(l.sizes).map(([sz,q])=>sz+':'+q).join('  ');
+      doc.text('Sizes: '+szParts, ML+8, y); y+=9;
+      if(l.upcharge > 0){
+        doc.setTextColor(200,80,10);
+        doc.text('Oversize upcharge (2XL+): +$'+parseFloat(l.upcharge).toFixed(2)+'/unit', ML+8, y); y+=9;
+      }
+      doc.setFontSize(9); doc.setTextColor(0,0,0);
+    }
     doc.setDrawColor(220,220,220); doc.line(ML,y-1,MR,y-1);
   });
 
