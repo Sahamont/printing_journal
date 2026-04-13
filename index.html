@@ -430,6 +430,7 @@
           <div><label>Due Date</label><input type="date" name="due_date" /></div>
           <div><label>Operator</label><input type="text" name="operator" placeholder="Your name" /></div>
           <div style="grid-column:1/-1"><label>Customer</label><input type="text" name="customer" placeholder="Customer name" /></div>
+          <div><label>Email</label><input type="text" name="email" placeholder="customer@email.com" /></div>
           <div style="grid-column:1/-1">
             <label>Print Location</label>
             <div style="display:flex;gap:10px;flex-wrap:wrap;padding:4px 0 8px;">
@@ -2446,7 +2447,7 @@ async function submitForm(e){
 
   const record={
     job_name:d.job_name, order_number:d.order_number, job_date:d.job_date, due_date:d.due_date||null,
-    operator:d.operator, customer:d.customer, print_location:d.print_location,
+    operator:d.operator, customer:d.customer, email:d.email||null, print_location:d.print_location,
     quantity:grandTotal||null, status:d.status, notes:d.notes,
     press_speed:d.press_speed,
     stroke_length:d.stroke_length?parseFloat(d.stroke_length):null,
@@ -2594,7 +2595,7 @@ async function openJobDetail(id){
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px;">
-      ${[['CUSTOMER',data.customer],['PRINT LOCATION',data.print_location],['QTY',data.quantity],['OPERATOR',data.operator],['JOB DATE',fmtDate(data.job_date)],['DUE DATE',fmtDate(data.due_date)]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${v||'—'}</div></div>`).join('')}
+      ${[['CUSTOMER',data.customer],['EMAIL',data.email||'—'],['PRINT LOCATION',data.print_location],['QTY',data.quantity],['OPERATOR',data.operator],['JOB DATE',fmtDate(data.job_date)],['DUE DATE',fmtDate(data.due_date)]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${v||'—'}</div></div>`).join('')}
     </div>
     ${data.image_url?`<img src="${data.image_url}" style="max-height:140px;border-radius:3px;border:1px solid var(--border);margin-bottom:14px;display:block;" />`:''}
     ${shirtHtml?`<div style="margin-bottom:14px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid rgba(232,80,10,.2);padding-bottom:3px;margin-bottom:7px;">SHIRT TYPES</div>${shirtHtml}</div>`:''}
@@ -2671,6 +2672,7 @@ async function editJob() {
   setVal('job_date', data.job_date);
   setVal('operator', data.operator);
   setVal('customer', data.customer);
+  setVal('email', data.email);
   setVal('print_location', data.print_location);
   setVal('status', data.status);
   setVal('notes', data.notes);
@@ -8978,14 +8980,31 @@ async function deleteQuote() {
 async function convertQuoteToJob() {
   const q = collectQuoteData();
   closeQuoteBuilder();
-  // Pre-fill the new job form with quote data
   switchTab('new');
-  await new Promise(r=>setTimeout(r,300));
-  const setV = (name, val) => { const el=document.querySelector('[name="'+name+'"]'); if(el&&val) el.value=val; };
+  await new Promise(r=>setTimeout(r,400));
+
+  const setV = (name, val) => { const el=document.querySelector('[name="'+name+'"]'); if(el&&val!==undefined) el.value=val; };
+
+  // Basic fields
   setV('job_name', q.job_name || q.customer + ' — Quote');
   setV('customer', q.customer);
-  setV('notes', 'Converted from Quote '+q.quote_number+'\nTotal: $'+q.total);
-  showToast('Quote data loaded into New Setup form. Review and save to create the job.','success');
+  setV('email',   q.contact||'');
+  setV('notes', 'Converted from Quote '+q.quote_number+'\nTotal: $'+q.total+(q.payment_terms?'\nPayment Terms: '+q.payment_terms:''));
+
+  // Shirt types — one block per garment line item
+  const garments = q.line_items.filter(l => l.type === 'garment' && l.sizes && Object.keys(l.sizes).length);
+  if (garments.length) {
+    // Clear existing shirt type blocks first
+    document.getElementById('shirtTypeList').innerHTML = '';
+    stCount = 0;
+    // Add one block per garment line
+    garments.forEach(g => {
+      addShirtType({ style: g.style||g.desc||'', color: g.color||'', sizes: g.sizes||{} });
+    });
+    updateGrandTotal();
+  }
+
+  showToast('Quote converted — review shirt types and save.', 'success');
 }
 
 // ── PDF Export ────────────────────────────────────────
