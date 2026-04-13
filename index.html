@@ -2150,6 +2150,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   const url=localStorage.getItem('sb_url'), key=localStorage.getItem('sb_key');
   // Apply saved app settings on every load
   applyAppSettings(getAppSettings());
+  // Pre-load inventory style cache for smart dropdowns
+  loadInvStyleCache();
 
   if(url&&key){
     initSupabase(url,key);
@@ -2180,6 +2182,7 @@ function switchTab(tab){
   if(tab==='session') renderSessionTab();
   if(tab==='payments') loadPayments();
   if(tab==='tasks') loadTasks();
+  if(tab==='new') loadInvStyleCache();
   if(tab==='inventory') loadInventory();
   if(tab==='quotes') loadQuotes();
 }
@@ -2220,6 +2223,14 @@ function addShirtType(data=null){
     </div>`;
   document.getElementById('shirtTypeList').appendChild(el);
   updateGrandTotal();
+  // Attach smart dropdowns
+  const styleEl = el.querySelector(`[name="st_style_${id}"]`);
+  const colorEl = el.querySelector(`[name="st_color_${id}"]`);
+  if (styleEl && colorEl) {
+    buildStyleDropdown(styleEl, `st_color_${id}_dd`, data?.style||'');
+    colorEl.id = `st_color_${id}_dd`;
+    buildColorDropdown(colorEl, data?.style||'', data?.color||'');
+  }
 }
 
 function removeShirtType(id){
@@ -8738,9 +8749,17 @@ function addQLineItem(type, existing) {
     row.innerHTML = `
       <div style="grid-column:1/-1;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:6px;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-          <div style="flex:1;min-width:160px;">
-            <input type="text" id="qli_desc_${i}" value="${existing?.desc||'Garments'}" placeholder="Style / Color (e.g. Gildan 5000 Black)" oninput="recalcQuote()" style="width:100%;" />
-            <input type="text" id="qli_note_${i}" value="${existing?.note||''}" placeholder="Note (optional)" style="font-size:.65rem;margin-top:4px;color:var(--muted);width:100%;" />
+          <div style="flex:1;min-width:160px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <div style="position:relative;">
+              <input type="text" id="qli_style_${i}" value="${existing?.style||''}" placeholder="Style (Gildan 5000…)" oninput="recalcQuote()" style="width:100%;" />
+            </div>
+            <div style="position:relative;">
+              <input type="text" id="qli_color_${i}" value="${existing?.color||''}" placeholder="Color (Black, White…)" oninput="recalcQuote()" style="width:100%;" />
+            </div>
+            <div style="grid-column:1/-1;">
+              <input type="text" id="qli_desc_${i}" value="${existing?.desc||''}" placeholder="Additional description (optional)" oninput="recalcQuote()" style="width:100%;font-size:.7rem;" />
+              <input type="text" id="qli_note_${i}" value="${existing?.note||''}" placeholder="Note (optional)" style="font-size:.65rem;margin-top:4px;color:var(--muted);width:100%;" />
+            </div>
           </div>
           <button type="button" onclick="document.getElementById('qli-${i}').remove();recalcQuote()"
             style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
@@ -8805,6 +8824,15 @@ function addQLineItem(type, existing) {
       </div>`;
   }
   container.appendChild(row);
+  // Wire smart dropdowns for garment type
+  if (type === 'garment') {
+    const styleEl = document.getElementById('qli_style_'+i);
+    const colorEl = document.getElementById('qli_color_'+i);
+    if (styleEl && colorEl) {
+      buildStyleDropdown(styleEl, 'qli_color_'+i, existing?.style||'');
+      buildColorDropdown(colorEl, existing?.style||'', existing?.color||'');
+    }
+  }
   recalcQuote();
 }
 
@@ -8869,6 +8897,9 @@ function collectQuoteData() {
     if (!desc) return;
 
     if (isGarment) {
+      const styleVal = document.getElementById('qli_style_'+i)?.value.trim()||'';
+      const colorVal = document.getElementById('qli_color_'+i)?.value.trim()||'';
+      const descVal  = document.getElementById('qli_desc_'+i)?.value.trim()||'';
       const basePrice = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
       const upcharge  = parseFloat(document.getElementById('qli_upcharge_'+i)?.value)||0;
       const sizes = {};
@@ -8880,7 +8911,8 @@ function collectQuoteData() {
       STANDARD_SZ.forEach(sz => { stdQty += sizes[sz]||0; });
       OVERSIZE_SZ.forEach(sz => { overQty += sizes[sz]||0; });
       const total = stdQty*basePrice + overQty*(basePrice+upcharge);
-      lineItems.push({ type:'garment', desc, note, unit: basePrice, upcharge, sizes, qty: stdQty+overQty, total });
+      const garmentDesc = [styleVal, colorVal, descVal].filter(Boolean).join(' / ') || desc || 'Garments';
+      lineItems.push({ type:'garment', desc: garmentDesc, style: styleVal, color: colorVal, note, unit: basePrice, upcharge, sizes, qty: stdQty+overQty, total });
     } else {
       const qty  = parseFloat(document.getElementById('qli_qty_'+i)?.value)||0;
       const unit = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
@@ -9106,6 +9138,196 @@ function exportQuotePDF() {
 
 function previewQuotePDF() { exportQuotePDF(); }
 
+
+
+// ══════════════════════════════════════════════════════
+// SMART STYLE/COLOR DROPDOWN (Inventory-backed)
+// ══════════════════════════════════════════════════════
+let _invStyleCache = []; // [{style, colors:[]}]
+
+async function loadInvStyleCache() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('shirt_inventory').select('style,color').order('style').order('color');
+  // Group by style
+  const map = {};
+  (data||[]).forEach(item => {
+    const s = (item.style||'').trim();
+    const c = (item.color||'').trim();
+    if (!map[s]) map[s] = new Set();
+    if (c) map[s].add(c);
+  });
+  _invStyleCache = Object.entries(map).map(([style, colorSet]) => ({
+    style, colors: [...colorSet].sort()
+  }));
+}
+
+// Build a smart searchable dropdown for style field
+function buildStyleDropdown(inputEl, colorInputId, existingStyle) {
+  inputEl.value = existingStyle || '';
+  inputEl.setAttribute('autocomplete','off');
+  inputEl.setAttribute('data-smart-style','1');
+  inputEl.setAttribute('data-color-target', colorInputId);
+
+  // Remove old listener if any
+  inputEl._styleHandler && inputEl.removeEventListener('input', inputEl._styleHandler);
+  inputEl._styleFocusHandler && inputEl.removeEventListener('focus', inputEl._styleFocusHandler);
+
+  const showDropdown = () => {
+    const q = inputEl.value.trim().toLowerCase();
+    let filtered = _invStyleCache.filter(s => !q || s.style.toLowerCase().includes(q));
+    // Close any existing dropdown
+    document.querySelectorAll('.smart-dropdown').forEach(d => d.remove());
+    if (!filtered.length && !q) return;
+
+    const dd = document.createElement('div');
+    dd.className = 'smart-dropdown';
+    dd.style.cssText = `position:absolute;z-index:1000;background:var(--surface);border:1px solid var(--flash-30);
+      border-radius:3px;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4);
+      min-width:200px;`;
+
+    // Position below input
+    const rect = inputEl.getBoundingClientRect();
+    dd.style.top = (rect.bottom + window.scrollY + 2)+'px';
+    dd.style.left = (rect.left + window.scrollX)+'px';
+    dd.style.width = rect.width+'px';
+
+    filtered.slice(0, 12).forEach(s => {
+      const opt = document.createElement('div');
+      opt.style.cssText = 'padding:7px 10px;cursor:pointer;font-family:IBM Plex Mono,monospace;font-size:.72rem;border-bottom:1px solid rgba(245,240,232,.05);';
+      opt.textContent = s.style;
+      opt.onmouseenter = () => opt.style.background = 'var(--flash-dim)';
+      opt.onmouseleave = () => opt.style.background = '';
+      opt.onmousedown = (e) => {
+        e.preventDefault();
+        inputEl.value = s.style;
+        dd.remove();
+        // Update color dropdown
+        const colorEl = document.getElementById(colorInputId);
+        if (colorEl) buildColorDropdown(colorEl, s.style, '');
+      };
+      dd.appendChild(opt);
+    });
+
+    // Add "➕ Add as new style" if query doesn't exactly match
+    const exactMatch = filtered.some(s => s.style.toLowerCase() === q);
+    if (q && !exactMatch) {
+      const addOpt = document.createElement('div');
+      addOpt.style.cssText = 'padding:7px 10px;cursor:pointer;font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--flash);border-top:1px solid var(--flash-20);';
+      addOpt.textContent = '➕ Add "' + inputEl.value.trim() + '" as new style';
+      addOpt.onmousedown = async (e) => {
+        e.preventDefault();
+        const newStyle = inputEl.value.trim();
+        dd.remove();
+        // Add to inventory with empty sizes
+        if (sbClient && newStyle) {
+          const { error } = await sbClient.from('shirt_inventory').insert([{ style: newStyle, color: '', sizes_on_hand: {} }]);
+          if (!error) {
+            showToast('New style added to inventory!', 'success');
+            await loadInvStyleCache();
+          }
+        }
+      };
+      dd.appendChild(addOpt);
+    }
+
+    document.body.appendChild(dd);
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener('mousedown', function closeDd(ev) {
+        if (!dd.contains(ev.target) && ev.target !== inputEl) {
+          dd.remove();
+          document.removeEventListener('mousedown', closeDd);
+        }
+      });
+    }, 50);
+  };
+
+  inputEl._styleHandler = () => showDropdown();
+  inputEl._styleFocusHandler = () => { if (_invStyleCache.length) showDropdown(); };
+  inputEl.addEventListener('input', inputEl._styleHandler);
+  inputEl.addEventListener('focus', inputEl._styleFocusHandler);
+}
+
+function buildColorDropdown(inputEl, style, existingColor) {
+  inputEl.value = existingColor || '';
+  inputEl.setAttribute('autocomplete','off');
+  inputEl.setAttribute('data-smart-color','1');
+
+  inputEl._colorHandler && inputEl.removeEventListener('input', inputEl._colorHandler);
+  inputEl._colorFocusHandler && inputEl.removeEventListener('focus', inputEl._colorFocusHandler);
+
+  const getColors = (q) => {
+    const styleEntry = _invStyleCache.find(s => s.style.toLowerCase() === (style||inputEl.closest('[id^="sb-"]')?.querySelector('[data-smart-style]')?.value||'').toLowerCase());
+    let colors = styleEntry ? styleEntry.colors : [];
+    if (q) colors = colors.filter(c => c.toLowerCase().includes(q.toLowerCase()));
+    return colors;
+  };
+
+  const showColorDd = () => {
+    const q = inputEl.value.trim();
+    const colors = getColors(q);
+    document.querySelectorAll('.smart-dropdown').forEach(d => d.remove());
+
+    const dd = document.createElement('div');
+    dd.className = 'smart-dropdown';
+    dd.style.cssText = `position:absolute;z-index:1000;background:var(--surface);border:1px solid var(--flash-30);
+      border-radius:3px;max-height:180px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4);min-width:160px;`;
+    const rect = inputEl.getBoundingClientRect();
+    dd.style.top = (rect.bottom + window.scrollY + 2)+'px';
+    dd.style.left = (rect.left + window.scrollX)+'px';
+    dd.style.width = rect.width+'px';
+
+    colors.slice(0, 10).forEach(c => {
+      const opt = document.createElement('div');
+      opt.style.cssText = 'padding:7px 10px;cursor:pointer;font-family:IBM Plex Mono,monospace;font-size:.72rem;border-bottom:1px solid rgba(245,240,232,.05);';
+      opt.textContent = c;
+      opt.onmouseenter = () => opt.style.background = 'var(--flash-dim)';
+      opt.onmouseleave = () => opt.style.background = '';
+      opt.onmousedown = (e) => { e.preventDefault(); inputEl.value = c; dd.remove(); };
+      dd.appendChild(opt);
+    });
+
+    const exactMatch = colors.some(c => c.toLowerCase() === q.toLowerCase());
+    if (q && !exactMatch) {
+      const addOpt = document.createElement('div');
+      addOpt.style.cssText = 'padding:7px 10px;cursor:pointer;font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--flash);border-top:1px solid var(--flash-20);';
+      addOpt.textContent = '➕ Add "' + q + '" as new color';
+      addOpt.onmousedown = async (e) => {
+        e.preventDefault();
+        const styleVal = inputEl.closest('[id^="sb-"]')?.querySelector('[data-smart-style]')?.value || style;
+        const colorVal = q;
+        dd.remove();
+        if (sbClient && styleVal && colorVal) {
+          // Check if style+color combo exists, if not add it
+          const exists = _invStyleCache.find(s => s.style.toLowerCase()===styleVal.toLowerCase() && s.colors.some(c=>c.toLowerCase()===colorVal.toLowerCase()));
+          if (!exists) {
+            await sbClient.from('shirt_inventory').insert([{ style: styleVal, color: colorVal, sizes_on_hand: {} }]);
+            showToast('New color added to inventory!', 'success');
+            await loadInvStyleCache();
+          }
+          inputEl.value = colorVal;
+        }
+      };
+      dd.appendChild(addOpt);
+    }
+
+    if (dd.children.length === 0) return;
+    document.body.appendChild(dd);
+    setTimeout(() => {
+      document.addEventListener('mousedown', function closeDd(ev) {
+        if (!dd.contains(ev.target) && ev.target !== inputEl) {
+          dd.remove();
+          document.removeEventListener('mousedown', closeDd);
+        }
+      });
+    }, 50);
+  };
+
+  inputEl._colorHandler = () => showColorDd();
+  inputEl._colorFocusHandler = () => showColorDd();
+  inputEl.addEventListener('input', inputEl._colorHandler);
+  inputEl.addEventListener('focus', inputEl._colorFocusHandler);
+}
 
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
