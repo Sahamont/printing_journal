@@ -8894,7 +8894,6 @@ function collectQuoteData() {
     const isGarment = row.dataset.type === 'garment';
     const desc = document.getElementById('qli_desc_'+i)?.value.trim();
     const note = document.getElementById('qli_note_'+i)?.value.trim()||'';
-    if (!desc) return;
 
     if (isGarment) {
       const styleVal = document.getElementById('qli_style_'+i)?.value.trim()||'';
@@ -8911,9 +8910,11 @@ function collectQuoteData() {
       STANDARD_SZ.forEach(sz => { stdQty += sizes[sz]||0; });
       OVERSIZE_SZ.forEach(sz => { overQty += sizes[sz]||0; });
       const total = stdQty*basePrice + overQty*(basePrice+upcharge);
-      const garmentDesc = [styleVal, colorVal, descVal].filter(Boolean).join(' / ') || desc || 'Garments';
+      const garmentDesc = [styleVal, colorVal, descVal].filter(Boolean).join(' / ') || 'Garments';
+      if (!styleVal && !colorVal && !descVal) return; // skip completely empty garment rows
       lineItems.push({ type:'garment', desc: garmentDesc, style: styleVal, color: colorVal, note, unit: basePrice, upcharge, sizes, qty: stdQty+overQty, total });
     } else {
+      if (!desc) return; // skip empty non-garment rows
       const qty  = parseFloat(document.getElementById('qli_qty_'+i)?.value)||0;
       const unit = parseFloat(document.getElementById('qli_unit_'+i)?.value)||0;
       lineItems.push({ desc, qty, unit, total: qty*unit, note });
