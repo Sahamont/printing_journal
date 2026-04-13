@@ -3629,6 +3629,9 @@ async function deleteEvent() {
 
 // ── MAINTENANCE PDF EXPORT ────────────────────────────────
 function exportMaintPDF(allMachines = false) {
+  const _ac = getPDFAccent();
+  const _acStr = _ac.join(',');
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const PW = doc.internal.pageSize.getWidth();
@@ -4913,6 +4916,9 @@ async function fetchReportData() {
 
 // ── Generate PDF ─────────────────────────────────────
 function generateReport() {
+  const _ac = getPDFAccent();
+  const _acStr = _ac.join(',');
+
   if (!_rptData.length || !_rptType) return;
   const rt = REPORT_TYPES[_rptType];
   const shop = getShopSettings();
@@ -4981,7 +4987,7 @@ function generateReport() {
   if (bold) {
     doc.setFillColor(20,20,30);
     doc.rect(ML, y-10, TW, 16, 'F');
-    doc.setTextColor(232,80,10);
+    doc.setTextColor(..._ac);
   } else {
     doc.setDrawColor(200,200,200); doc.setLineWidth(0.5);
     doc.line(ML, y+4, MR, y+4);
@@ -5049,12 +5055,14 @@ function generateReport() {
 }
 
 function drawPageHeader(doc, shop, rt, ML, MR, y, bold) {
+  const _ac = getPDFAccent();
+  const _acStr = _ac.join(',');
   const PW = doc.internal.pageSize.getWidth();
   if (bold) {
     doc.setFillColor(10,10,18);
     doc.rect(0, 0, PW, 40, 'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(16);
-    doc.setTextColor(232,80,10);
+    doc.setTextColor(..._ac);
     doc.text((shop.name||'PRESS SETUP DOC').toUpperCase(), ML, y+14);
     doc.setFont('helvetica','normal'); doc.setFontSize(9);
     doc.setTextColor(180,180,180);
@@ -5491,6 +5499,9 @@ function renderPackagingBoard() {
 
 // ── PDF Export ────────────────────────────────────────
 function exportSRPDF() {
+  const _ac = getPDFAccent();
+  const _acStr = _ac.join(',');
+
   if (!_srMapped.length) return;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'letter', orientation:'landscape' });
@@ -5513,9 +5524,9 @@ function exportSRPDF() {
     _srMapped.forEach(r => { const k=r.design_type||'Standard'; if(!groups[k])groups[k]=[]; groups[k].push(r); });
     Object.entries(groups).forEach(([design, rows]) => {
       if(y>PH-100){doc.addPage();page++;y=44;}
-      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(232,80,10);
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(..._ac);
       doc.text(design.toUpperCase(), ML, y); nl(6);
-      doc.setDrawColor(232,80,10); doc.setLineWidth(0.5); doc.line(ML,y,MR,y); nl(10);
+      doc.setDrawColor(..._ac); doc.setLineWidth(0.5); doc.line(ML,y,MR,y); nl(10);
       doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(9);
       const total = rows.reduce((s,r)=>s+r.quantity,0);
       doc.text('Total: '+total+' units  ·  Customized: '+rows.filter(r=>r.is_custom).length, ML, y); nl(12);
@@ -5526,7 +5537,7 @@ function exportSRPDF() {
       // Customized rows
       const customs=rows.filter(r=>r.is_custom);
       if(customs.length){
-        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,80,10);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(..._ac);
         doc.text('⚠ CUSTOMIZED UNITS:', ML, y); nl(10);
         doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
         customs.forEach(r=>{
@@ -5550,7 +5561,7 @@ function exportSRPDF() {
       rows.forEach(r=>{
         if(y>PH-44){doc.addPage();page++;y=44;}
         const line=(r.is_custom?'⚠ [CUSTOM: '+r.custom_text+'] ':'')+r.design_type+(r.garment?' — '+r.garment:'')+(r.color?' / '+r.color:'')+(r.size?' ['+r.size+']':'')+(r.quantity>1?' ×'+r.quantity:'');
-        if(r.is_custom)doc.setTextColor(232,80,10); else doc.setTextColor(0,0,0);
+        if(r.is_custom)doc.setTextColor(..._ac); else doc.setTextColor(0,0,0);
         doc.text('• '+line, ML+6, y); nl(11);
       });
       doc.setTextColor(0,0,0); nl(6);
@@ -5564,6 +5575,16 @@ function exportSRPDF() {
 // ── Helpers ───────────────────────────────────────────
 const SIZE_ORDER=['XS','S','M','L','XL','XXL','2XL','3XL','4XL','5XL','YS','YM','YL'];
 const sizeSort=([a],[b])=>{const ai=SIZE_ORDER.indexOf(a),bi=SIZE_ORDER.indexOf(b);return(ai<0?99:ai)-(bi<0?99:bi);};
+
+// Get current accent color as [r,g,b] array for jsPDF
+function getPDFAccent() {
+  const hex = getComputedStyle(document.documentElement).getPropertyValue('--flash').trim();
+  if (!hex || hex.startsWith('var(')) return [232, 80, 10];
+  const clean = hex.replace('#','');
+  const full = clean.length===3 ? clean.split('').map(c=>c+c).join('') : clean;
+  const n = parseInt(full, 16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
 
 function hexToRgb(hex) {
   if (!hex || hex.startsWith('var(')) return '200,200,200';
@@ -8463,6 +8484,9 @@ function buildGapData() {
 }
 
 function exportPOPDF() {
+  const _ac = getPDFAccent();
+  const _acStr = _ac.join(',');
+
   const gaps = buildGapData();
   if (!gaps.length) { showToast('Nothing to order!', 'success'); return; }
   const shop = getShopSettings();
@@ -8935,6 +8959,9 @@ async function exportQuotePDFById(id) {
 }
 
 function exportQuotePDF() {
+  const _ac = getPDFAccent();
+  const _acStr = _ac.join(',');
+
   const q = collectQuoteData();
   const shop = getShopSettings();
   const { jsPDF } = window.jspdf;
@@ -8945,13 +8972,13 @@ function exportQuotePDF() {
   // ── Shop header ──
   doc.setFillColor(10,10,18); doc.rect(0,0,PW,55,'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(18);
-  doc.setTextColor(232,80,10);
+  doc.setTextColor(..._ac);
   doc.text((shop.name||'PRESS SETUP DOC').toUpperCase(), ML, y);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(180,180,180);
   if(shop.addr1) doc.text(shop.addr1+(shop.addr2?' | '+shop.addr2:''), ML, y+14);
   if(shop.phone) doc.text((shop.phone||'')+(shop.email?' | '+shop.email:''), ML, y+24);
   // QUOTE label right side
-  doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(232,80,10);
+  doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(..._ac);
   doc.text('QUOTE', MR, y, {align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(180,180,180);
   doc.text(q.quote_number||'', MR, y+14, {align:'right'});
@@ -8992,8 +9019,10 @@ function exportQuotePDF() {
   q.line_items.forEach((l,idx) => {
     if(y>650){doc.addPage();y=50;}
     const isGarment = l.type === 'garment';
-    const rowH = isGarment ? 13 + (l.note?8:0) + 20 : 13 + (l.note?8:0);
-    if(idx%2===1){doc.setFillColor(248,248,248);doc.rect(ML,y-10,TW,rowH+4,'F');}
+    const garmentExtraLines = isGarment ? (l.note?1:0) + 1 + (l.upcharge>0?1:0) : 0;
+    const rowH = isGarment ? 14 + garmentExtraLines*10 : 13 + (l.note?8:0);
+    if(y + rowH > 680){doc.addPage();y=50;}
+    if(idx%2===1){doc.setFillColor(248,248,248);doc.rect(ML,y-10,TW,rowH+6,'F');}
     doc.setTextColor(0,0,0);
     doc.text(l.desc, ML+4, y);
     doc.text(String(l.qty||0), MR-160, y, {align:'right'});
@@ -9007,7 +9036,7 @@ function exportQuotePDF() {
       const szParts = Object.entries(l.sizes).map(([sz,q])=>sz+':'+q).join('  ');
       doc.text('Sizes: '+szParts, ML+8, y); y+=9;
       if(l.upcharge > 0){
-        doc.setTextColor(200,80,10);
+        doc.setTextColor(..._ac);
         doc.text('Oversize upcharge (2XL+): +$'+parseFloat(l.upcharge).toFixed(2)+'/unit', ML+8, y); y+=9;
       }
       doc.setFontSize(9); doc.setTextColor(0,0,0);
@@ -9024,7 +9053,7 @@ function exportQuotePDF() {
     ['TOTAL', '$'+q.total.toFixed(2), true],
   ].filter(Boolean);
   totals.forEach(([lbl,val,bold]) => {
-    if(bold){doc.setDrawColor(232,80,10);doc.line(MR-160,y-5,MR,y-5);y+=4;}
+    if(bold){doc.setDrawColor(..._ac);doc.line(MR-160,y-5,MR,y-5);y+=4;}
     doc.setFont('helvetica',bold?'bold':'normal');
     doc.setFontSize(bold?12:9);
     doc.setTextColor(bold?232:0,bold?80:0,bold?10:0);
