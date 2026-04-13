@@ -8535,47 +8535,46 @@ function exportPOPDF() {
     const gTotal = Object.values(g.sizeGaps).reduce((a,b)=>a+b,0);
     const est = g.cost ? '$'+(gTotal*parseFloat(g.cost)).toFixed(2) : '—';
 
-    // Pre-measure sizes lines and jobs line
+    // Pre-measure row height accurately
+    doc.setFontSize(8);
+    const szLines = doc.splitTextToSize(szStr, 165);
     doc.setFontSize(8.5);
-    const szLines = doc.splitTextToSize(szStr, 160);
     const jobStr = 'For: '+[...new Set(g.jobs)].slice(0,4).join(', ')+(g.jobs.length>4?'…':'');
-    const rowH = 13 + (szLines.length - 1) * 10 + 10; // main line + overflow size lines + jobs line
+    const rowH = 14 + (szLines.length - 1) * 10 + 11 + 4;
 
-    if (y + rowH > 700) { doc.addPage(); y=50; }
+    if (y + rowH > 700) { doc.addPage(); y = 50; }
 
-    // Background — starts exactly at current y (no negative offset)
-    if (idx%2===0) { doc.setFillColor(248,248,248); doc.rect(ML, y-2, TW, rowH+2, 'F'); }
+    // Alternating row background
+    if (idx%2===0) { doc.setFillColor(248,248,248); doc.rect(ML, y-3, TW, rowH, 'F'); }
 
-    // Main data row — style, color, sizes on first line, supplier and est on right
+    // Row content — all on same y baseline
     doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
     doc.text(g.style, ML+4, y);
     doc.setFont('helvetica','normal');
     doc.text(g.color||'—', ML+110, y);
-    // Sizes — first line inline, rest wrap below
-    doc.setFontSize(8); doc.setTextColor(50,50,50);
-    doc.text(szLines[0], ML+190, y);
+    doc.setFontSize(8); doc.setTextColor(40,40,40);
+    doc.text(szLines[0], ML+195, y);
+    doc.setFontSize(8.5); doc.setTextColor(0,0,0);
     doc.text(g.supplier||'—', ML+370, y);
     doc.text(est, ML+460, y);
-    y += 13;
+    y += 14;
 
-    // Remaining size lines if wrapped
+    // Overflow size lines
     if (szLines.length > 1) {
-      szLines.slice(1).forEach(line => {
-        doc.text(line, ML+190, y);
-        y += 10;
-      });
+      doc.setFontSize(8); doc.setTextColor(40,40,40);
+      szLines.slice(1).forEach(line => { doc.text(line, ML+195, y); y += 10; });
+      doc.setFontSize(8.5); doc.setTextColor(0,0,0);
     }
 
     // Jobs line
-    doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+    doc.setFontSize(7.5); doc.setTextColor(140,140,140);
     doc.text(jobStr, ML+4, y);
-    y += 10;
+    y += 11;
 
-    // Divider after full row
-    doc.setFontSize(8.5); doc.setTextColor(0,0,0);
-    doc.setDrawColor(210,210,210); doc.setLineWidth(0.3);
-    doc.line(ML, y+1, MR, y+1);
-    y += 6;
+    // Divider line at exact bottom of row
+    doc.setDrawColor(200,200,200); doc.setLineWidth(0.4);
+    doc.line(ML, y, MR, y);
+    y += 4;
   });
 
   y+=10;
