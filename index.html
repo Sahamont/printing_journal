@@ -8529,23 +8529,47 @@ function exportPOPDF() {
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
 
   gaps.forEach((g,idx) => {
-    if (y > 700) { doc.addPage(); y=50; }
-    if (idx%2===0) { doc.setFillColor(248,248,248); doc.rect(ML,y-9,TW,13,'F'); }
-    const szStr = Object.entries(g.sizeGaps).sort(([a],[b])=>INV_SIZES.indexOf(a)-INV_SIZES.indexOf(b)).map(([sz,q])=>sz+':'+q).join('  ');
+    const szStr = Object.entries(g.sizeGaps)
+      .sort(([a],[b])=>INV_SIZES.indexOf(a)-INV_SIZES.indexOf(b))
+      .map(([sz,q])=>sz+':'+q).join('  ');
     const gTotal = Object.values(g.sizeGaps).reduce((a,b)=>a+b,0);
     const est = g.cost ? '$'+(gTotal*parseFloat(g.cost)).toFixed(2) : '—';
-    doc.text(g.style, ML+4, y);
-    doc.text(g.color||'—', ML+130, y);
+
+    // Pre-measure sizes lines and jobs line
+    doc.setFontSize(8.5);
     const szLines = doc.splitTextToSize(szStr, 160);
-    doc.text(szLines[0], ML+200, y);
+    const jobStr = 'For: '+[...new Set(g.jobs)].slice(0,4).join(', ')+(g.jobs.length>4?'…':'');
+    const rowH = 13 + szLines.length * 10 + 10; // main line + size lines + jobs line
+
+    if (y + rowH > 700) { doc.addPage(); y=50; }
+
+    // Background
+    if (idx%2===0) { doc.setFillColor(248,248,248); doc.rect(ML, y-10, TW, rowH+2, 'F'); }
+
+    // Main data row
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+    doc.text(g.style, ML+4, y);
+    doc.setFont('helvetica','normal');
+    doc.text(g.color||'—', ML+130, y);
     doc.text(g.supplier||'—', ML+370, y);
     doc.text(est, ML+460, y);
-    y += szLines.length > 1 ? 18 : 13;
-    // Jobs
-    doc.setFontSize(7.5); doc.setTextColor(120,120,120);
-    doc.text('For: '+[...new Set(g.jobs)].slice(0,4).join(', ')+(g.jobs.length>4?'…':''), ML+200, y); y+=10;
+    y += 13;
+
+    // Sizes — all lines
+    doc.setFontSize(8); doc.setTextColor(50,50,50);
+    doc.text(szLines, ML+200, y);
+    y += szLines.length * 10;
+
+    // Jobs line
+    doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+    doc.text(jobStr, ML+4, y);
+    y += 10;
+
+    // Divider after full row
     doc.setFontSize(8.5); doc.setTextColor(0,0,0);
-    doc.setDrawColor(220,220,220); doc.line(ML,y-2,MR,y-2);
+    doc.setDrawColor(210,210,210); doc.setLineWidth(0.3);
+    doc.line(ML, y, MR, y);
+    y += 4;
   });
 
   y+=10;
