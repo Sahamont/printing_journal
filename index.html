@@ -9052,10 +9052,21 @@ function exportQuotePDF() {
   q.line_items.forEach((l,idx) => {
     if(y>650){doc.addPage();y=50;}
     const isGarment = l.type === 'garment';
-    const garmentExtraLines = isGarment ? (l.note?1:0) + 1 + (l.upcharge>0?1:0) : 0;
-    const rowH = isGarment ? 14 + garmentExtraLines*10 : 13 + (l.note?8:0);
+    // Pre-calculate garment extra content height accurately
+    let garmentExtraH = 0;
+    if (isGarment && l.sizes && Object.keys(l.sizes).length) {
+      doc.setFontSize(7.5);
+      const szParts = Object.entries(l.sizes).map(([sz,q])=>sz+':'+q).join('  ');
+      const szLines = doc.splitTextToSize('Sizes: '+szParts, TW-12);
+      garmentExtraH += szLines.length * 9;
+      if (l.upcharge > 0) garmentExtraH += 9;
+      doc.setFontSize(9);
+    }
+    const noteH = l.note ? 9 : 0;
+    const rowH = 13 + noteH + garmentExtraH + (isGarment ? 4 : 0);
+
     if(y + rowH > 680){doc.addPage();y=50;}
-    if(idx%2===1){doc.setFillColor(248,248,248);doc.rect(ML,y-10,TW,rowH+6,'F');}
+    if(idx%2===1){doc.setFillColor(248,248,248);doc.rect(ML,y-10,TW,rowH+4,'F');}
     doc.setTextColor(0,0,0);
     doc.text(l.desc, ML+4, y);
     doc.text(String(l.qty||0), MR-160, y, {align:'right'});
@@ -9064,17 +9075,18 @@ function exportQuotePDF() {
     if(l.note){doc.setTextColor(120,120,120);doc.setFontSize(7.5);doc.text(l.note,ML+4,y+9);doc.setFontSize(9);doc.setTextColor(0,0,0);y+=9;}
     y+=13;
     if(isGarment && l.sizes && Object.keys(l.sizes).length){
-      // Size breakdown line
       doc.setFontSize(7.5); doc.setTextColor(80,80,80);
       const szParts = Object.entries(l.sizes).map(([sz,q])=>sz+':'+q).join('  ');
-      doc.text('Sizes: '+szParts, ML+8, y); y+=9;
+      const szLines = doc.splitTextToSize('Sizes: '+szParts, TW-12);
+      doc.text(szLines, ML+8, y); y += szLines.length * 9;
       if(l.upcharge > 0){
         doc.setTextColor(..._ac);
         doc.text('Oversize upcharge (2XL+): +$'+parseFloat(l.upcharge).toFixed(2)+'/unit', ML+8, y); y+=9;
       }
       doc.setFontSize(9); doc.setTextColor(0,0,0);
+      y+=2;
     }
-    doc.setDrawColor(220,220,220); doc.line(ML,y-1,MR,y-1);
+    doc.setDrawColor(220,220,220); doc.line(ML,y,MR,y); y+=4;
   });
 
   // ── Totals ──
