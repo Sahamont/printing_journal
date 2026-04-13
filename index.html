@@ -8714,7 +8714,10 @@ function openQuoteBuilder(existing) {
   container.innerHTML = '';
   const lines = existing?.line_items || [];
   if (lines.length) {
-    lines.forEach(l => addQLineItem(l.type || 'custom', l));
+    // Always restore garments first
+    const garments = lines.filter(l => l.type === 'garment');
+    const others   = lines.filter(l => l.type !== 'garment');
+    [...garments, ...others].forEach(l => addQLineItem(l.type || 'custom', l));
   } else {
     addQLineItem('garment');
     addQLineItem('screen_setup');
@@ -9049,7 +9052,29 @@ function exportQuotePDF() {
   y+=14;
 
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
-  q.line_items.forEach((l,idx) => {
+  // Garment lines always first, then all other line items
+  const sortedItems = [
+    ...q.line_items.filter(l => l.type === 'garment'),
+    ...q.line_items.filter(l => l.type !== 'garment'),
+  ];
+  let lastWasGarment = false;
+  sortedItems.forEach((l,idx) => {
+    // Draw a section divider when switching from garments to services
+    const isGarmentRow = l.type === 'garment';
+    if (idx > 0 && lastWasGarment && !isGarmentRow) {
+      y += 4;
+      doc.setDrawColor(..._ac);
+      doc.setLineWidth(0.3);
+      doc.line(ML, y, MR, y);
+      y += 8;
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+      doc.setTextColor(..._ac);
+      doc.text('SERVICES & FEES', ML+4, y); y += 8;
+      doc.setFont('helvetica','normal'); doc.setFontSize(9);
+      doc.setTextColor(0,0,0);
+      doc.setDrawColor(220,220,220); doc.setLineWidth(0.5);
+    }
+    lastWasGarment = isGarmentRow;
     if(y>650){doc.addPage();y=50;}
     const isGarment = l.type === 'garment';
     // Pre-calculate garment extra content height accurately
