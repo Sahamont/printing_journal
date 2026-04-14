@@ -367,6 +367,23 @@
     .qli-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
     .quote-total-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;}
     .quote-total-line.grand{border-top:2px solid var(--flash);margin-top:4px;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--flash);}
+
+    /* ── Consumables ── */
+    .cons-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:border-color .15s;cursor:pointer;}
+    .cons-card:hover{border-color:var(--flash-40);}
+    .cons-card.reorder{border-color:rgba(255,51,51,.5);background:rgba(255,51,51,.03);}
+    .cons-card.low{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.02);}
+    .cons-card.ok{border-color:rgba(0,200,83,.2);}
+    .cons-photo{width:100%;height:100px;object-fit:cover;background:rgba(245,240,232,.05);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .cons-photo img{width:100%;height:100px;object-fit:cover;}
+    .cons-photo-placeholder{font-size:2.2rem;opacity:.3;}
+    .cons-body{padding:10px 12px;}
+    .cons-qty{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;}
+    .cons-use-btn{width:100%;background:var(--flash-dim);border:1px solid var(--flash-30);color:var(--flash);font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;padding:8px;cursor:pointer;touch-action:manipulation;transition:all .12s;border-radius:0 0 3px 3px;}
+    .cons-use-btn:active{background:var(--flash-40);transform:scale(.97);}
+    .cons-restock-btn{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:.06em;padding:5px 10px;cursor:pointer;touch-action:manipulation;border-radius:3px;transition:all .12s;}
+    .cons-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;margin-bottom:5px;}
+    .cons-log-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
   </style>
 </head>
 <body class="grid-bg">
@@ -407,6 +424,7 @@
   <div class="tab" id="tab-reports" onclick="switchTab('reports')">REPORTS</div>
   <div class="tab" id="tab-showrooms" onclick="switchTab('showrooms')">SHOWROOMS</div>
   <div class="tab" id="tab-quotes" onclick="switchTab('quotes')">QUOTES <span id="quotesBadge" style="display:none;background:var(--cyan);color:#000;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
+  <div class="tab" id="tab-consumables" onclick="switchTab('consumables')">CONSUMABLES <span id="consumablesBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-inventory" onclick="switchTab('inventory')">INVENTORY <span id="inventoryBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-tasks" onclick="switchTab('tasks')">TASKS <span id="tasksBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-payments" onclick="switchTab('payments')">PAYMENTS <span id="paymentsBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
@@ -1132,6 +1150,44 @@
       <button class="pay-filter-btn" id="qf-expired"  onclick="setQuoteFilter('expired')">Expired</button>
     </div>
     <div id="quotesList"></div>
+  </div>
+
+
+  <!-- ═══ CONSUMABLES ═══ -->
+  <div id="pane-consumables" class="hidden">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">CONSUMABLES</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="loadConsumables()">↺ REFRESH</button>
+        <button class="btn-secondary" onclick="exportConsumablesPDF()">📋 REPORT</button>
+        <button class="btn-primary" onclick="openAddConsumableModal()">+ ADD ITEM</button>
+      </div>
+    </div>
+
+    <!-- Summary bar -->
+    <div id="consSummaryBar" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:14px;"></div>
+
+    <!-- Reorder alert -->
+    <div id="consReorderAlert" style="display:none;margin-bottom:12px;"></div>
+
+    <!-- Category filters -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="consCatFilters"></div>
+
+    <!-- View toggle + search -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+      <input type="text" id="consSearch" placeholder="Search items…" style="flex:1;min-width:140px;" oninput="renderConsumables()" />
+      <div style="display:flex;gap:6px;">
+        <button class="task-filter-btn active" id="consv-all"     onclick="setConsFilter('all')">All</button>
+        <button class="task-filter-btn" id="consv-reorder" onclick="setConsFilter('reorder')">🔴 Reorder</button>
+        <button class="task-filter-btn" id="consv-low"     onclick="setConsFilter('low')">🟡 Low</button>
+        <button class="task-filter-btn" id="consv-ok"      onclick="setConsFilter('ok')">🟢 OK</button>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div id="consGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;"></div>
+
   </div>
 
 
@@ -2104,6 +2160,100 @@
   </div>
 </div>
 
+<!-- ADD/EDIT CONSUMABLE MODAL -->
+<div id="addConsumableModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:520px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="consModalTitle">ADD CONSUMABLE</div>
+      <button class="btn-ghost" onclick="closeAddConsumableModal()">✕</button>
+    </div>
+
+    <!-- Photo upload -->
+    <div style="margin-bottom:14px;">
+      <label>Item Photo</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="consPhotoPreview" style="width:80px;height:80px;border-radius:4px;border:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.8rem;overflow:hidden;">📦</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="btn-ghost" style="font-size:.7rem;" onclick="document.getElementById('consPhotoInput').click()">📷 UPLOAD PHOTO</button>
+          <input type="file" id="consPhotoInput" accept="image/*" style="display:none;" onchange="handleConsPhoto(event)" />
+          <button class="btn-ghost" style="font-size:.7rem;" onclick="captureConsPhoto()">📸 TAKE PHOTO</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="grid-column:1/-1"><label>Item Name</label><input type="text" id="cons_name" placeholder="Paper Towels" /></div>
+      <div>
+        <label>Category</label>
+        <select id="cons_category">
+          <option value="Cleaning">Cleaning</option>
+          <option value="Safety">Safety</option>
+          <option value="Chemicals">Chemicals</option>
+          <option value="Printing">Printing</option>
+          <option value="Office">Office</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Unit of Measure</label>
+        <select id="cons_unit">
+          <option value="rolls">Rolls</option>
+          <option value="boxes">Boxes</option>
+          <option value="pairs">Pairs</option>
+          <option value="gallons">Gallons</option>
+          <option value="liters">Liters</option>
+          <option value="pcs">Pieces</option>
+          <option value="cases">Cases</option>
+          <option value="bags">Bags</option>
+          <option value="sheets">Sheets</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div id="consCustomUnitWrap" style="display:none;grid-column:1/-1"><label>Custom Unit</label><input type="text" id="cons_custom_unit" placeholder="e.g. cartridges" /></div>
+      <div><label>Quantity On Hand</label><input type="number" id="cons_qty" min="0" step="0.5" placeholder="0" /></div>
+      <div><label>Reorder At (alert)</label><input type="number" id="cons_reorder" min="0" step="0.5" placeholder="5" /></div>
+      <div><label>Default Use Amount</label><input type="number" id="cons_default_use" min="0.5" step="0.5" placeholder="1" /></div>
+      <div><label>Cost Per Unit ($)</label><input type="number" id="cons_cost" min="0" step="0.01" placeholder="0.00" /></div>
+      <div><label>Supplier</label><input type="text" id="cons_supplier" placeholder="Supplier name" /></div>
+      <div><label>Min Reorder Qty</label><input type="number" id="cons_reorder_qty" min="1" placeholder="e.g. 24" /></div>
+      <div style="grid-column:1/-1"><label>Notes</label><input type="text" id="cons_notes" placeholder="Any notes…" /></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" id="deleteConsBtn" onclick="deleteConsumable()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeAddConsumableModal()">CANCEL</button>
+        <button class="btn-primary" id="saveConsBtn" onclick="saveConsumable()">SAVE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK USE / RESTOCK MODAL -->
+<div id="consQuickModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:360px;padding:20px;margin:8px auto;text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:6px;" id="consQuickIcon">📦</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.08em;margin-bottom:2px;" id="consQuickName"></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-bottom:16px;" id="consQuickStock"></div>
+    <div style="display:flex;flex-direction:column;gap:9px;text-align:left;margin-bottom:16px;">
+      <div>
+        <label>Type</label>
+        <div style="display:flex;gap:6px;">
+          <button type="button" id="cqt-use"     onclick="setCQType('use')"     style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:7px;border-radius:3px;border:2px solid var(--flash);background:var(--flash-dim);color:var(--text);cursor:pointer;">USE</button>
+          <button type="button" id="cqt-restock" onclick="setCQType('restock')" style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:7px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">RESTOCK</button>
+          <button type="button" id="cqt-adjust"  onclick="setCQType('adjust')"  style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:7px;border-radius:3px;border:2px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">ADJUST</button>
+        </div>
+      </div>
+      <div><label id="consQtyLabel">Quantity Used</label><input type="number" id="cons_log_qty" min="0" step="0.5" placeholder="1" style="font-size:1.1rem;text-align:center;" /></div>
+      <div><label>Operator</label><input type="text" id="cons_log_op" placeholder="Your name" /></div>
+      <div><label>Notes (optional)</label><input type="text" id="cons_log_note" placeholder="" /></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn-secondary" onclick="closeConsQuickModal()">CANCEL</button>
+      <button class="btn-primary" id="saveConsLogBtn" onclick="saveConsLog()">SAVE</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -2170,7 +2320,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes','consumables'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -2185,6 +2335,7 @@ function switchTab(tab){
   if(tab==='tasks') loadTasks();
   if(tab==='new') loadInvStyleCache();
   if(tab==='inventory') loadInventory();
+  if(tab==='consumables') loadConsumables();
   if(tab==='quotes') loadQuotes();
 }
 
@@ -4366,6 +4517,23 @@ function printQR() {
     .qli-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
     .quote-total-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;}
     .quote-total-line.grand{border-top:2px solid var(--flash);margin-top:4px;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--flash);}
+
+    /* ── Consumables ── */
+    .cons-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:border-color .15s;cursor:pointer;}
+    .cons-card:hover{border-color:var(--flash-40);}
+    .cons-card.reorder{border-color:rgba(255,51,51,.5);background:rgba(255,51,51,.03);}
+    .cons-card.low{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.02);}
+    .cons-card.ok{border-color:rgba(0,200,83,.2);}
+    .cons-photo{width:100%;height:100px;object-fit:cover;background:rgba(245,240,232,.05);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .cons-photo img{width:100%;height:100px;object-fit:cover;}
+    .cons-photo-placeholder{font-size:2.2rem;opacity:.3;}
+    .cons-body{padding:10px 12px;}
+    .cons-qty{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;}
+    .cons-use-btn{width:100%;background:var(--flash-dim);border:1px solid var(--flash-30);color:var(--flash);font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;padding:8px;cursor:pointer;touch-action:manipulation;transition:all .12s;border-radius:0 0 3px 3px;}
+    .cons-use-btn:active{background:var(--flash-40);transform:scale(.97);}
+    .cons-restock-btn{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:.06em;padding:5px 10px;cursor:pointer;touch-action:manipulation;border-radius:3px;transition:all .12s;}
+    .cons-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;margin-bottom:5px;}
+    .cons-log-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -7863,6 +8031,23 @@ function printQR() {
     .qli-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
     .quote-total-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;}
     .quote-total-line.grand{border-top:2px solid var(--flash);margin-top:4px;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--flash);}
+
+    /* ── Consumables ── */
+    .cons-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:border-color .15s;cursor:pointer;}
+    .cons-card:hover{border-color:var(--flash-40);}
+    .cons-card.reorder{border-color:rgba(255,51,51,.5);background:rgba(255,51,51,.03);}
+    .cons-card.low{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.02);}
+    .cons-card.ok{border-color:rgba(0,200,83,.2);}
+    .cons-photo{width:100%;height:100px;object-fit:cover;background:rgba(245,240,232,.05);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .cons-photo img{width:100%;height:100px;object-fit:cover;}
+    .cons-photo-placeholder{font-size:2.2rem;opacity:.3;}
+    .cons-body{padding:10px 12px;}
+    .cons-qty{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;}
+    .cons-use-btn{width:100%;background:var(--flash-dim);border:1px solid var(--flash-30);color:var(--flash);font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;padding:8px;cursor:pointer;touch-action:manipulation;transition:all .12s;border-radius:0 0 3px 3px;}
+    .cons-use-btn:active{background:var(--flash-40);transform:scale(.97);}
+    .cons-restock-btn{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:.06em;padding:5px 10px;cursor:pointer;touch-action:manipulation;border-radius:3px;transition:all .12s;}
+    .cons-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;margin-bottom:5px;}
+    .cons-log-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
   </style>
   </head><body>
     <div class="qr-side"><img src="${dataUrl}" /></div>
@@ -8001,6 +8186,23 @@ async function printBatchQR() {
     .qli-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
     .quote-total-line{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-family:'IBM Plex Mono',monospace;font-size:.75rem;}
     .quote-total-line.grand{border-top:2px solid var(--flash);margin-top:4px;padding-top:8px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--flash);}
+
+    /* ── Consumables ── */
+    .cons-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:border-color .15s;cursor:pointer;}
+    .cons-card:hover{border-color:var(--flash-40);}
+    .cons-card.reorder{border-color:rgba(255,51,51,.5);background:rgba(255,51,51,.03);}
+    .cons-card.low{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.02);}
+    .cons-card.ok{border-color:rgba(0,200,83,.2);}
+    .cons-photo{width:100%;height:100px;object-fit:cover;background:rgba(245,240,232,.05);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .cons-photo img{width:100%;height:100px;object-fit:cover;}
+    .cons-photo-placeholder{font-size:2.2rem;opacity:.3;}
+    .cons-body{padding:10px 12px;}
+    .cons-qty{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;}
+    .cons-use-btn{width:100%;background:var(--flash-dim);border:1px solid var(--flash-30);color:var(--flash);font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;padding:8px;cursor:pointer;touch-action:manipulation;transition:all .12s;border-radius:0 0 3px 3px;}
+    .cons-use-btn:active{background:var(--flash-40);transform:scale(.97);}
+    .cons-restock-btn{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:.06em;padding:5px 10px;cursor:pointer;touch-action:manipulation;border-radius:3px;transition:all .12s;}
+    .cons-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;margin-bottom:5px;}
+    .cons-log-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
   </style>
   </head><body>
     <h2>${shop.name||'PRESS SETUP DOC'} · Screen QR Labels · ${new Date().toLocaleDateString()} · ${screens.length} screens</h2>
@@ -9414,6 +9616,444 @@ function buildColorDropdown(inputEl, style, existingColor) {
   inputEl.addEventListener('input', inputEl._colorHandler);
   inputEl.addEventListener('focus', inputEl._colorFocusHandler);
 }
+
+
+// ══════════════════════════════════════════════════════
+// CONSUMABLES
+// ══════════════════════════════════════════════════════
+const CONS_CATEGORIES = ['Cleaning','Safety','Chemicals','Printing','Office','Other'];
+const CONS_CAT_COLORS = {
+  Cleaning:'#00b4d8', Safety:'#e8500a', Chemicals:'#b464ff',
+  Printing:'#00c853', Office:'#f5c000', Other:'#a0a0a0'
+};
+
+let _consItems = [];
+let _consLogs = [];
+let _consFilter = 'all';
+let _consCatFilter = '';
+let _editConsId = null;
+let _consQuickId = null;
+let _cqType = 'use';
+let _consPhotoBlob = null;
+
+// ── Load ──────────────────────────────────────────────
+async function loadConsumables() {
+  if (!sbClient) return;
+  const [{ data: items }, { data: logs }] = await Promise.all([
+    sbClient.from('consumables').select('*').order('category').order('name'),
+    sbClient.from('consumable_logs').select('*').order('logged_at', { ascending: false }).limit(500),
+  ]);
+  _consItems = items || [];
+  _consLogs = logs || [];
+  renderConsSummary();
+  renderConsReorderAlert();
+  renderConsCatFilters();
+  renderConsumables();
+  updateConsumablesBadge();
+}
+
+function getConsStatus(item) {
+  const qty = parseFloat(item.quantity_on_hand)||0;
+  const reorder = parseFloat(item.reorder_at)||0;
+  if (reorder > 0 && qty <= reorder) return 'reorder';
+  if (reorder > 0 && qty <= reorder * 1.5) return 'low';
+  return 'ok';
+}
+
+function renderConsSummary() {
+  const el = document.getElementById('consSummaryBar');
+  if (!el) return;
+  const reorderItems = _consItems.filter(i => getConsStatus(i) === 'reorder');
+  const lowItems = _consItems.filter(i => getConsStatus(i) === 'low');
+  const totalValue = _consItems.reduce((s,i) => s + (parseFloat(i.quantity_on_hand)||0)*(parseFloat(i.cost_per_unit)||0), 0);
+  const thisWeekLogs = _consLogs.filter(l => {
+    const d = new Date(l.logged_at);
+    return (new Date() - d) < 7*86400000 && l.log_type === 'use';
+  });
+
+  el.innerHTML = [
+    ['ITEMS TRACKED', _consItems.length, 'var(--text)'],
+    ['NEED REORDER', reorderItems.length, reorderItems.length > 0 ? '#ff3333' : 'var(--green)'],
+    ['RUNNING LOW', lowItems.length, lowItems.length > 0 ? 'var(--yellow)' : 'var(--green)'],
+    ['USES THIS WEEK', thisWeekLogs.length, 'var(--cyan)'],
+    ['STOCK VALUE', '$'+totalValue.toFixed(2), 'var(--flash)'],
+  ].map(([l,v,c]) => `<div class="task-stat-card">
+    <div class="task-stat-val" style="color:${c};font-size:1.3rem;">${v}</div>
+    <div class="task-stat-lbl">${l}</div>
+  </div>`).join('');
+}
+
+function renderConsReorderAlert() {
+  const el = document.getElementById('consReorderAlert');
+  const items = _consItems.filter(i => getConsStatus(i) === 'reorder');
+  if (!items.length) { el.style.display='none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = `<div style="background:rgba(255,51,51,.08);border:1px solid rgba(255,51,51,.3);border-radius:3px;padding:10px 14px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:#ff3333;font-weight:600;margin-bottom:5px;">⚠ ${items.length} ITEM${items.length!==1?'S':''} NEED REORDERING</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${items.map(i=>`<span style="background:rgba(255,51,51,.12);color:#ff3333;font-family:IBM Plex Mono,monospace;font-size:.62rem;padding:2px 8px;border-radius:2px;">${i.name} (${parseFloat(i.quantity_on_hand)||0} ${i.unit||''})</span>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderConsCatFilters() {
+  const el = document.getElementById('consCatFilters');
+  if (!el) return;
+  const used = [...new Set(_consItems.map(i=>i.category).filter(Boolean))];
+  el.innerHTML = used.map(cat => {
+    const color = CONS_CAT_COLORS[cat]||'var(--muted)';
+    const active = _consCatFilter === cat;
+    return `<button onclick="setConsCatFilter('${cat}')"
+      style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;padding:3px 10px;border-radius:10px;cursor:pointer;touch-action:manipulation;transition:all .15s;border:1px solid ${color};background:${active?color:'transparent'};color:${active?'#000':color};">
+      ${cat}
+    </button>`;
+  }).join('');
+}
+
+function setConsFilter(f) {
+  _consFilter = f;
+  document.querySelectorAll('[id^="consv-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('consv-'+f);
+  if (btn) btn.classList.add('active');
+  renderConsumables();
+}
+
+function setConsCatFilter(cat) {
+  _consCatFilter = _consCatFilter === cat ? '' : cat;
+  renderConsCatFilters();
+  renderConsumables();
+}
+
+function renderConsumables() {
+  const grid = document.getElementById('consGrid');
+  if (!grid) return;
+  const q = (document.getElementById('consSearch')?.value||'').toLowerCase();
+  let items = _consItems;
+  if (q) items = items.filter(i => i.name.toLowerCase().includes(q) || (i.category||'').toLowerCase().includes(q));
+  if (_consCatFilter) items = items.filter(i => i.category === _consCatFilter);
+  if (_consFilter === 'reorder') items = items.filter(i => getConsStatus(i) === 'reorder');
+  if (_consFilter === 'low') items = items.filter(i => getConsStatus(i) === 'low');
+  if (_consFilter === 'ok') items = items.filter(i => getConsStatus(i) === 'ok');
+
+  if (!items.length) {
+    grid.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;grid-column:1/-1;">No items found. Click + ADD ITEM to get started.</div>';
+    return;
+  }
+  grid.innerHTML = '';
+  items.forEach(item => grid.appendChild(buildConsCard(item)));
+}
+
+function buildConsCard(item) {
+  const status = getConsStatus(item);
+  const qty = parseFloat(item.quantity_on_hand)||0;
+  const color = CONS_CAT_COLORS[item.category]||'var(--muted)';
+  const qtyColor = status==='reorder'?'#ff3333':status==='low'?'var(--yellow)':'var(--green)';
+  const defUse = parseFloat(item.default_use)||1;
+
+  // Weekly usage
+  const weekLogs = _consLogs.filter(l => l.consumable_id===item.id && l.log_type==='use' && (new Date()-new Date(l.logged_at))<7*86400000);
+  const weekUsed = weekLogs.reduce((s,l)=>s+(parseFloat(l.quantity)||0),0);
+
+  const div = document.createElement('div');
+  div.className = `cons-card ${status}`;
+  div.onclick = () => openEditConsumableModal(item);
+
+  div.innerHTML = `
+    <div class="cons-photo">
+      ${item.photo_url
+        ? `<img src="${item.photo_url}" alt="${item.name}" />`
+        : `<div class="cons-photo-placeholder">${getCatEmoji(item.category)}</div>`}
+    </div>
+    <div class="cons-body">
+      <span class="cons-cat-pill" style="background:${color}22;color:${color};border:1px solid ${color}44;">${item.category||'Other'}</span>
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+      <div style="display:flex;align-items:baseline;gap:5px;margin-bottom:3px;">
+        <span class="cons-qty" style="color:${qtyColor};">${qty}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${item.unit||'units'}</span>
+      </div>
+      ${item.reorder_at?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:${qtyColor};">Reorder at: ${item.reorder_at}</div>`:''}
+      ${weekUsed>0?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);">Used this week: ${weekUsed}</div>`:''}
+      ${item.supplier?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:rgba(245,240,232,.3);margin-top:2px;">${item.supplier}</div>`:''}
+    </div>
+    <button class="cons-use-btn" onclick="event.stopPropagation();quickUseConsumable('${item.id}')">
+      − USE ${defUse} ${item.unit||''}
+    </button>`;
+  return div;
+}
+
+function getCatEmoji(cat) {
+  return {Cleaning:'🧹',Safety:'🧤',Chemicals:'⚗️',Printing:'📦',Office:'📎',Other:'📋'}[cat]||'📋';
+}
+
+function updateConsumablesBadge() {
+  const n = _consItems.filter(i => getConsStatus(i) === 'reorder').length;
+  const badge = document.getElementById('consumablesBadge');
+  if (!badge) return;
+  if (n > 0) { badge.textContent = n; badge.style.display = 'inline'; }
+  else badge.style.display = 'none';
+}
+
+// ── Quick use (one tap from card) ─────────────────────
+async function quickUseConsumable(id) {
+  const item = _consItems.find(i => i.id === id);
+  if (!item || !sbClient) return;
+  const defUse = parseFloat(item.default_use)||1;
+  const newQty = Math.max(0, (parseFloat(item.quantity_on_hand)||0) - defUse);
+  const { error } = await sbClient.from('consumables').update({ quantity_on_hand: newQty }).eq('id', id);
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  // Log it
+  await sbClient.from('consumable_logs').insert([{
+    consumable_id: id, log_type: 'use',
+    quantity: defUse, quantity_after: newQty,
+    logged_at: new Date().toISOString(),
+  }]);
+  showToast(`−${defUse} ${item.unit||''} logged!`, 'success');
+  loadConsumables();
+}
+
+// ── Full use/restock/adjust modal ─────────────────────
+function openConsQuickModal(id, type='use') {
+  _consQuickId = id;
+  const item = _consItems.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('consQuickIcon').textContent = getCatEmoji(item.category);
+  document.getElementById('consQuickName').textContent = item.name;
+  document.getElementById('consQuickStock').textContent = (parseFloat(item.quantity_on_hand)||0)+' '+item.unit+' on hand';
+  document.getElementById('cons_log_qty').value = parseFloat(item.default_use)||1;
+  document.getElementById('cons_log_op').value = '';
+  document.getElementById('cons_log_note').value = '';
+  setCQType(type);
+  document.getElementById('consQuickModal').classList.remove('hidden');
+}
+
+function setCQType(type) {
+  _cqType = type;
+  ['use','restock','adjust'].forEach(t => {
+    const btn = document.getElementById('cqt-'+t);
+    if (!btn) return;
+    const active = t === type;
+    btn.style.cssText = `flex:1;font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:7px;border-radius:3px;cursor:pointer;border:2px solid ${active?'var(--flash)':'var(--border)'};background:${active?'var(--flash-dim)':'transparent'};color:${active?'var(--text)':'var(--muted)'};`;
+  });
+  const labels = { use:'Quantity Used', restock:'Quantity Received', adjust:'Set New Quantity' };
+  const el = document.getElementById('consQtyLabel');
+  if (el) el.textContent = labels[type]||'Quantity';
+}
+
+function closeConsQuickModal() {
+  document.getElementById('consQuickModal').classList.add('hidden');
+  _consQuickId = null;
+}
+
+async function saveConsLog() {
+  if (!sbClient || !_consQuickId) return;
+  const item = _consItems.find(i => i.id === _consQuickId);
+  if (!item) return;
+  const qty = parseFloat(document.getElementById('cons_log_qty').value)||0;
+  const op  = document.getElementById('cons_log_op').value.trim()||null;
+  const note = document.getElementById('cons_log_note').value.trim()||null;
+  const current = parseFloat(item.quantity_on_hand)||0;
+  let newQty = current;
+  if (_cqType === 'use')     newQty = Math.max(0, current - qty);
+  if (_cqType === 'restock') newQty = current + qty;
+  if (_cqType === 'adjust')  newQty = qty;
+
+  await sbClient.from('consumables').update({ quantity_on_hand: newQty }).eq('id', _consQuickId);
+  await sbClient.from('consumable_logs').insert([{
+    consumable_id: _consQuickId, log_type: _cqType,
+    quantity: qty, quantity_after: newQty,
+    operator: op, notes: note,
+    logged_at: new Date().toISOString(),
+  }]);
+  showToast('Logged!', 'success');
+  closeConsQuickModal();
+  loadConsumables();
+}
+
+// ── Add/Edit modal ────────────────────────────────────
+function openAddConsumableModal() {
+  _editConsId = null;
+  _consPhotoBlob = null;
+  document.getElementById('consModalTitle').textContent = 'ADD CONSUMABLE';
+  ['cons_name','cons_supplier','cons_notes'].forEach(id=>document.getElementById(id).value='');
+  ['cons_qty','cons_reorder','cons_default_use','cons_cost','cons_reorder_qty'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cons_category').value='Cleaning';
+  document.getElementById('cons_unit').value='rolls';
+  document.getElementById('consPhotoPreview').innerHTML = '<span style="font-size:1.8rem;">📦</span>';
+  document.getElementById('deleteConsBtn').style.display='none';
+  document.getElementById('addConsumableModal').classList.remove('hidden');
+}
+
+function openEditConsumableModal(item) {
+  _editConsId = item.id;
+  _consPhotoBlob = null;
+  document.getElementById('consModalTitle').textContent = 'EDIT — '+item.name;
+  document.getElementById('cons_name').value = item.name||'';
+  document.getElementById('cons_category').value = item.category||'Cleaning';
+  document.getElementById('cons_unit').value = item.unit||'rolls';
+  document.getElementById('cons_qty').value = item.quantity_on_hand||'';
+  document.getElementById('cons_reorder').value = item.reorder_at||'';
+  document.getElementById('cons_default_use').value = item.default_use||'';
+  document.getElementById('cons_cost').value = item.cost_per_unit||'';
+  document.getElementById('cons_supplier').value = item.supplier||'';
+  document.getElementById('cons_reorder_qty').value = item.reorder_qty||'';
+  document.getElementById('cons_notes').value = item.notes||'';
+  document.getElementById('consPhotoPreview').innerHTML = item.photo_url
+    ? `<img src="${item.photo_url}" style="width:80px;height:80px;object-fit:cover;border-radius:4px;" />`
+    : `<span style="font-size:1.8rem;">${getCatEmoji(item.category)}</span>`;
+  document.getElementById('deleteConsBtn').style.display='inline-block';
+  document.getElementById('addConsumableModal').classList.remove('hidden');
+}
+
+function closeAddConsumableModal() {
+  document.getElementById('addConsumableModal').classList.add('hidden');
+  _editConsId = null; _consPhotoBlob = null;
+}
+
+function handleConsPhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  _consPhotoBlob = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('consPhotoPreview').innerHTML =
+      `<img src="${ev.target.result}" style="width:80px;height:80px;object-fit:cover;border-radius:4px;" />`;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function captureConsPhoto() {
+  const input = document.getElementById('consPhotoInput');
+  input.setAttribute('capture','environment');
+  input.click();
+}
+
+async function saveConsumable() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveConsBtn');
+  btn.innerHTML='<span class="loader"></span>'; btn.disabled=true;
+
+  let photoUrl = null;
+  // Upload photo if new one selected
+  if (_consPhotoBlob) {
+    const ext = _consPhotoBlob.name.split('.').pop();
+    const path = `consumables/${Date.now()}.${ext}`;
+    const { data: upData, error: upErr } = await sbClient.storage.from('photos').upload(path, _consPhotoBlob, { upsert: true });
+    if (!upErr) {
+      const { data: urlData } = sbClient.storage.from('photos').getPublicUrl(path);
+      photoUrl = urlData?.publicUrl || null;
+    }
+  }
+
+  const unitVal = document.getElementById('cons_unit').value;
+  const record = {
+    name:              document.getElementById('cons_name').value.trim(),
+    category:          document.getElementById('cons_category').value,
+    unit:              unitVal==='custom' ? document.getElementById('cons_custom_unit').value.trim() : unitVal,
+    quantity_on_hand:  parseFloat(document.getElementById('cons_qty').value)||0,
+    reorder_at:        parseFloat(document.getElementById('cons_reorder').value)||null,
+    default_use:       parseFloat(document.getElementById('cons_default_use').value)||1,
+    cost_per_unit:     parseFloat(document.getElementById('cons_cost').value)||null,
+    supplier:          document.getElementById('cons_supplier').value.trim()||null,
+    reorder_qty:       parseInt(document.getElementById('cons_reorder_qty').value)||null,
+    notes:             document.getElementById('cons_notes').value.trim()||null,
+  };
+  if (photoUrl) record.photo_url = photoUrl;
+  if (!record.name) { showToast('Name required.','error'); btn.innerHTML='SAVE'; btn.disabled=false; return; }
+
+  let error;
+  if (_editConsId) { ({error}=await sbClient.from('consumables').update(record).eq('id',_editConsId)); }
+  else { ({error}=await sbClient.from('consumables').insert([record])); }
+  btn.innerHTML='SAVE'; btn.disabled=false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editConsId?'Item updated!':'Item added!','success');
+  closeAddConsumableModal(); loadConsumables();
+}
+
+async function deleteConsumable() {
+  if (!sbClient||!_editConsId) return;
+  if (!confirm('Delete this item and all its logs?')) return;
+  await sbClient.from('consumable_logs').delete().eq('consumable_id',_editConsId);
+  await sbClient.from('consumables').delete().eq('id',_editConsId);
+  showToast('Item deleted.','success');
+  closeAddConsumableModal(); loadConsumables();
+}
+
+// ── PDF Report ────────────────────────────────────────
+function exportConsumablesPDF() {
+  const shop = getShopSettings();
+  const _ac = getPDFAccent();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'letter', orientation:'portrait' });
+  const PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+  const ML=40, MR=PW-40, TW=MR-ML; let y=50;
+
+  // Header
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(0,0,0);
+  doc.text('CONSUMABLES REPORT', ML, y); y+=14;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text((shop.name||'Press Setup Doc')+' · Generated: '+new Date().toLocaleDateString(), ML, y); y+=8;
+  doc.setDrawColor(200,200,200); doc.line(ML,y,MR,y); y+=14;
+
+  // Summary stats
+  const reorderItems = _consItems.filter(i=>getConsStatus(i)==='reorder');
+  const totalValue = _consItems.reduce((s,i)=>s+(parseFloat(i.quantity_on_hand)||0)*(parseFloat(i.cost_per_unit)||0),0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.text(`${_consItems.length} items tracked  ·  ${reorderItems.length} need reorder  ·  Est. stock value: $${totalValue.toFixed(2)}`, ML, y); y+=16;
+
+  // Reorder list first
+  if (reorderItems.length) {
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(..._ac);
+    doc.text('⚠ ITEMS TO REORDER', ML, y); y+=4;
+    doc.setDrawColor(..._ac); doc.line(ML,y,MR,y); y+=10;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+    reorderItems.forEach(item => {
+      doc.text(`• ${item.name}  —  ${parseFloat(item.quantity_on_hand)||0} ${item.unit} on hand`, ML+4, y);
+      if (item.reorder_qty) doc.text(`Order ${item.reorder_qty} ${item.unit}`, MR-100, y, {align:'right'});
+      if (item.supplier) { doc.setTextColor(120,120,120); doc.text(item.supplier, MR, y, {align:'right'}); doc.setTextColor(0,0,0); }
+      y+=12;
+    });
+    y+=10;
+  }
+
+  // Full inventory by category
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+  doc.text('FULL INVENTORY', ML, y); y+=4;
+  doc.setDrawColor(180,180,180); doc.line(ML,y,MR,y); y+=10;
+
+  // Table header
+  doc.setFillColor(235,235,235); doc.rect(ML,y-8,TW,12,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text('ITEM', ML+4, y); doc.text('CATEGORY', ML+160, y);
+  doc.text('ON HAND', MR-140, y,{align:'right'}); doc.text('REORDER AT', MR-60, y,{align:'right'}); doc.text('VALUE', MR, y,{align:'right'});
+  y+=12; doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+
+  _consItems.forEach((item,idx) => {
+    if(y>700){doc.addPage();y=50;}
+    const st = getConsStatus(item);
+    const val = (parseFloat(item.quantity_on_hand)||0)*(parseFloat(item.cost_per_unit)||0);
+    if(idx%2===0){doc.setFillColor(248,248,248);doc.rect(ML,y-8,TW,11,'F');}
+    if(st==='reorder') doc.setTextColor(200,50,50);
+    else if(st==='low') doc.setTextColor(180,140,0);
+    else doc.setTextColor(0,0,0);
+    doc.text(item.name, ML+4, y);
+    doc.setTextColor(100,100,100);
+    doc.text(item.category||'—', ML+160, y);
+    doc.setTextColor(st==='reorder'?200:0, st==='reorder'?50:0, 0);
+    doc.text(`${parseFloat(item.quantity_on_hand)||0} ${item.unit}`, MR-140, y,{align:'right'});
+    doc.setTextColor(100,100,100);
+    doc.text(item.reorder_at?String(item.reorder_at):'—', MR-60, y,{align:'right'});
+    doc.setTextColor(0,0,0);
+    doc.text(val>0?'$'+val.toFixed(2):'—', MR, y,{align:'right'});
+    y+=11;
+  });
+
+  // Footer
+  doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+  doc.text('Page 1  ·  '+(shop.name||'Press Setup Doc'), PW/2, PH-20, {align:'center'});
+  doc.save('consumables-report-'+new Date().toISOString().split('T')[0]+'.pdf');
+}
+
 
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
