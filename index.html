@@ -8540,7 +8540,7 @@ function exportPOPDF() {
     const szLines = doc.splitTextToSize(szStr, 165);
     doc.setFontSize(8.5);
     const jobStr = 'For: '+[...new Set(g.jobs)].slice(0,4).join(', ')+(g.jobs.length>4?'…':'');
-    const rowH = 14 + (szLines.length - 1) * 10 + 11 + 4;
+    const rowH = 14 + (szLines.length - 1) * 10 + 14 + 3;
 
     if (y + rowH > 700) { doc.addPage(); y = 50; }
 
@@ -8566,15 +8566,15 @@ function exportPOPDF() {
       doc.setFontSize(8.5); doc.setTextColor(0,0,0);
     }
 
-    // Jobs line
+    // Jobs line — text baseline at y, so line must be well below
     doc.setFontSize(7.5); doc.setTextColor(140,140,140);
     doc.text(jobStr, ML+4, y);
-    y += 11;
+    y += 14;  // enough space below jobs text before divider
 
-    // Divider line at exact bottom of row
+    // Divider line — now safely below all text
     doc.setDrawColor(200,200,200); doc.setLineWidth(0.4);
     doc.line(ML, y, MR, y);
-    y += 4;
+    y += 3;
   });
 
   y+=10;
