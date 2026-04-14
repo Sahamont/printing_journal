@@ -8534,49 +8534,49 @@ function exportPOPDF() {
       .map(([sz,q])=>sz+':'+q).join('  ');
     const gTotal = Object.values(g.sizeGaps).reduce((a,b)=>a+b,0);
     const est = g.cost ? '$'+(gTotal*parseFloat(g.cost)).toFixed(2) : '—';
+    const jobStr = 'For: '+[...new Set(g.jobs)].slice(0,4).join(', ')+(g.jobs.length>4?'…':'');
 
-    // Pre-measure row height accurately
     doc.setFontSize(8);
     const szLines = doc.splitTextToSize(szStr, 165);
     doc.setFontSize(8.5);
-    const jobStr = 'For: '+[...new Set(g.jobs)].slice(0,4).join(', ')+(g.jobs.length>4?'…':'');
-    const rowH = 14 + (szLines.length - 1) * 10 + 14 + 3;
+
+    // Row height: top padding(4) + main line(11) + extra sz lines + jobs line(9) + bottom padding(6)
+    const rowH = 4 + 11 + (szLines.length - 1) * 10 + 9 + 8;
 
     if (y + rowH > 700) { doc.addPage(); y = 50; }
 
-    // Alternating row background
-    if (idx%2===0) { doc.setFillColor(248,248,248); doc.rect(ML, y-3, TW, rowH, 'F'); }
+    const rowTop = y;
 
-    // Row content — all on same y baseline
+    // Alternating background
+    if (idx%2===0) { doc.setFillColor(248,248,248); doc.rect(ML, rowTop, TW, rowH, 'F'); }
+
+    // Draw all text — y advances as content is drawn
+    let cy = rowTop + 10; // first text baseline = rowTop + top_pad(4) + font_ascent(6)
+
     doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
-    doc.text(g.style, ML+4, y);
+    doc.text(g.style, ML+4, cy);
     doc.setFont('helvetica','normal');
-    doc.text(g.color||'—', ML+110, y);
+    doc.text(g.color||'—', ML+110, cy);
     doc.setFontSize(8); doc.setTextColor(40,40,40);
-    doc.text(szLines[0], ML+195, y);
+    doc.text(szLines[0], ML+195, cy);
     doc.setFontSize(8.5); doc.setTextColor(0,0,0);
-    doc.text(g.supplier||'—', ML+370, y);
-    doc.text(est, ML+460, y);
-    y += 14;
+    doc.text(g.supplier||'—', ML+370, cy);
+    doc.text(est, ML+460, cy);
+    cy += 11;
 
-    // Overflow size lines
     if (szLines.length > 1) {
       doc.setFontSize(8); doc.setTextColor(40,40,40);
-      szLines.slice(1).forEach(line => { doc.text(line, ML+195, y); y += 10; });
-      doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+      szLines.slice(1).forEach(line => { doc.text(line, ML+195, cy); cy += 10; });
     }
 
-    // Jobs line — text baseline at y, so line must be well below
     doc.setFontSize(7.5); doc.setTextColor(140,140,140);
-    doc.text(jobStr, ML+4, y);
-    y += 14;  // enough space below jobs text before divider
+    doc.text(jobStr, ML+4, cy);
 
-    // Divider line — now safely below all text
+    // Advance y to exactly rowTop + rowH and draw divider there
+    y = rowTop + rowH;
     doc.setDrawColor(200,200,200); doc.setLineWidth(0.4);
     doc.line(ML, y, MR, y);
-    y += 3;
   });
-
   y+=10;
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
   doc.text('TOTAL UNITS TO ORDER: '+totalUnits, ML, y);
