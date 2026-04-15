@@ -1186,7 +1186,7 @@
     </div>
 
     <!-- Grid -->
-    <div id="consGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;"></div>
+    <div id="consGrid"></div>
 
   </div>
 
@@ -9725,22 +9725,50 @@ function setConsCatFilter(cat) {
 }
 
 function renderConsumables() {
-  const grid = document.getElementById('consGrid');
-  if (!grid) return;
+  const container = document.getElementById('consGrid');
+  if (!container) return;
   const q = (document.getElementById('consSearch')?.value||'').toLowerCase();
   let items = _consItems;
   if (q) items = items.filter(i => i.name.toLowerCase().includes(q) || (i.category||'').toLowerCase().includes(q));
   if (_consCatFilter) items = items.filter(i => i.category === _consCatFilter);
   if (_consFilter === 'reorder') items = items.filter(i => getConsStatus(i) === 'reorder');
-  if (_consFilter === 'low') items = items.filter(i => getConsStatus(i) === 'low');
-  if (_consFilter === 'ok') items = items.filter(i => getConsStatus(i) === 'ok');
+  if (_consFilter === 'low')    items = items.filter(i => getConsStatus(i) === 'low');
+  if (_consFilter === 'ok')     items = items.filter(i => getConsStatus(i) === 'ok');
 
   if (!items.length) {
-    grid.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;grid-column:1/-1;">No items found. Click + ADD ITEM to get started.</div>';
+    container.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;">No items found. Click + ADD ITEM to get started.</div>';
     return;
   }
-  grid.innerHTML = '';
-  items.forEach(item => grid.appendChild(buildConsCard(item)));
+
+  container.innerHTML = '';
+  // Group by category in defined order
+  const catOrder = ['Cleaning','Safety','Chemicals','Printing','Office','Other'];
+  const groups = {};
+  items.forEach(i => {
+    const cat = i.category || 'Other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(i);
+  });
+  // Render in order, including any categories not in predefined list
+  const allCats = [...catOrder.filter(c => groups[c]), ...Object.keys(groups).filter(c => !catOrder.includes(c))];
+
+  allCats.forEach(cat => {
+    const catItems = groups[cat];
+    if (!catItems || !catItems.length) return;
+    const color = CONS_CAT_COLORS[cat] || 'var(--muted)';
+
+    // Category label
+    const label = document.createElement('div');
+    label.style.cssText = `grid-column:1/-1;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em;color:${color};border-bottom:1px solid ${color}33;padding-bottom:3px;margin-top:12px;display:flex;align-items:center;justify-content:space-between;`;
+    label.innerHTML = `<span>${cat.toUpperCase()}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);font-size:.7rem;">${catItems.length} item${catItems.length!==1?'s':''}</span>`;
+    container.appendChild(label);
+
+    // Cards grid for this category
+    const catGrid = document.createElement('div');
+    catGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:4px;';
+    catItems.forEach(item => catGrid.appendChild(buildConsCard(item)));
+    container.appendChild(catGrid);
+  });
 }
 
 function buildConsCard(item) {
