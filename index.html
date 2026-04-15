@@ -9943,9 +9943,9 @@ async function saveConsumable() {
   if (_consPhotoBlob) {
     const ext = _consPhotoBlob.name.split('.').pop();
     const path = `consumables/${Date.now()}.${ext}`;
-    const { error: upErr } = await sbClient.storage.from('photos').upload(path, _consPhotoBlob, { upsert: true });
+    const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, _consPhotoBlob, { upsert: true });
     if (!upErr) {
-      const { data: urlData } = sbClient.storage.from('photos').getPublicUrl(path);
+      const { data: urlData } = sbClient.storage.from('press-setups').getPublicUrl(path);
       photoUrl = urlData?.publicUrl || null;
     } else {
       showToast('Photo upload failed: '+upErr.message, 'error');
