@@ -375,7 +375,7 @@
     .cons-card.low{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.02);}
     .cons-card.ok{border-color:rgba(0,200,83,.2);}
     .cons-photo{width:100%;height:100px;background:rgba(245,240,232,.05);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
-    .cons-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+    .cons-photo img{width:100%;height:100%;object-fit:contain;display:block;}
     .cons-photo-placeholder{font-size:2.2rem;opacity:.3;}
     .cons-body{padding:10px 12px;}
     .cons-qty{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1;}
@@ -9761,7 +9761,7 @@ function buildConsCard(item) {
   div.innerHTML = `
     <div class="cons-photo">
       ${item.photo_url
-        ? `<img src="${item.photo_url}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.parentElement.innerHTML='<div class=cons-photo-placeholder>'+getCatEmoji('${item.category}')+'</div>'" />`
+        ? `<img src="${item.photo_url}" alt="${item.name}" style="width:100%;height:100%;object-fit:contain;display:block;" onerror="this.parentElement.innerHTML='<div class=cons-photo-placeholder>'+getCatEmoji('${item.category}')+'</div>'" />`
         : `<div class="cons-photo-placeholder">${getCatEmoji(item.category)}</div>`}
     </div>
     <div class="cons-body">
