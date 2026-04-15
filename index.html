@@ -3366,7 +3366,7 @@ async function saveMachine() {
     status: document.getElementById('m_status').value,
     notes: document.getElementById('m_notes').value.trim(),
   };
-  if (photoUrl) record.photo_url = photoUrl;
+  record.photo_url = photoUrl; // always set (null clears it, url keeps/updates it)
   if (!record.name) { showToast('Machine name is required.', 'error'); btn.innerHTML='SAVE MACHINE'; btn.disabled=false; return; }
 
   let error;
@@ -9933,15 +9933,22 @@ async function saveConsumable() {
   const btn = document.getElementById('saveConsBtn');
   btn.innerHTML='<span class="loader"></span>'; btn.disabled=true;
 
+  // Get existing photo_url if editing (preserve it unless new photo selected)
   let photoUrl = null;
-  // Upload photo if new one selected
+  if (_editConsId) {
+    const existing = _consItems.find(i => i.id === _editConsId);
+    photoUrl = existing?.photo_url || null;
+  }
+  // Upload new photo if selected — overrides existing
   if (_consPhotoBlob) {
     const ext = _consPhotoBlob.name.split('.').pop();
     const path = `consumables/${Date.now()}.${ext}`;
-    const { data: upData, error: upErr } = await sbClient.storage.from('photos').upload(path, _consPhotoBlob, { upsert: true });
+    const { error: upErr } = await sbClient.storage.from('photos').upload(path, _consPhotoBlob, { upsert: true });
     if (!upErr) {
       const { data: urlData } = sbClient.storage.from('photos').getPublicUrl(path);
       photoUrl = urlData?.publicUrl || null;
+    } else {
+      showToast('Photo upload failed: '+upErr.message, 'error');
     }
   }
 
