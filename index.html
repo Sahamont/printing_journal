@@ -10230,20 +10230,7 @@ function buildStationEl(rIdx, sIdx, station) {
       <div style="background:var(--bg);border:1px solid var(--flash-30);border-radius:3px;padding:7px 10px;min-width:120px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:var(--flash);letter-spacing:.06em;margin-bottom:4px;">🖨 PRINT</div>
         <div style="display:flex;flex-direction:column;gap:3px;">
-          <select style="font-size:.65rem;" data-revolve-head="1" onchange="
-            const opt=this.options[this.selectedIndex];
-            const hType=opt?.dataset?.htype||'';
-            const isFlash=hType.toLowerCase().includes('flash');
-            updateRevolveStation(${rIdx},${sIdx},'head',this.value);
-            updateRevolveStation(${rIdx},${sIdx},'stationType',hType);
-            if(isFlash){
-              updateRevolveStation(${rIdx},${sIdx},'type','flash');
-              rerenderStations(${rIdx});
-            } else if(opt&&opt.dataset.ink){
-              updateRevolveStation(${rIdx},${sIdx},'ink',opt.dataset.ink);
-              const inkDisp=this.closest('div').querySelector('.rev-ink-info');
-              if(inkDisp)inkDisp.textContent=opt.dataset.ink+(opt.dataset.pms?' · '+opt.dataset.pms:'')+(opt.dataset.inktype?' ['+opt.dataset.inktype+']':'');
-            }">
+          <select style="font-size:.65rem;" data-revolve-head="1" onchange="onRevolveHeadChange(this,${rIdx},${sIdx})">
             <option value="">Select head…</option>
             ${headOpts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType||''}" data-pms="${h.pms||''}" data-htype="${h.type||''}" ${station.head==h.head?'selected':''}>${h.label}</option>`).join('')}
             <option value="custom">Custom…</option>
@@ -10263,6 +10250,26 @@ function buildStationEl(rIdx, sIdx, station) {
       </div>`;
   }
   return el;
+}
+
+
+function onRevolveHeadChange(sel, rIdx, sIdx) {
+  const opt = sel.options[sel.selectedIndex];
+  const hType = opt ? (opt.getAttribute('data-htype') || '') : '';
+  const isFlash = hType.toLowerCase().includes('flash');
+  updateRevolveStation(rIdx, sIdx, 'head', sel.value);
+  if (isFlash) {
+    updateRevolveStation(rIdx, sIdx, 'type', 'flash');
+    rerenderStations(rIdx);
+  } else {
+    updateRevolveStation(rIdx, sIdx, 'type', 'print');
+    const ink = opt ? (opt.getAttribute('data-ink') || '') : '';
+    const pms = opt ? (opt.getAttribute('data-pms') || '') : '';
+    const inktype = opt ? (opt.getAttribute('data-inktype') || '') : '';
+    if (ink) updateRevolveStation(rIdx, sIdx, 'ink', ink);
+    const inkDisp = sel.closest('div') && sel.closest('div').querySelector('.rev-ink-info');
+    if (inkDisp) inkDisp.textContent = ink + (pms ? ' · ' + pms : '') + (inktype ? ' [' + inktype + ']' : '');
+  }
 }
 
 function refreshRevolveHeads() {
