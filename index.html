@@ -2561,7 +2561,7 @@ function collectDynRows(prefix,fields){
     return obj;
   }).filter(o=>Object.values(o).some(v=>v));
 }
-const collectHeads=()=>collectDynRows('hr-',[['head_num','h_num_{i}'],['head_type','h_type_{i}'],['head_color','h_color_{i}'],['head_ink','h_ink_{i}']]);
+const collectHeads=()=>collectDynRows('hr-',[['head_num','h_num_{i}'],['head_type','h_type_{i}'],['head_color','h_color_{i}'],['ink_type','h_ink_type_{i}'],['pms_code','h_pms_{i}'],['head_ink','h_ink_{i}']]);
 const collectInks=()=>collectDynRows('ir-',[['color','i_color_{i}'],['pms','i_pms_{i}'],['brand','i_brand_{i}'],['type','i_type_{i}']]);
 function collectScreens() {
   const rows = document.querySelectorAll('[id^="scr-"]');
@@ -2770,9 +2770,40 @@ async function openJobDetail(id){
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:14px;">
       ${[['SPEED',data.press_speed],['STROKE',data.stroke_length?data.stroke_length+'"':''],['OFF-CONTACT',data.off_contact?data.off_contact+'"':''],['STROKES',data.print_strokes],['FLASH TEMP',data.flash_temp?data.flash_temp+'°F':''],['FLASH DWELL',data.flash_dwell?data.flash_dwell+'s':''],['DRYER TEMP',data.dryer_temp?data.dryer_temp+'°F':''],['BELT SPEED (V)',data.belt_speed]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:1px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;color:var(--flash);">${v||'—'}</div></div>`).join('')}
     </div>
-    ${tbl('HEAD LOCATIONS',data.head_locations,['HEAD','TYPE','COLOR','INK CODE'],['head_num','head_type','head_color','head_ink'])}
+    ${tbl('HEAD LOCATIONS',data.head_locations,['HEAD','TYPE','COLOR','INK TYPE','PMS/CODE'],['head_num','head_type','head_color','ink_type','pms_code'])}
     ${tbl('SCREEN SPECS',data.screen_specs,['#','MESH','TENSION','EMULSION','FRAME'],['screen_num','mesh','tension','emulsion','frame'])}
     ${tbl('SQUEEGEE',data.squeegee_settings,['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'],['head_num','blade','angle','pressure','condition'])}
+    ${data.print_sequence && data.print_sequence.length ? `
+    <div style="margin-top:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin-bottom:8px;">PRINT SEQUENCE</div>
+      ${data.print_sequence.map(r => {
+        const steps = (r.stations||[]).map(st => {
+          if (st.type==='flash') return '<span style=\'color:var(--yellow)\'>⚡ Flash'+(st.head?' H'+st.head:'')+'</span>';
+          const p=[];
+          if(st.ink) p.push('<strong>'+st.ink+'</strong>');
+          if(st.head) p.push('H'+st.head);
+          if(st.strokes) p.push(st.strokes+'×');
+          if(st.inkType) p.push('['+st.inkType+']');
+          return p.join(' ')||'🖨';
+        }).join(' <span style=\'color:var(--muted)\'>→</span> ');
+        return '<div style=\'padding:4px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:IBM Plex Mono,monospace;font-size:.68rem;\'><span style=\'color:var(--flash);font-weight:600;\'>R'+r.revolve+':</span> '+steps+'</div>';
+      }).join('')}
+    </div>` : ''}
+    ${data.print_sequence && data.print_sequence.length ? `
+    <div style="margin-top:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin-bottom:8px;">PRINT SEQUENCE</div>
+      ${data.print_sequence.map(r => {
+        const steps = (r.stations||[]).map(st => {
+          if (st.type==='flash') return '⚡ Flash'+(st.head?' H'+st.head:'');
+          const p=[];
+          if(st.ink) p.push(st.ink);
+          if(st.head) p.push('H'+st.head);
+          if(st.strokes) p.push(st.strokes+'×');
+          return p.join(' ')||'Print';
+        }).join(' → ');
+        return '<div style="padding:4px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:IBM Plex Mono,monospace;font-size:.68rem;"><span style=\"color:var(--flash);font-weight:600;\">Revolve '+r.revolve+':</span> '+steps+'</div>';
+      }).join('')}
+    </div>` : ''}
     ${(data.session_log && data.session_log.length) ? `
     <div style="margin-top:14px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin-bottom:10px;">SESSION HISTORY</div>
