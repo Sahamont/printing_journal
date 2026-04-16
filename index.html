@@ -500,7 +500,7 @@
           <div><label>Print Speed</label><input type="text" name="press_speed" placeholder="6 / 10" /></div>
           <div><label>Stroke Length (in)</label><input type="number" step="0.25" name="stroke_length" placeholder="14" /></div>
           <div><label>Off-Contact (in)</label><input type="number" step="0.0625" name="off_contact" placeholder="0.0625" /></div>
-          <div><label>Print Strokes</label><select name="print_strokes"><option value="1">1 stroke</option><option value="2">2 strokes</option><option value="3">3 strokes</option></select></div>
+          
           <div><label>Flash Temp (°F)</label><input type="number" name="flash_temp" placeholder="310" /></div>
           <div><label>Flash Dwell (sec)</label><input type="number" name="flash_dwell" placeholder="4" /></div>
           <div><label>Dryer Temp (°F)</label><input type="number" name="dryer_temp" placeholder="320" /></div>
@@ -518,15 +518,7 @@
       </div>
 
       <!-- Ink Colors -->
-      <div class="card" style="padding:14px;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="sl" style="margin-bottom:0;">INK COLORS &amp; TYPES</div>
-          <button type="button" class="btn-ghost" onclick="addInkRow()">+ ADD</button>
-        </div>
-        <div id="inkRows" style="display:flex;flex-direction:column;gap:7px;"></div>
-      </div>
-
-      <!-- Screen Specs / Picker -->
+            <!-- Screen Specs / Picker -->
       <div class="card" style="padding:14px;margin-bottom:10px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
           <div class="sl" style="margin-bottom:0;">SCREEN ASSIGNMENT</div>
@@ -2440,12 +2432,21 @@ function addHeadRow(d={}){
   hC++;const i=hC;
   const r=document.createElement('div'); r.id='hr-'+i;
   r.className='drow-wrap';
-  r.innerHTML=`<div class="drow" style="grid-template-columns:46px 1fr 1fr 1fr 22px;min-width:380px;">
-    <div><label>#</label><input type="number" name="h_num_${i}" value="${d.head_num||i}" min="1" /></div>
-    <div><label>Type</label><select name="h_type_${i}"><option>Print Head</option><option>Flash Unit</option><option>Preheat</option><option>Specialty</option></select></div>
-    <div><label>Color/Label</label><input type="text" name="h_color_${i}" placeholder="Blue…" value="${d.head_color||''}" /></div>
-    <div><label>Ink Code</label><input type="text" name="h_ink_${i}" placeholder="PMS 286" value="${d.head_ink||''}" /></div>
-    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('hr-${i}').remove()">✕</button></div>
+  r.innerHTML=`<div class="drow" style="grid-template-columns:40px 1fr 1fr 1fr 1fr 22px;min-width:500px;">
+    <div><label>#</label><input type="number" name="h_num_${i}" value="${d.head_num||i}" min="1" oninput="refreshRevolveHeads()" /></div>
+    <div><label>Station Type</label><select name="h_type_${i}" onchange="refreshRevolveHeads()">
+      <option>Print Head</option><option>Flash Unit</option><option>Preheat</option><option>Specialty</option>
+    </select></div>
+    <div><label>Color / Label</label><input type="text" name="h_color_${i}" placeholder="White, Blue…" value="${d.head_color||''}" oninput="refreshRevolveHeads()" /></div>
+    <div><label>Ink Type</label><select name="h_ink_type_${i}">
+      <option value="plastisol" ${(d.ink_type||'')==='plastisol'||!d.ink_type?'selected':''}>Plastisol</option>
+      <option value="waterbased" ${d.ink_type==='waterbased'?'selected':''}>Water-Based</option>
+      <option value="discharge" ${d.ink_type==='discharge'?'selected':''}>Discharge</option>
+      <option value="hsa" ${d.ink_type==='hsa'?'selected':''}>HSA</option>
+      <option value="specialty" ${d.ink_type==='specialty'?'selected':''}>Specialty</option>
+    </select></div>
+    <div><label>PMS / Code</label><input type="text" name="h_pms_${i}" placeholder="PMS 286, HEX…" value="${d.pms_code||''}" /></div>
+    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('hr-${i}').remove();refreshRevolveHeads()">✕</button></div>
   </div>`;
   document.getElementById('headRows').appendChild(r);
   checkScreenInventory();
@@ -2626,7 +2627,6 @@ async function submitForm(e){
     belt_speed:d.belt_speed,
     shirt_types:shirtTypes,
     head_locations:collectHeads(),
-    ink_colors:collectInks(),
     screen_specs:collectScreens(),
     squeegee_settings:collectSqueegees(),
     image_url:imageUrl,
@@ -2655,10 +2655,10 @@ async function submitForm(e){
 async function initForm(){
   document.getElementById('shirtTypeList').innerHTML='';
   stCount=0; addShirtType();
-  ['headRows','inkRows','screenRows','sqRows'].forEach(id=>document.getElementById(id).innerHTML='');
+  ['headRows','screenRows','sqRows'].forEach(id=>document.getElementById(id).innerHTML='');
   hC=0;iC=0;scC=0;sqC=0;
   addHeadRow();addHeadRow();addHeadRow();
-  addInkRow();addInkRow();
+
   addScreenRow();addScreenRow();
   addSqRow();addSqRow();
   resetLocButtons();
@@ -2771,7 +2771,6 @@ async function openJobDetail(id){
       ${[['SPEED',data.press_speed],['STROKE',data.stroke_length?data.stroke_length+'"':''],['OFF-CONTACT',data.off_contact?data.off_contact+'"':''],['STROKES',data.print_strokes],['FLASH TEMP',data.flash_temp?data.flash_temp+'°F':''],['FLASH DWELL',data.flash_dwell?data.flash_dwell+'s':''],['DRYER TEMP',data.dryer_temp?data.dryer_temp+'°F':''],['BELT SPEED (V)',data.belt_speed]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:1px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;color:var(--flash);">${v||'—'}</div></div>`).join('')}
     </div>
     ${tbl('HEAD LOCATIONS',data.head_locations,['HEAD','TYPE','COLOR','INK CODE'],['head_num','head_type','head_color','head_ink'])}
-    ${tbl('INK COLORS',data.ink_colors,['COLOR','PMS','BRAND','TYPE'],['color','pms','brand','type'])}
     ${tbl('SCREEN SPECS',data.screen_specs,['#','MESH','TENSION','EMULSION','FRAME'],['screen_num','mesh','tension','emulsion','frame'])}
     ${tbl('SQUEEGEE',data.squeegee_settings,['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'],['head_num','blade','angle','pressure','condition'])}
     ${(data.session_log && data.session_log.length) ? `
@@ -2867,7 +2866,6 @@ async function editJob() {
 
   // ── Dynamic rows ──
   document.getElementById('headRows').innerHTML = '';
-  document.getElementById('inkRows').innerHTML = '';
   document.getElementById('screenRows').innerHTML = '';
   document.getElementById('sqRows').innerHTML = '';
   hC = 0; iC = 0; scC = 0; sqC = 0;
@@ -2875,8 +2873,6 @@ async function editJob() {
   (data.head_locations || []).forEach(d => addHeadRow(d));
   if (!data.head_locations?.length) { addHeadRow(); addHeadRow(); addHeadRow(); }
 
-  (data.ink_colors || []).forEach(d => addInkRow(d));
-  if (!data.ink_colors?.length) { addInkRow(); addInkRow(); }
 
   (data.screen_specs || []).forEach(d => addScreenRow(d));
   if (!data.screen_specs?.length) { addScreenRow(); addScreenRow(); }
@@ -2944,7 +2940,6 @@ function exportPDF(){
   doc.text(`Speed:${data.press_speed||'—'}  Stroke:${data.stroke_length||'—'}"  Off-Contact:${data.off_contact||'—'}"  Strokes:${data.print_strokes||'—'}`,44,y);nl();
   doc.text(`Flash:${data.flash_temp||'—'}°F  Dwell:${data.flash_dwell||'—'}s  Dryer:${data.dryer_temp||'—'}°F  Belt:${data.belt_speed||'—'}V`,44,y);y+=18;
   [{title:'HEAD LOCATIONS',rows:data.head_locations||[],hdrs:['HEAD','TYPE','COLOR','INK CODE'],cols:['head_num','head_type','head_color','head_ink']},
-   {title:'INK COLORS',rows:data.ink_colors||[],hdrs:['COLOR','PMS','BRAND','TYPE'],cols:['color','pms','brand','type']},
    {title:'SCREEN SPECS',rows:data.screen_specs||[],hdrs:['#','MESH','TENSION','EMULSION','FRAME'],cols:['screen_num','mesh','tension','emulsion','frame']},
    {title:'SQUEEGEE',rows:data.squeegee_settings||[],hdrs:['HEAD','BLADE','ANGLE','PRESSURE','COND'],cols:['head_num','blade','angle','pressure','condition']}
   ].forEach(sec=>{
@@ -10213,14 +10208,21 @@ function buildStationEl(rIdx, sIdx, station) {
       <div style="background:var(--bg);border:1px solid var(--flash-30);border-radius:3px;padding:7px 10px;min-width:120px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:var(--flash);letter-spacing:.06em;margin-bottom:4px;">🖨 PRINT</div>
         <div style="display:flex;flex-direction:column;gap:3px;">
-          <select style="font-size:.65rem;" onchange="updateRevolveStation(${rIdx},${sIdx},'head',this.value);updateRevolveStation(${rIdx},${sIdx},'ink',this.options[this.selectedIndex]?.dataset?.ink||'')">
-            <option value="">Head #</option>
-            ${headOpts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" ${station.head==h.head?'selected':''}>${h.label}</option>`).join('')}
-            <option value="custom" ${!headOpts.length||station.head==='custom'?'selected':''}>Custom…</option>
+          <select style="font-size:.65rem;" data-revolve-head="1" onchange="
+            const opt=this.options[this.selectedIndex];
+            updateRevolveStation(${rIdx},${sIdx},'head',this.value);
+            if(opt&&opt.dataset.ink){
+              updateRevolveStation(${rIdx},${sIdx},'ink',opt.dataset.ink);
+              const inkDisp=this.closest('div').querySelector('.rev-ink-info');
+              if(inkDisp)inkDisp.textContent=opt.dataset.ink+(opt.dataset.pms?' · '+opt.dataset.pms:'')+(opt.dataset.inktype?' ['+opt.dataset.inktype+']':'');
+            }">
+            <option value="">Select head…</option>
+            ${headOpts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType||''}" data-pms="${h.pms||''}" ${station.head==h.head?'selected':''}>${h.label}</option>`).join('')}
+            <option value="custom">Custom…</option>
           </select>
-          ${station.head==='custom'||!headOpts.length?`<input type="text" placeholder="Head #" value="${station.head!=='custom'?station.head:''}" style="font-size:.65rem;" oninput="updateRevolveStation(${rIdx},${sIdx},'head',this.value)" />`:''}
-          <input type="text" placeholder="Ink color" value="${station.ink||''}"
-            style="font-size:.65rem;" oninput="updateRevolveStation(${rIdx},${sIdx},'ink',this.value)" />
+          <div class="rev-ink-info" style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--flash);min-height:13px;margin-top:1px;">
+            ${station.ink||''}${station.inkType?' ['+station.inkType+']':''}
+          </div>
           <select style="font-size:.65rem;" onchange="updateRevolveStation(${rIdx},${sIdx},'strokes',this.value)">
             <option value="1" ${station.strokes=='1'?'selected':''}>1 stroke</option>
             <option value="2" ${station.strokes=='2'||!station.strokes?'selected':''}>2 strokes</option>
@@ -10235,6 +10237,20 @@ function buildStationEl(rIdx, sIdx, station) {
   return el;
 }
 
+function refreshRevolveHeads() {
+  // Re-render head dropdowns in open revolve stations
+  const opts = getHeadOptions();
+  document.querySelectorAll('[id^="rev-st-"]').forEach(stEl => {
+    const sel = stEl.querySelector('select');
+    if (!sel || !sel.dataset.revolveHead) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Select head…</option>' +
+      opts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType}" data-pms="${h.pms}" ${h.head===cur?'selected':''}>${h.label}</option>`).join('') +
+      '<option value="custom">Custom…</option>';
+  });
+  updateSequencePreview();
+}
+
 function getHeadOptions() {
   const rows = document.querySelectorAll('[id^="hr-"]');
   const opts = [];
@@ -10242,9 +10258,12 @@ function getHeadOptions() {
     const i = r.id.split('-')[1];
     const headNum = document.querySelector(`[name="h_num_${i}"]`)?.value || i;
     const type    = document.querySelector(`[name="h_type_${i}"]`)?.value || '';
-    const ink     = document.querySelector(`[name="h_ink_${i}"]`)?.value || '';
-    const label   = `Head ${headNum}${type?' — '+type:''}${ink?' ('+ink+')':''}`;
-    opts.push({ head: headNum, ink, type, label });
+    const color   = document.querySelector(`[name="h_color_${i}"]`)?.value || '';
+    const inkType = document.querySelector(`[name="h_ink_type_${i}"]`)?.value || '';
+    const pms     = document.querySelector(`[name="h_pms_${i}"]`)?.value || '';
+    const ink     = color || document.querySelector(`[name="h_ink_${i}"]`)?.value || '';
+    const label   = `Head ${headNum} — ${color||'?'}${pms?' ('+pms+')':''}`;
+    opts.push({ head: headNum, ink, color, type, inkType, pms, label });
   });
   return opts;
 }
