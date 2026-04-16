@@ -545,6 +545,22 @@
       </div>
 
       <!-- Squeegee -->
+            <!-- Revolve Sequence Builder -->
+      <div class="card" style="padding:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+          <div class="sl" style="margin-bottom:0;">PRINT SEQUENCE</div>
+          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <label style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin:0;">Revolves:</label>
+              <input type="number" id="revolveCount" min="1" max="20" value="1" style="width:60px;text-align:center;" onchange="buildRevolves()" />
+            </div>
+            <button type="button" class="btn-ghost" onclick="buildRevolves()">↺ REBUILD</button>
+          </div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:12px;">Define the print sequence for each press rotation. Each revolve = one full revolution of the press.</div>
+        <div id="revolveRows"></div>
+        <div id="sequencePreview" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;font-family:'IBM Plex Mono',monospace;font-size:.68rem;line-height:1.8;color:var(--muted);"></div>
+      </div>
       <div class="card" style="padding:14px;margin-bottom:10px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div class="sl" style="margin-bottom:0;">SQUEEGEE SETTINGS</div>
@@ -2646,6 +2662,7 @@ async function initForm(){
   addScreenRow();addScreenRow();
   addSqRow();addSqRow();
   resetLocButtons();
+  resetRevolves();
   const de=document.querySelector('[name=job_date]');
   if(de) de.value=new Date().toISOString().split('T')[0];
 
@@ -2829,6 +2846,7 @@ async function editJob() {
   setVal('notes', data.notes);
   setVal('due_date', data.due_date);
   restoreLocButtons(data.print_location, data.manual_flash);
+  if (data.print_sequence) restoreRevolves(data.print_sequence);
   setVal('press_speed', data.press_speed);
   setVal('stroke_length', data.stroke_length);
   setVal('off_contact', data.off_contact);
@@ -10087,6 +10105,260 @@ function exportConsumablesPDF() {
   doc.setFontSize(7.5); doc.setTextColor(150,150,150);
   doc.text('Page 1  ·  '+(shop.name||'Press Setup Doc'), PW/2, PH-20, {align:'center'});
   doc.save('consumables-report-'+new Date().toISOString().split('T')[0]+'.pdf');
+}
+
+
+
+// ══════════════════════════════════════════════════════
+// REVOLVE SEQUENCE BUILDER
+// ══════════════════════════════════════════════════════
+let _revolveData = []; // [{stations:[{type,head,ink,strokes,note}]}]
+
+function buildRevolves() {
+  const count = parseInt(document.getElementById('revolveCount')?.value) || 1;
+  const container = document.getElementById('revolveRows');
+  if (!container) return;
+
+  // Preserve existing data if rebuilding
+  while (_revolveData.length < count) _revolveData.push({ stations: [] });
+  _revolveData = _revolveData.slice(0, count);
+
+  container.innerHTML = '';
+  for (let r = 0; r < count; r++) {
+    container.appendChild(buildRevolveRow(r));
+  }
+  updateSequencePreview();
+}
+
+function buildRevolveRow(rIdx) {
+  const div = document.createElement('div');
+  div.id = 'revolve-' + rIdx;
+  div.style.cssText = 'margin-bottom:14px;';
+
+  const data = _revolveData[rIdx] || { stations: [] };
+
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:.08em;color:var(--flash);background:var(--flash-dim);border:1px solid var(--flash-30);border-radius:3px;padding:3px 10px;white-space:nowrap;">
+        REVOLVE ${rIdx + 1}
+      </div>
+      <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="addRevolveStation(${rIdx}, 'print')">+ PRINT</button>
+      <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="addRevolveStation(${rIdx}, 'flash')">+ FLASH</button>
+      <button type="button" class="btn-ghost" style="font-size:.65rem;color:var(--cyan);" onclick="copyRevolve(${rIdx})">⎘ COPY</button>
+      ${rIdx > 0 ? `<button type="button" class="btn-ghost" style="font-size:.65rem;color:var(--muted);" onclick="pasteRevolve(${rIdx})">⎘ PASTE PREV</button>` : ''}
+    </div>
+    <div id="rev-stations-${rIdx}" style="display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:6px;background:rgba(245,240,232,.03);border:1px solid rgba(245,240,232,.06);border-radius:3px;">
+      ${data.stations.length === 0 ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.2);padding:4px;">Click + PRINT or + FLASH to add stations</div>' : ''}
+    </div>`;
+
+  setTimeout(() => {
+    data.stations.forEach((st, sIdx) => {
+      const stEl = buildStationEl(rIdx, sIdx, st);
+      const container = document.getElementById('rev-stations-' + rIdx);
+      if (container) {
+        const placeholder = container.querySelector('div');
+        if (placeholder && placeholder.textContent.includes('Click')) placeholder.remove();
+        container.appendChild(stEl);
+      }
+    });
+  }, 0);
+
+  return div;
+}
+
+function addRevolveStation(rIdx, type) {
+  if (!_revolveData[rIdx]) _revolveData[rIdx] = { stations: [] };
+  const sIdx = _revolveData[rIdx].stations.length;
+  const station = type === 'flash'
+    ? { type: 'flash', head: '', note: '' }
+    : { type: 'print', head: '', ink: '', strokes: '1', note: '' };
+  _revolveData[rIdx].stations.push(station);
+
+  const container = document.getElementById('rev-stations-' + rIdx);
+  if (!container) return;
+  const placeholder = container.querySelector('div');
+  if (placeholder && placeholder.textContent.includes('Click')) placeholder.remove();
+
+  // Add arrow if not first station
+  if (sIdx > 0) {
+    const arrow = document.createElement('div');
+    arrow.style.cssText = "font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);align-self:center;";
+    arrow.textContent = '→';
+    arrow.id = `rev-arrow-${rIdx}-${sIdx}`;
+    container.appendChild(arrow);
+  }
+
+  container.appendChild(buildStationEl(rIdx, sIdx, station));
+  updateSequencePreview();
+}
+
+function buildStationEl(rIdx, sIdx, station) {
+  const el = document.createElement('div');
+  el.id = `rev-st-${rIdx}-${sIdx}`;
+  el.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+
+  if (station.type === 'flash') {
+    el.innerHTML = `
+      <div style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.35);border-radius:3px;padding:7px 10px;min-width:80px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:var(--yellow);letter-spacing:.08em;">⚡ FLASH</div>
+        <input type="text" placeholder="Head #" value="${station.head||''}"
+          style="width:60px;text-align:center;font-size:.65rem;margin-top:3px;border-color:rgba(245,200,0,.3);"
+          oninput="updateRevolveStation(${rIdx},${sIdx},'head',this.value)" />
+        <button type="button" onclick="removeRevolveStation(${rIdx},${sIdx})" style="display:block;width:100%;background:none;border:none;color:rgba(245,200,0,.4);cursor:pointer;font-size:.65rem;margin-top:2px;">✕</button>
+      </div>`;
+  } else {
+    // Get available heads from head rows
+    const headOpts = getHeadOptions();
+    el.innerHTML = `
+      <div style="background:var(--bg);border:1px solid var(--flash-30);border-radius:3px;padding:7px 10px;min-width:120px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:var(--flash);letter-spacing:.06em;margin-bottom:4px;">🖨 PRINT</div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <select style="font-size:.65rem;" onchange="updateRevolveStation(${rIdx},${sIdx},'head',this.value);updateRevolveStation(${rIdx},${sIdx},'ink',this.options[this.selectedIndex]?.dataset?.ink||'')">
+            <option value="">Head #</option>
+            ${headOpts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" ${station.head==h.head?'selected':''}>${h.label}</option>`).join('')}
+            <option value="custom" ${!headOpts.length||station.head==='custom'?'selected':''}>Custom…</option>
+          </select>
+          ${station.head==='custom'||!headOpts.length?`<input type="text" placeholder="Head #" value="${station.head!=='custom'?station.head:''}" style="font-size:.65rem;" oninput="updateRevolveStation(${rIdx},${sIdx},'head',this.value)" />`:''}
+          <input type="text" placeholder="Ink color" value="${station.ink||''}"
+            style="font-size:.65rem;" oninput="updateRevolveStation(${rIdx},${sIdx},'ink',this.value)" />
+          <select style="font-size:.65rem;" onchange="updateRevolveStation(${rIdx},${sIdx},'strokes',this.value)">
+            <option value="1" ${station.strokes=='1'?'selected':''}>1 stroke</option>
+            <option value="2" ${station.strokes=='2'||!station.strokes?'selected':''}>2 strokes</option>
+            <option value="3" ${station.strokes=='3'?'selected':''}>3 strokes</option>
+          </select>
+          <input type="text" placeholder="Note (opt)" value="${station.note||''}"
+            style="font-size:.6rem;color:var(--muted);" oninput="updateRevolveStation(${rIdx},${sIdx},'note',this.value)" />
+        </div>
+        <button type="button" onclick="removeRevolveStation(${rIdx},${sIdx})" style="display:block;width:100%;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.65rem;margin-top:3px;">✕ remove</button>
+      </div>`;
+  }
+  return el;
+}
+
+function getHeadOptions() {
+  const rows = document.querySelectorAll('[id^="hr-"]');
+  const opts = [];
+  rows.forEach(r => {
+    const i = r.id.split('-')[1];
+    const headNum = document.querySelector(`[name="h_num_${i}"]`)?.value || i;
+    const type    = document.querySelector(`[name="h_type_${i}"]`)?.value || '';
+    const ink     = document.querySelector(`[name="h_ink_${i}"]`)?.value || '';
+    const label   = `Head ${headNum}${type?' — '+type:''}${ink?' ('+ink+')':''}`;
+    opts.push({ head: headNum, ink, type, label });
+  });
+  return opts;
+}
+
+function updateRevolveStation(rIdx, sIdx, field, value) {
+  if (_revolveData[rIdx]?.stations[sIdx]) {
+    _revolveData[rIdx].stations[sIdx][field] = value;
+  }
+  updateSequencePreview();
+}
+
+function removeRevolveStation(rIdx, sIdx) {
+  if (!_revolveData[rIdx]) return;
+  _revolveData[rIdx].stations.splice(sIdx, 1);
+  // Rebuild this revolve row
+  const row = document.getElementById('revolve-' + rIdx);
+  if (row) {
+    const newRow = buildRevolveRow(rIdx);
+    row.replaceWith(newRow);
+    // Re-render stations
+    _revolveData[rIdx].stations.forEach((st, si) => {
+      const container = document.getElementById('rev-stations-' + rIdx);
+      if (!container) return;
+      const placeholder = container.querySelector('div');
+      if (placeholder && placeholder.textContent.includes('Click')) placeholder.remove();
+      if (si > 0) {
+        const arrow = document.createElement('div');
+        arrow.style.cssText = "font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);align-self:center;";
+        arrow.textContent = '→';
+        container.appendChild(arrow);
+      }
+      container.appendChild(buildStationEl(rIdx, si, st));
+    });
+  }
+  updateSequencePreview();
+}
+
+let _copiedRevolve = null;
+function copyRevolve(rIdx) {
+  _copiedRevolve = JSON.parse(JSON.stringify(_revolveData[rIdx]?.stations || []));
+  showToast('Revolve ' + (rIdx+1) + ' copied!', 'success');
+}
+
+function pasteRevolve(rIdx) {
+  if (!_copiedRevolve) { showToast('Nothing copied yet.', 'error'); return; }
+  _revolveData[rIdx].stations = JSON.parse(JSON.stringify(_copiedRevolve));
+  const row = document.getElementById('revolve-' + rIdx);
+  if (row) row.replaceWith(buildRevolveRow(rIdx));
+  setTimeout(() => {
+    _revolveData[rIdx].stations.forEach((st, si) => {
+      const container = document.getElementById('rev-stations-' + rIdx);
+      if (!container) return;
+      const placeholder = container.querySelector('div');
+      if (placeholder && placeholder.textContent.includes('Click')) placeholder.remove();
+      if (si > 0) {
+        const arrow = document.createElement('div');
+        arrow.style.cssText = "font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);align-self:center;";
+        arrow.textContent = '→';
+        container.appendChild(arrow);
+      }
+      container.appendChild(buildStationEl(rIdx, si, st));
+    });
+    updateSequencePreview();
+  }, 50);
+}
+
+function updateSequencePreview() {
+  const el = document.getElementById('sequencePreview');
+  if (!el) return;
+  const lines = _revolveData.map((rev, rIdx) => {
+    if (!rev.stations.length) return null;
+    const steps = rev.stations.map(st => {
+      if (st.type === 'flash') return `⚡ Flash${st.head?' (Head '+st.head+')':''}`;
+      const parts = [];
+      if (st.ink) parts.push(st.ink);
+      if (st.head) parts.push('Head ' + st.head);
+      if (st.strokes) parts.push(st.strokes + ' stroke' + (st.strokes>1?'s':''));
+      if (st.note) parts.push('('+st.note+')');
+      return parts.join(' · ') || '🖨 Print';
+    }).join(' → ');
+    return `<span style="color:var(--flash);">Revolve ${rIdx+1}:</span> ${steps}`;
+  }).filter(Boolean);
+
+  if (lines.length) {
+    el.style.display = 'block';
+    el.innerHTML = lines.join('<br>');
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function collectRevolves() {
+  return _revolveData.map((rev, i) => ({
+    revolve: i + 1,
+    stations: rev.stations,
+  })).filter(r => r.stations.length > 0);
+}
+
+function resetRevolves() {
+  _revolveData = [];
+  const cnt = document.getElementById('revolveCount');
+  if (cnt) cnt.value = 1;
+  const rows = document.getElementById('revolveRows');
+  if (rows) rows.innerHTML = '';
+  const preview = document.getElementById('sequencePreview');
+  if (preview) preview.style.display = 'none';
+}
+
+function restoreRevolves(data) {
+  if (!data || !data.length) return;
+  _revolveData = data.map(r => ({ stations: r.stations || [] }));
+  const cnt = document.getElementById('revolveCount');
+  if (cnt) cnt.value = _revolveData.length;
+  buildRevolves();
 }
 
 
