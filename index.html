@@ -10292,11 +10292,10 @@ function exportConsumablesPDF() {
   const PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
   const ML=40, MR=PW-40, TW=MR-ML; let y=50;
 
-  y = pdfHeader(doc, 'Consumables', _consItems.length + ' items  ·  ' + reorderItems.length + ' need reorder  ·  Est. value $' + totalValue.toFixed(2), {ML, MR});
-
-  // Summary stats
+  // Summary stats — declared before header so subtitle can use them
   const reorderItems = _consItems.filter(i=>getConsStatus(i)==='reorder');
   const totalValue = _consItems.reduce((s,i)=>s+(parseFloat(i.quantity_on_hand)||0)*(parseFloat(i.cost_per_unit)||0),0);
+  y = pdfHeader(doc, 'Consumables', _consItems.length + ' items  ·  ' + reorderItems.length + ' need reorder  ·  Est. value $' + totalValue.toFixed(2), {ML, MR});
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
   doc.text(`${_consItems.length} items tracked  ·  ${reorderItems.length} need reorder  ·  Est. stock value: $${totalValue.toFixed(2)}`, ML, y); y+=16;
 
