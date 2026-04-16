@@ -10272,11 +10272,24 @@ function onRevolveHeadChange(sel, rIdx, sIdx) {
 }
 
 function refreshRevolveHeads() {
-  // Rebuild all revolve station cards so flash/print type stays correct
-  const count = _revolveData.length;
-  for (let r = 0; r < count; r++) {
-    rerenderStations(r);
-  }
+  // Get current head options with their types
+  const headOpts = getHeadOptions();
+  // For each revolve station, check if its assigned head has changed type
+  // and update _revolveData accordingly before rerendering
+  _revolveData.forEach((rev, rIdx) => {
+    rev.stations.forEach((st, sIdx) => {
+      if (!st.head) return;
+      const match = headOpts.find(h => h.head === st.head);
+      if (!match) return;
+      const isFlash = (match.type || '').toLowerCase().includes('flash');
+      st.type    = isFlash ? 'flash' : 'print';
+      st.ink     = match.ink;
+      st.inkType = match.inkType;
+      st.pms     = match.pms;
+    });
+  });
+  // Now rerender all stations with updated data
+  _revolveData.forEach((_, rIdx) => rerenderStations(rIdx));
   updateSequencePreview();
 }
 
