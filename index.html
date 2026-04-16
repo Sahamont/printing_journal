@@ -720,7 +720,7 @@
     </div>
 
     <!-- INVENTORY -->
-    <div id="spane-inventory">
+    <div id="spane-inventory" class="hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.1em;">SCREEN INVENTORY</div>
         <div style="display:flex;gap:7px;">
@@ -2617,6 +2617,7 @@ async function submitForm(e){
     job_name:d.job_name, order_number:d.order_number, job_date:d.job_date, due_date:d.due_date||null,
     operator:d.operator, customer:d.customer, email:d.email||null, print_location:d.print_location,
     quantity:grandTotal||null, status:d.status, notes:d.notes,
+    print_sequence: collectRevolves(),
     press_speed:d.press_speed,
     stroke_length:d.stroke_length?parseFloat(d.stroke_length):null,
     off_contact:d.off_contact?parseFloat(d.off_contact):null,
@@ -2789,21 +2790,7 @@ async function openJobDetail(id){
         return '<div style=\'padding:4px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:IBM Plex Mono,monospace;font-size:.68rem;\'><span style=\'color:var(--flash);font-weight:600;\'>R'+r.revolve+':</span> '+steps+'</div>';
       }).join('')}
     </div>` : ''}
-    ${data.print_sequence && data.print_sequence.length ? `
-    <div style="margin-top:14px;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin-bottom:8px;">PRINT SEQUENCE</div>
-      ${data.print_sequence.map(r => {
-        const steps = (r.stations||[]).map(st => {
-          if (st.type==='flash') return '⚡ Flash'+(st.head?' H'+st.head:'');
-          const p=[];
-          if(st.ink) p.push(st.ink);
-          if(st.head) p.push('H'+st.head);
-          if(st.strokes) p.push(st.strokes+'×');
-          return p.join(' ')||'Print';
-        }).join(' → ');
-        return '<div style="padding:4px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:IBM Plex Mono,monospace;font-size:.68rem;"><span style=\"color:var(--flash);font-weight:600;\">Revolve '+r.revolve+':</span> '+steps+'</div>';
-      }).join('')}
-    </div>` : ''}
+    
     ${(data.session_log && data.session_log.length) ? `
     <div style="margin-top:14px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin-bottom:10px;">SESSION HISTORY</div>
