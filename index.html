@@ -1068,6 +1068,7 @@
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;">
         <button class="btn-ghost" onclick="loadTasks()">↺ REFRESH</button>
+        <button class="btn-secondary" onclick="exportTasksPDF()">📋 REPORT</button>
         <button class="btn-secondary" onclick="openManageTasksModal()">⚙ MANAGE TASKS</button>
         <button class="btn-primary" onclick="openAddTaskModal()">+ NEW TASK</button>
       </div>
@@ -8097,6 +8098,147 @@ async function confirmTaskComplete() {
 }
 
 function openManageTasksModal() { openAddTaskModal(); }
+
+function exportTasksPDF() {
+  const shop = getShopSettings();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight();
+  const ML = 44, MR = PW - 44, TW = MR - ML;
+
+  const today = todayStr();
+  const dueToday  = _allTasks.filter(t => isTaskDueToday(t));
+  const doneToday = dueToday.filter(t => isDoneToday(t.id));
+  const overdue   = _allTasks.filter(t => getTaskStatus(t) === 'overdue');
+  const pct = dueToday.length > 0 ? Math.round(doneToday.length / dueToday.length * 100) : 100;
+
+  let y = pdfHeader(doc, 'Task Report',
+    'Today: ' + fmtDate(today) + '  ·  ' + _allTasks.length + ' tasks  ·  ' + doneToday.length + '/' + dueToday.length + ' done today  ·  ' + pct + '% complete',
+    { ML, MR });
+
+  // Summary stats row
+  const stats = [
+    ['Due Today',    dueToday.length,  ''],
+    ['Done Today',   doneToday.length, ''],
+    ['Overdue',      overdue.length,   overdue.length > 0 ? 'NEEDS ATTENTION' : 'All caught up'],
+    ['Total Tasks',  _allTasks.length, ''],
+  ];
+  const colW = TW / stats.length;
+  stats.forEach(([lbl, val, note], i) => {
+    const x = ML + i * colW + colW / 2;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
+    const _ac = getPDFAccent();
+    doc.setTextColor(lbl === 'Overdue' && val > 0 ? 200 : _ac[0],
+                     lbl === 'Overdue' && val > 0 ? 50  : _ac[1],
+                     lbl === 'Overdue' && val > 0 ? 50  : _ac[2]);
+    doc.text(String(val), x, y + 12, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(lbl.toUpperCase(), x, y + 22, { align: 'center' });
+    if (note) { doc.setFontSize(7); doc.text(note, x, y + 30, { align: 'center' }); }
+  });
+  y += 44;
+
+  // Progress bar
+  doc.setFillColor(230, 230, 230); doc.rect(ML, y, TW, 8, 'F');
+  const _ac = getPDFAccent();
+  doc.setFillColor(..._ac);
+  doc.rect(ML, y, TW * (pct / 100), 8, 'F');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
+  doc.text("Today's completion: " + pct + '%', ML, y + 18);
+  y += 28;
+
+  // Overdue section
+  if (overdue.length) {
+    y = pdfSection(doc, '⚠ Overdue Tasks', ML, MR, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    overdue.forEach(t => {
+      if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+      doc.setTextColor(180, 50, 50);
+      doc.text('• ' + t.name + (t.assignee ? '  —  ' + t.assignee : ''), ML + 4, y);
+      doc.setTextColor(120, 120, 120);
+      doc.setFontSize(8);
+      doc.text(t.category || '', MR, y, { align: 'right' });
+      doc.setFontSize(9);
+      y += 13;
+    });
+    y += 6;
+  }
+
+  // All tasks grouped by category
+  y = pdfSection(doc, 'All Tasks by Category', ML, MR, y);
+
+  const catOrder = TASK_CATEGORIES;
+  const groups = {};
+  _allTasks.forEach(t => {
+    const cat = t.category || 'Other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(t);
+  });
+
+  [...catOrder.filter(c => groups[c]), ...Object.keys(groups).filter(c => !catOrder.includes(c))].forEach(cat => {
+    const tasks = groups[cat]; if (!tasks) return;
+    if (y > 660) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+
+    // Category label
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(..._ac);
+    doc.text(cat.toUpperCase(), ML, y);
+    const done = tasks.filter(t => isDoneToday(t.id)).length;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+    doc.text(done + '/' + tasks.length + ' done today', MR, y, { align: 'right' });
+    doc.setDrawColor(..._ac); doc.setLineWidth(0.3);
+    doc.line(ML, y + 2, MR, y + 2);
+    doc.setLineWidth(0.4); y += 12;
+
+    tasks.forEach(t => {
+      if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+      const status  = getTaskStatus(t);
+      const done    = status === 'done';
+      const overdue = status === 'overdue';
+      doc.setFont('helvetica', done ? 'normal' : 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(done ? 150 : overdue ? 180 : 0, done ? 150 : overdue ? 50 : 0, done ? 150 : overdue ? 50 : 0);
+      const prefix = done ? '✓ ' : overdue ? '⚠ ' : '○ ';
+      doc.text(prefix + t.name, ML + 6, y);
+
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
+      const meta = [
+        RECUR_LABELS[t.recurrence] || t.recurrence,
+        t.assignee ? '👤 ' + t.assignee : '',
+        done ? '✓ Done' : overdue ? 'OVERDUE' : '',
+      ].filter(Boolean).join('  ·  ');
+      doc.text(meta, MR, y, { align: 'right' });
+      y += 12;
+    });
+    y += 4;
+  });
+
+  // Recent completions (last 7 days)
+  const recentLogs = _taskLogs.slice(0, 30);
+  if (recentLogs.length) {
+    if (y > 600) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+    y = pdfSection(doc, 'Recent Completions (Last 7 Days)', ML, MR, y);
+    y = pdfTableHeader(doc, ['DATE', 'TASK', 'COMPLETED BY', 'NOTES'], ML, y, [70, 200, 120, TW - 390]);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    recentLogs.forEach((log, idx) => {
+      if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+      const task = _allTasks.find(t => t.id === log.task_id);
+      if (idx % 2 === 0) { doc.setFillColor(248, 248, 248); doc.rect(ML, y - 9, TW, 11, 'F'); }
+      doc.setTextColor(0, 0, 0);
+      doc.text(fmtDate(log.completed_date), ML + 2, y);
+      doc.text(task?.name || '—', ML + 72, y);
+      doc.setTextColor(100, 100, 100);
+      doc.text(log.completed_by || '—', ML + 272, y);
+      doc.text(log.notes || '', ML + 392, y);
+      y += 11;
+    });
+  }
+
+  pdfFooter(doc, 1);
+  doc.save('task-report-' + today + '.pdf');
+}
+
+
 
 
 
