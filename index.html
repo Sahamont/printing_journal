@@ -509,59 +509,14 @@
       </div>
 
       <!-- Head Locations -->
-      <div class="card" style="padding:14px;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="sl" style="margin-bottom:0;">HEAD / STATION LOCATIONS</div>
-          <button type="button" class="btn-ghost" onclick="addHeadRow()">+ ADD</button>
-        </div>
-        <div id="headRows" style="display:flex;flex-direction:column;gap:7px;"></div>
+      <!-- Per-Location Config Tabs -->
+      <div id="locConfigArea" style="display:none;margin-bottom:10px;">
+        <!-- Location tab buttons -->
+        <div style="display:flex;gap:6px;margin-bottom:0;" id="locTabBtns"></div>
+        <!-- Location tab panels — one per active location -->
+        <div id="locTabPanels"></div>
       </div>
 
-      <!-- Ink Colors -->
-            <!-- Screen Specs / Picker -->
-      <div class="card" style="padding:14px;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
-          <div class="sl" style="margin-bottom:0;">SCREEN ASSIGNMENT</div>
-          <div style="display:flex;gap:6px;">
-            <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="checkScreenInventory()">🔍 CHECK INVENTORY</button>
-            <button type="button" class="btn-ghost" onclick="addScreenRow()">+ ADD ROW</button>
-          </div>
-        </div>
-        <!-- Inventory alert banner -->
-        <div id="screenInventoryAlert" style="display:none;margin-bottom:10px;"></div>
-        <!-- Screen picker rows (replaces scr#/mesh/tension with screen selector) -->
-        <div id="screenRows" style="display:flex;flex-direction:column;gap:7px;"></div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:6px;">
-          Select screens from inventory. Only Clean and Burned/Exposed screens shown. Emulsion and frame info auto-fills from inventory.
-        </div>
-      </div>
-
-      <!-- Squeegee -->
-            <!-- Revolve Sequence Builder -->
-      <div class="card" style="padding:14px;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
-          <div class="sl" style="margin-bottom:0;">PRINT SEQUENCE</div>
-          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <label style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin:0;">Revolves:</label>
-              <input type="number" id="revolveCount" min="1" max="20" value="1" style="width:60px;text-align:center;" onchange="buildRevolves()" />
-            </div>
-            <button type="button" class="btn-ghost" onclick="buildRevolves()">↺ REBUILD</button>
-          </div>
-        </div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:12px;">Define the print sequence for each press rotation. Each revolve = one full revolution of the press.</div>
-        <div id="revolveRows"></div>
-        <div id="sequencePreview" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;font-family:'IBM Plex Mono',monospace;font-size:.68rem;line-height:1.8;color:var(--muted);"></div>
-      </div>
-      <div class="card" style="padding:14px;margin-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="sl" style="margin-bottom:0;">SQUEEGEE SETTINGS</div>
-          <button type="button" class="btn-ghost" onclick="addSqRow()">+ ADD</button>
-        </div>
-        <div id="sqRows" style="display:flex;flex-direction:column;gap:7px;"></div>
-      </div>
-
-      <!-- Photo -->
       <div class="card" style="padding:14px;margin-bottom:14px;">
         <div class="sl">PHOTO / REFERENCE</div>
         <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;">
@@ -2621,7 +2576,7 @@ async function submitForm(e){
       document.getElementById('locOtherVal')?.value === 'on' ? (document.getElementById('locOtherSpec')?.querySelector('input')?.value || 'Other') : '',
     ].filter(Boolean).join(', ') || null,
     quantity:grandTotal||null, status:d.status, notes:d.notes,
-    print_sequence: collectRevolves(),
+    loc_data: collectAllLocData(),
     press_speed:d.press_speed,
     stroke_length:d.stroke_length?parseFloat(d.stroke_length):null,
     off_contact:d.off_contact?parseFloat(d.off_contact):null,
@@ -2631,9 +2586,9 @@ async function submitForm(e){
     dryer_temp:d.dryer_temp?parseInt(d.dryer_temp):null,
     belt_speed:d.belt_speed,
     shirt_types:shirtTypes,
-    head_locations:collectHeads(),
-    screen_specs:collectScreens(),
-    squeegee_settings:collectSqueegees(),
+    // head_locations now inside loc_data
+    // screens now inside loc_data
+    // squeegees now inside loc_data
     image_url:imageUrl,
     pipeline_stage:'intake',
   };
@@ -2668,6 +2623,7 @@ async function initForm(){
   addSqRow();addSqRow();
   resetLocButtons();
   resetRevolves();
+  resetLocConfigs();
   const de=document.querySelector('[name=job_date]');
   if(de) de.value=new Date().toISOString().split('T')[0];
 
@@ -2775,8 +2731,15 @@ async function openJobDetail(id){
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:14px;">
       ${[['SPEED',data.press_speed],['STROKE',data.stroke_length?data.stroke_length+'"':''],['OFF-CONTACT',data.off_contact?data.off_contact+'"':''],['STROKES',data.print_strokes],['FLASH TEMP',data.flash_temp?data.flash_temp+'°F':''],['FLASH DWELL',data.flash_dwell?data.flash_dwell+'s':''],['DRYER TEMP',data.dryer_temp?data.dryer_temp+'°F':''],['BELT SPEED (V)',data.belt_speed]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:1px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.77rem;color:var(--flash);">${v||'—'}</div></div>`).join('')}
     </div>
-    ${tbl('HEAD LOCATIONS',data.head_locations,['HEAD','TYPE','COLOR','INK TYPE','PMS/CODE'],['head_num','head_type','head_color','ink_type','pms_code'])}
-    ${tbl('SCREEN SPECS',data.screen_specs,['#','MESH','TENSION','EMULSION','FRAME'],['screen_num','mesh','tension','emulsion','frame'])}
+    ${(data.loc_data ? Object.entries(data.loc_data).map(([loc, d]) => `
+      <div style="margin-top:12px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid var(--flash-20);padding-bottom:2px;margin-bottom:8px;">${loc.toUpperCase()} PRINT</div>
+        ${tbl('HEADS',d.heads||[],['HEAD','TYPE','COLOR','INK TYPE','PMS'],['head_num','head_type','head_color','ink_type','pms_code'])}
+        ${tbl('SCREENS',d.screens||[],['HEAD','SCREEN ID','MESH','NOTES'],['head_num','screen_id','mesh_count','notes'])}
+        ${tbl('SQUEEGEES',d.squeegees||[],['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'],['head_num','blade','angle','pressure','condition'])}
+        ${fmtLocSequence(d.sequence)}
+      </div>`).join('') : tbl('HEAD LOCATIONS',data.head_locations||[],['HEAD','TYPE','COLOR','INK TYPE','PMS/CODE'],['head_num','head_type','head_color','ink_type','pms_code']))}
+    
     ${tbl('SQUEEGEE',data.squeegee_settings,['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'],['head_num','blade','angle','pressure','condition'])}
     ${data.print_sequence && data.print_sequence.length ? `
     <div style="margin-top:14px;">
@@ -2867,7 +2830,9 @@ async function editJob() {
   setVal('notes', data.notes);
   setVal('due_date', data.due_date);
   restoreLocButtons(data.print_location, data.manual_flash);
-  if (data.print_sequence) restoreRevolves(data.print_sequence);
+  // Restore per-location configs (new format) or fallback to old flat format
+  if (data.loc_data) restoreLocConfigs(data.loc_data);
+  else if (data.head_locations || data.print_sequence) restoreLocConfigs(null); // old jobs — activate front only
   setVal('press_speed', data.press_speed);
   setVal('stroke_length', data.stroke_length);
   setVal('off_contact', data.off_contact);
@@ -7240,10 +7205,10 @@ function toggleLocBtn(loc) {
   const active = val.value === 'on';
   val.value = active ? '' : 'on';
   btn.style.cssText = active ? LOC_IDLE_STYLE : LOC_ACTIVE_STYLE;
-  // Show/hide Other spec
   if (loc === 'other') {
     document.getElementById('locOtherSpec').style.display = active ? 'none' : 'block';
   }
+  onLocToggle(); // rebuild per-location tabs
 }
 
 function toggleSessionManualFlash() {
@@ -10630,6 +10595,605 @@ function restoreRevolves(data) {
 }
 
 
+
+// ══════════════════════════════════════════════════════
+// PER-LOCATION CONFIGURATION SYSTEM
+// ══════════════════════════════════════════════════════
+
+// _locData stores all per-location state
+// { front: {heads,screens,squeegees,revolveData}, back: {...}, other: {...} }
+let _locData = {};
+let _activeLocTab = null;
+const LOC_LABELS = { front: 'FRONT', back: 'BACK', other: 'OTHER' };
+const LOC_ORDER  = ['front', 'back', 'other'];
+
+function getActiveLocs() {
+  return LOC_ORDER.filter(loc => {
+    const el = document.getElementById('loc' + loc.charAt(0).toUpperCase() + loc.slice(1) + 'Val');
+    return el && el.value === 'on';
+  });
+}
+
+function initLocData(loc) {
+  if (!_locData[loc]) {
+    _locData[loc] = {
+      heads: [], screens: [], squeegees: [], revolveData: [], revolveCount: 1
+    };
+  }
+}
+
+// Called whenever location buttons are toggled
+function onLocToggle() {
+  const locs = getActiveLocs();
+  // Init data for any new location
+  locs.forEach(loc => initLocData(loc));
+  // Remove data for deactivated locations
+  Object.keys(_locData).forEach(loc => {
+    if (!locs.includes(loc)) delete _locData[loc];
+  });
+  renderLocTabs();
+}
+
+function renderLocTabs() {
+  const locs = getActiveLocs();
+  const area = document.getElementById('locConfigArea');
+  const btnContainer = document.getElementById('locTabBtns');
+  const panelContainer = document.getElementById('locTabPanels');
+  if (!area || !btnContainer || !panelContainer) return;
+
+  if (!locs.length) { area.style.display = 'none'; return; }
+  area.style.display = 'block';
+
+  // Set active tab to first if current is gone
+  if (!locs.includes(_activeLocTab)) _activeLocTab = locs[0];
+
+  // Render tab buttons
+  btnContainer.innerHTML = locs.map(loc => `
+    <button type="button" onclick="switchLocTab('${loc}')"
+      style="font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.95rem;
+             padding:8px 20px;border-radius:3px 3px 0 0;border:1px solid var(--border);
+             border-bottom:${loc===_activeLocTab?'1px solid var(--bg)':'1px solid var(--border)'};
+             background:${loc===_activeLocTab?'var(--surface2)':'transparent'};
+             color:${loc===_activeLocTab?'var(--flash)':'var(--muted)'};
+             cursor:pointer;margin-bottom:-1px;position:relative;z-index:1;">
+      ${LOC_LABELS[loc]}
+    </button>`).join('');
+
+  // Render panels — one per location, only active visible
+  panelContainer.style.cssText = 'border:1px solid var(--border);border-radius:0 3px 3px 3px;padding:14px;background:var(--surface2);';
+  panelContainer.innerHTML = locs.map(loc => `
+    <div id="locPanel-${loc}" style="display:${loc===_activeLocTab?'block':'none'};">
+      ${buildLocPanelHTML(loc)}
+    </div>`).join('');
+
+  // Init dynamic rows for all locations
+  locs.forEach(loc => {
+    restoreLocPanel(loc);
+  });
+}
+
+function switchLocTab(loc) {
+  // Save current tab state before switching
+  if (_activeLocTab) saveLocPanel(_activeLocTab);
+  _activeLocTab = loc;
+  // Update button styles
+  LOC_ORDER.forEach(l => {
+    const btn = document.querySelector(`button[onclick="switchLocTab('${l}')"]`);
+    if (!btn) return;
+    btn.style.background = l === loc ? 'var(--surface2)' : 'transparent';
+    btn.style.color = l === loc ? 'var(--flash)' : 'var(--muted)';
+    btn.style.borderBottom = l === loc ? '1px solid var(--bg)' : '1px solid var(--border)';
+  });
+  // Show/hide panels
+  LOC_ORDER.forEach(l => {
+    const p = document.getElementById('locPanel-'+l);
+    if (p) p.style.display = l === loc ? 'block' : 'none';
+  });
+}
+
+function buildLocPanelHTML(loc) {
+  return `
+    <!-- HEAD / STATION LOCATIONS -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+      <div class="sl" style="margin-bottom:0;font-size:.9rem;">HEAD / STATION LOCATIONS</div>
+      <button type="button" class="btn-ghost" style="font-size:.7rem;" onclick="addLocHeadRow('${loc}')">+ ADD</button>
+    </div>
+    <div id="headRows-${loc}" style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px;"></div>
+
+    <!-- SCREEN ASSIGNMENT -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+      <div class="sl" style="margin-bottom:0;font-size:.9rem;">SCREEN ASSIGNMENT</div>
+      <div style="display:flex;gap:6px;">
+        <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="checkScreenInventoryLoc('${loc}')">🔍 CHECK INVENTORY</button>
+        <button type="button" class="btn-ghost" style="font-size:.7rem;" onclick="addLocScreenRow('${loc}')">+ ADD ROW</button>
+      </div>
+    </div>
+    <div id="screenAlert-${loc}" style="display:none;margin-bottom:8px;"></div>
+    <div id="screenRows-${loc}" style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px;"></div>
+
+    <!-- PRINT SEQUENCE -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+      <div class="sl" style="margin-bottom:0;font-size:.9rem;">PRINT SEQUENCE</div>
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <label style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin:0;">Revolves:</label>
+          <input type="number" id="revolveCount-${loc}" min="1" max="20" value="1"
+            style="width:55px;text-align:center;" onchange="buildLocRevolves('${loc}')" />
+        </div>
+        <button type="button" class="btn-ghost" style="font-size:.7rem;" onclick="buildLocRevolves('${loc}')">↺ REBUILD</button>
+      </div>
+    </div>
+    <div id="revolveRows-${loc}" style="margin-bottom:8px;"></div>
+    <div id="sequencePreview-${loc}" style="display:none;margin-bottom:14px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px;font-family:'IBM Plex Mono',monospace;font-size:.68rem;line-height:1.8;color:var(--muted);"></div>
+
+    <!-- SQUEEGEE SETTINGS -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div class="sl" style="margin-bottom:0;font-size:.9rem;">SQUEEGEE SETTINGS</div>
+      <button type="button" class="btn-ghost" style="font-size:.7rem;" onclick="addLocSqRow('${loc}')">+ ADD</button>
+    </div>
+    <div id="sqRows-${loc}" style="display:flex;flex-direction:column;gap:7px;"></div>`;
+}
+
+// ── Save / restore panel state ────────────────────────
+function saveLocPanel(loc) {
+  if (!_locData[loc]) return;
+  // Save revolve count
+  const cnt = document.getElementById('revolveCount-'+loc);
+  if (cnt) _locData[loc].revolveCount = parseInt(cnt.value)||1;
+  // revolveData is already live in _locData[loc].revolveData via updateLocRevolveStation
+}
+
+function restoreLocPanel(loc) {
+  const data = _locData[loc];
+  if (!data) return;
+  // Heads
+  const headContainer = document.getElementById('headRows-'+loc);
+  if (headContainer) {
+    headContainer.innerHTML = '';
+    if (data.heads.length) {
+      data.heads.forEach(h => addLocHeadRow(loc, h));
+    } else {
+      addLocHeadRow(loc); addLocHeadRow(loc); addLocHeadRow(loc);
+    }
+  }
+  // Screens
+  const scrContainer = document.getElementById('screenRows-'+loc);
+  if (scrContainer) {
+    scrContainer.innerHTML = '';
+    if (data.screens.length) data.screens.forEach(s => addLocScreenRow(loc, s));
+    else addLocScreenRow(loc);
+  }
+  // Squeegees
+  const sqContainer = document.getElementById('sqRows-'+loc);
+  if (sqContainer) {
+    sqContainer.innerHTML = '';
+    if (data.squeegees.length) data.squeegees.forEach(s => addLocSqRow(loc, s));
+    else addLocSqRow(loc);
+  }
+  // Revolves
+  const cnt = document.getElementById('revolveCount-'+loc);
+  if (cnt) cnt.value = data.revolveCount || 1;
+  buildLocRevolves(loc);
+}
+
+// ── Head rows per location ────────────────────────────
+let _locHC = {};
+
+function addLocHeadRow(loc, d={}) {
+  if (!_locHC[loc]) _locHC[loc] = 0;
+  _locHC[loc]++;
+  const i = loc + '_' + _locHC[loc];
+  const container = document.getElementById('headRows-'+loc);
+  if (!container) return;
+  const r = document.createElement('div');
+  r.id = 'hr-'+i;
+  r.className = 'drow-wrap';
+  r.innerHTML = `<div class="drow" style="grid-template-columns:40px 1fr 1fr 1fr 1fr 22px;min-width:500px;">
+    <div><label>#</label><input type="number" name="h_num_${i}" value="${d.head_num||_locHC[loc]}" min="1" oninput="refreshLocRevolveHeads('${loc}')" /></div>
+    <div><label>Station Type</label><select name="h_type_${i}" onchange="refreshLocRevolveHeads('${loc}')">
+      <option ${(d.head_type||'')==='Print Head'||!d.head_type?'selected':''}>Print Head</option>
+      <option ${d.head_type==='Flash Unit'?'selected':''}>Flash Unit</option>
+      <option ${d.head_type==='Preheat'?'selected':''}>Preheat</option>
+      <option ${d.head_type==='Specialty'?'selected':''}>Specialty</option>
+    </select></div>
+    <div><label>Color / Label</label><input type="text" name="h_color_${i}" placeholder="White, Blue…" value="${d.head_color||''}" oninput="refreshLocRevolveHeads('${loc}')" /></div>
+    <div><label>Ink Type</label><select name="h_ink_type_${i}">
+      <option value="plastisol" ${(d.ink_type||'plastisol')==='plastisol'?'selected':''}>Plastisol</option>
+      <option value="waterbased" ${d.ink_type==='waterbased'?'selected':''}>Water-Based</option>
+      <option value="discharge" ${d.ink_type==='discharge'?'selected':''}>Discharge</option>
+      <option value="hsa" ${d.ink_type==='hsa'?'selected':''}>HSA</option>
+      <option value="specialty" ${d.ink_type==='specialty'?'selected':''}>Specialty</option>
+    </select></div>
+    <div><label>PMS / Code</label><input type="text" name="h_pms_${i}" placeholder="PMS 286…" value="${d.pms_code||''}" /></div>
+    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('hr-${i}').remove();refreshLocRevolveHeads('${loc}')">✕</button></div>
+  </div>`;
+  container.appendChild(r);
+}
+
+function getLocHeadOptions(loc) {
+  const opts = [];
+  document.querySelectorAll(`[id^="hr-${loc}_"]`).forEach(r => {
+    const i = r.id.replace('hr-','');
+    const headNum = document.querySelector(`[name="h_num_${i}"]`)?.value || '';
+    const type    = document.querySelector(`[name="h_type_${i}"]`)?.value || '';
+    const color   = document.querySelector(`[name="h_color_${i}"]`)?.value || '';
+    const inkType = document.querySelector(`[name="h_ink_type_${i}"]`)?.value || '';
+    const pms     = document.querySelector(`[name="h_pms_${i}"]`)?.value || '';
+    const ink     = color;
+    const label   = `Head ${headNum} — ${color||'?'}${pms?' ('+pms+')':''}`;
+    opts.push({ head: headNum, ink, color, type, inkType, pms, label });
+  });
+  return opts;
+}
+
+function refreshLocRevolveHeads(loc) {
+  const headOpts = getLocHeadOptions(loc);
+  if (!_locData[loc]) return;
+  _locData[loc].revolveData.forEach((rev, rIdx) => {
+    rev.stations.forEach((st, sIdx) => {
+      if (!st.head) return;
+      const match = headOpts.find(h => h.head === st.head);
+      if (!match) return;
+      const isFlash = (match.type||'').toLowerCase().includes('flash');
+      st.type = isFlash ? 'flash' : 'print';
+      st.ink = match.ink; st.inkType = match.inkType; st.pms = match.pms;
+    });
+  });
+  _locData[loc].revolveData.forEach((_, rIdx) => rerenderLocStations(loc, rIdx));
+  updateLocSequencePreview(loc);
+}
+
+// ── Screen rows per location ──────────────────────────
+let _locSC = {};
+
+function addLocScreenRow(loc, d={}) {
+  if (!_locSC[loc]) _locSC[loc] = 0;
+  _locSC[loc]++;
+  const i = loc + '_' + _locSC[loc];
+  const container = document.getElementById('screenRows-'+loc);
+  if (!container) return;
+  const r = document.createElement('div');
+  r.id = 'scr-'+i;
+  r.className = 'drow-wrap';
+  r.innerHTML = `<div class="drow" style="grid-template-columns:40px 1fr 1fr 1fr 22px;min-width:360px;">
+    <div><label>Head #</label><input type="number" name="sc_head_${i}" value="${d.head_num||''}" min="1" /></div>
+    <div><label>Screen ID</label><input type="text" name="sc_id_${i}" value="${d.screen_id||''}" placeholder="SCR-001" /></div>
+    <div><label>Mesh</label><input type="text" name="sc_mesh_${i}" value="${d.mesh_count||''}" placeholder="155" /></div>
+    <div><label>Notes</label><input type="text" name="sc_notes_${i}" value="${d.notes||''}" placeholder="EOM, SBQ…" /></div>
+    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('scr-${i}').remove()">✕</button></div>
+  </div>`;
+  container.appendChild(r);
+}
+
+function checkScreenInventoryLoc(loc) { checkScreenInventory(); }
+
+// ── Squeegee rows per location ────────────────────────
+let _locSQ = {};
+
+function addLocSqRow(loc, d={}) {
+  if (!_locSQ[loc]) _locSQ[loc] = 0;
+  _locSQ[loc]++;
+  const i = loc + '_' + _locSQ[loc];
+  const container = document.getElementById('sqRows-'+loc);
+  if (!container) return;
+  const r = document.createElement('div');
+  r.id = 'sq-'+i;
+  r.className = 'drow-wrap';
+  r.innerHTML = `<div class="drow" style="grid-template-columns:40px 1fr 1fr 1fr 1fr 22px;min-width:400px;">
+    <div><label>Head</label><input type="number" name="sq_head_${i}" value="${d.head_num||''}" /></div>
+    <div><label>Blade</label><input type="text" name="sq_blade_${i}" value="${d.blade||''}" placeholder="70/90/70" /></div>
+    <div><label>Angle</label><input type="number" name="sq_angle_${i}" value="${d.angle||''}" placeholder="15" /></div>
+    <div><label>Pressure</label><input type="text" name="sq_pressure_${i}" value="${d.pressure||''}" placeholder="Medium" /></div>
+    <div><label>Condition</label><input type="text" name="sq_cond_${i}" value="${d.condition||''}" placeholder="Good" /></div>
+    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('sq-${i}').remove()">✕</button></div>
+  </div>`;
+  container.appendChild(r);
+}
+
+// ── Revolve builder per location ─────────────────────
+function buildLocRevolves(loc) {
+  if (!_locData[loc]) initLocData(loc);
+  const count = parseInt(document.getElementById('revolveCount-'+loc)?.value)||1;
+  while (_locData[loc].revolveData.length < count) _locData[loc].revolveData.push({ stations: [] });
+  _locData[loc].revolveData = _locData[loc].revolveData.slice(0, count);
+  _locData[loc].revolveCount = count;
+
+  const container = document.getElementById('revolveRows-'+loc);
+  if (!container) return;
+  container.innerHTML = '';
+  for (let r = 0; r < count; r++) {
+    container.appendChild(buildLocRevolveRow(loc, r));
+  }
+  updateLocSequencePreview(loc);
+}
+
+function buildLocRevolveRow(loc, rIdx) {
+  const div = document.createElement('div');
+  div.id = `revolve-${loc}-${rIdx}`;
+  div.style.marginBottom = '14px';
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.08em;color:var(--flash);background:var(--flash-dim);border:1px solid var(--flash-30);border-radius:3px;padding:3px 10px;">REVOLVE ${rIdx+1}</div>
+      <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="addLocRevolveStation('${loc}',${rIdx},'print')">+ PRINT</button>
+      <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="addLocRevolveStation('${loc}',${rIdx},'flash')">+ FLASH</button>
+      <button type="button" class="btn-ghost" style="font-size:.65rem;color:var(--cyan);" onclick="copyLocRevolve('${loc}',${rIdx})">⎘ COPY</button>
+      ${rIdx > 0 ? `<button type="button" class="btn-ghost" style="font-size:.65rem;color:var(--muted);" onclick="pasteLocRevolve('${loc}',${rIdx})">⎘ PASTE</button>` : ''}
+    </div>
+    <div id="rev-stations-${loc}-${rIdx}" style="display:flex;flex-wrap:wrap;gap:6px;min-height:40px;padding:6px;background:rgba(245,240,232,.03);border:1px solid rgba(245,240,232,.06);border-radius:3px;">
+      <div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.2);padding:4px;">Click + PRINT or + FLASH to add stations</div>
+    </div>`;
+  setTimeout(() => rerenderLocStations(loc, rIdx), 0);
+  return div;
+}
+
+function rerenderLocStations(loc, rIdx) {
+  const container = document.getElementById(`rev-stations-${loc}-${rIdx}`);
+  if (!container) return;
+  container.innerHTML = '';
+  const stations = _locData[loc]?.revolveData[rIdx]?.stations || [];
+  if (!stations.length) {
+    container.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.2);padding:4px;">Click + PRINT or + FLASH to add stations</div>';
+    return;
+  }
+  stations.forEach((st, si) => {
+    if (si > 0) {
+      const arrow = document.createElement('div');
+      arrow.style.cssText = "font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);align-self:center;";
+      arrow.textContent = '→';
+      container.appendChild(arrow);
+    }
+    container.appendChild(buildLocStationEl(loc, rIdx, si, st));
+  });
+}
+
+function addLocRevolveStation(loc, rIdx, type) {
+  if (!_locData[loc]) initLocData(loc);
+  while (_locData[loc].revolveData.length <= rIdx) _locData[loc].revolveData.push({ stations: [] });
+  const flashHeads = getLocHeadOptions(loc).filter(h => h.type.toLowerCase().includes('flash'));
+  const st = type === 'flash'
+    ? { type:'flash', head: flashHeads.length===1?flashHeads[0].head:'', note:'' }
+    : { type:'print', head:'', ink:'', strokes:'2', note:'' };
+  _locData[loc].revolveData[rIdx].stations.push(st);
+  rerenderLocStations(loc, rIdx);
+  updateLocSequencePreview(loc);
+}
+
+function buildLocStationEl(loc, rIdx, sIdx, station) {
+  const el = document.createElement('div');
+  el.id = `rev-st-${loc}-${rIdx}-${sIdx}`;
+  el.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+  const headOpts = getLocHeadOptions(loc);
+
+  if (station.type === 'flash') {
+    const flashHeads = headOpts.filter(h => h.type.toLowerCase().includes('flash'));
+    el.innerHTML = `
+      <div style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.35);border-radius:3px;padding:7px 10px;min-width:100px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:var(--yellow);letter-spacing:.08em;margin-bottom:4px;">⚡ FLASH</div>
+        ${flashHeads.length > 0
+          ? `<select style="font-size:.65rem;border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.08);" onchange="updateLocStation('${loc}',${rIdx},${sIdx},'head',this.value)">
+               <option value="">Head #</option>
+               ${flashHeads.map(h=>`<option value="${h.head}" ${station.head==h.head?'selected':''}>${'Head '+h.head+(h.color?' — '+h.color:'')}</option>`).join('')}
+             </select>`
+          : `<input type="text" placeholder="Head #" value="${station.head||''}" style="width:60px;text-align:center;font-size:.65rem;border-color:rgba(245,200,0,.3);" oninput="updateLocStation('${loc}',${rIdx},${sIdx},'head',this.value)" />`}
+        <button type="button" onclick="removeLocStation('${loc}',${rIdx},${sIdx})" style="display:block;width:100%;background:none;border:none;color:rgba(245,200,0,.4);cursor:pointer;font-size:.65rem;margin-top:3px;">✕</button>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div style="background:var(--bg);border:1px solid var(--flash-30);border-radius:3px;padding:7px 10px;min-width:120px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:var(--flash);letter-spacing:.06em;margin-bottom:4px;">🖨 PRINT</div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <select style="font-size:.65rem;" data-revolve-head="1" onchange="onLocHeadChange(this,'${loc}',${rIdx},${sIdx})">
+            <option value="">Select head…</option>
+            ${headOpts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType||''}" data-pms="${h.pms||''}" data-htype="${h.type||''}" ${station.head==h.head?'selected':''}>${h.label}</option>`).join('')}
+            <option value="custom">Custom…</option>
+          </select>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--flash);min-height:13px;">
+            ${[station.ink, station.pms?'('+station.pms+')':'', station.inkType?'['+station.inkType+']':''].filter(Boolean).join(' ')}
+          </div>
+          <select style="font-size:.65rem;" onchange="updateLocStation('${loc}',${rIdx},${sIdx},'strokes',this.value)">
+            <option value="1" ${station.strokes==='1'?'selected':''}>1 stroke</option>
+            <option value="2" ${station.strokes==='2'||!station.strokes?'selected':''}>2 strokes</option>
+            <option value="3" ${station.strokes==='3'?'selected':''}>3 strokes</option>
+          </select>
+          <input type="text" placeholder="Note (opt)" value="${station.note||''}" style="font-size:.6rem;color:var(--muted);" oninput="updateLocStation('${loc}',${rIdx},${sIdx},'note',this.value)" />
+        </div>
+        <button type="button" onclick="removeLocStation('${loc}',${rIdx},${sIdx})" style="display:block;width:100%;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.65rem;margin-top:3px;">✕ remove</button>
+      </div>`;
+  }
+  return el;
+}
+
+function onLocHeadChange(sel, loc, rIdx, sIdx) {
+  const opt = sel.options[sel.selectedIndex];
+  const hType   = opt ? (opt.getAttribute('data-htype')   || '') : '';
+  const ink     = opt ? (opt.getAttribute('data-ink')     || '') : '';
+  const inktype = opt ? (opt.getAttribute('data-inktype') || '') : '';
+  const pms     = opt ? (opt.getAttribute('data-pms')     || '') : '';
+  const isFlash = hType.toLowerCase().includes('flash');
+  updateLocStation(loc, rIdx, sIdx, 'head', sel.value);
+  updateLocStation(loc, rIdx, sIdx, 'ink', ink);
+  updateLocStation(loc, rIdx, sIdx, 'inkType', inktype);
+  updateLocStation(loc, rIdx, sIdx, 'pms', pms);
+  updateLocStation(loc, rIdx, sIdx, 'type', isFlash ? 'flash' : 'print');
+  rerenderLocStations(loc, rIdx);
+  updateLocSequencePreview(loc);
+}
+
+function updateLocStation(loc, rIdx, sIdx, field, value) {
+  if (_locData[loc]?.revolveData[rIdx]?.stations[sIdx]) {
+    _locData[loc].revolveData[rIdx].stations[sIdx][field] = value;
+  }
+  updateLocSequencePreview(loc);
+}
+
+function removeLocStation(loc, rIdx, sIdx) {
+  if (!_locData[loc]?.revolveData[rIdx]) return;
+  _locData[loc].revolveData[rIdx].stations.splice(sIdx, 1);
+  rerenderLocStations(loc, rIdx);
+  updateLocSequencePreview(loc);
+}
+
+let _copiedLocRevolve = null;
+function copyLocRevolve(loc, rIdx) {
+  _copiedLocRevolve = JSON.parse(JSON.stringify(_locData[loc]?.revolveData[rIdx]?.stations || []));
+  showToast('Revolve ' + (rIdx+1) + ' copied!', 'success');
+}
+function pasteLocRevolve(loc, rIdx) {
+  if (!_copiedLocRevolve) { showToast('Nothing copied yet.', 'error'); return; }
+  if (!_locData[loc]) initLocData(loc);
+  _locData[loc].revolveData[rIdx].stations = JSON.parse(JSON.stringify(_copiedLocRevolve));
+  rerenderLocStations(loc, rIdx);
+  updateLocSequencePreview(loc);
+}
+
+function updateLocSequencePreview(loc) {
+  const el = document.getElementById('sequencePreview-'+loc);
+  if (!el) return;
+  const lines = (_locData[loc]?.revolveData || []).map((rev, rIdx) => {
+    if (!rev.stations.length) return null;
+    const steps = rev.stations.map(st => {
+      if (st.type === 'flash') return `⚡ Flash${st.head?' H'+st.head:''}`;
+      const p = [];
+      if (st.ink) p.push(st.ink);
+      if (st.head) p.push('H'+st.head);
+      if (st.strokes) p.push(st.strokes+'×');
+      return p.join(' · ') || '🖨 Print';
+    }).join(' → ');
+    return `<span style="color:var(--flash);">R${rIdx+1}:</span> ${steps}`;
+  }).filter(Boolean);
+  if (lines.length) { el.style.display='block'; el.innerHTML=lines.join('<br>'); }
+  else el.style.display='none';
+}
+
+// ── Collect per-location data for save ───────────────
+function collectLocHeads(loc) {
+  const heads = [];
+  document.querySelectorAll(`[id^="hr-${loc}_"]`).forEach(r => {
+    const i = r.id.replace('hr-','');
+    heads.push({
+      head_num:  document.querySelector(`[name="h_num_${i}"]`)?.value || '',
+      head_type: document.querySelector(`[name="h_type_${i}"]`)?.value || '',
+      head_color:document.querySelector(`[name="h_color_${i}"]`)?.value || '',
+      ink_type:  document.querySelector(`[name="h_ink_type_${i}"]`)?.value || '',
+      pms_code:  document.querySelector(`[name="h_pms_${i}"]`)?.value || '',
+    });
+  });
+  return heads;
+}
+
+function collectLocScreens(loc) {
+  const screens = [];
+  document.querySelectorAll(`[id^="scr-${loc}_"]`).forEach(r => {
+    const i = r.id.replace('scr-','');
+    screens.push({
+      head_num:   document.querySelector(`[name="sc_head_${i}"]`)?.value || '',
+      screen_id:  document.querySelector(`[name="sc_id_${i}"]`)?.value || '',
+      mesh_count: document.querySelector(`[name="sc_mesh_${i}"]`)?.value || '',
+      notes:      document.querySelector(`[name="sc_notes_${i}"]`)?.value || '',
+    });
+  });
+  return screens;
+}
+
+function collectLocSqueegees(loc) {
+  const sqs = [];
+  document.querySelectorAll(`[id^="sq-${loc}_"]`).forEach(r => {
+    const i = r.id.replace('sq-','');
+    sqs.push({
+      head_num:  document.querySelector(`[name="sq_head_${i}"]`)?.value || '',
+      blade:     document.querySelector(`[name="sq_blade_${i}"]`)?.value || '',
+      angle:     document.querySelector(`[name="sq_angle_${i}"]`)?.value || '',
+      pressure:  document.querySelector(`[name="sq_pressure_${i}"]`)?.value || '',
+      condition: document.querySelector(`[name="sq_cond_${i}"]`)?.value || '',
+    });
+  });
+  return sqs;
+}
+
+function collectLocRevolves(loc) {
+  return (_locData[loc]?.revolveData || [])
+    .map((rev, i) => ({ revolve: i+1, stations: rev.stations }))
+    .filter(r => r.stations.length > 0);
+}
+
+function collectAllLocData() {
+  // Save current active tab first
+  if (_activeLocTab) saveLocPanel(_activeLocTab);
+  const result = {};
+  getActiveLocs().forEach(loc => {
+    result[loc] = {
+      heads:      collectLocHeads(loc),
+      screens:    collectLocScreens(loc),
+      squeegees:  collectLocSqueegees(loc),
+      sequence:   collectLocRevolves(loc),
+    };
+  });
+  return result;
+}
+
+// ── Reset / restore for form ──────────────────────────
+function resetLocConfigs() {
+  _locData = {};
+  _locHC = {}; _locSC = {}; _locSQ = {};
+  _activeLocTab = null;
+  const area = document.getElementById('locConfigArea');
+  if (area) area.style.display = 'none';
+  const btns = document.getElementById('locTabBtns');
+  const panels = document.getElementById('locTabPanels');
+  if (btns) btns.innerHTML = '';
+  if (panels) panels.innerHTML = '';
+}
+
+function restoreLocConfigs(locData) {
+  // locData is the saved object { front: {...}, back: {...} }
+  // or old format (flat arrays) — handle gracefully
+  _locData = {};
+  if (!locData) return;
+
+  // Handle old flat format — put everything under 'front'
+  if (Array.isArray(locData)) {
+    _locData.front = { heads: locData, screens: [], squeegees: [], revolveData: [], revolveCount: 1 };
+    // Activate front button
+    const frontVal = document.getElementById('locFrontVal');
+    const frontBtn = document.getElementById('locFrontBtn');
+    if (frontVal) frontVal.value = 'on';
+    if (frontBtn) frontBtn.style.cssText = LOC_ACTIVE_STYLE;
+    onLocToggle();
+    return;
+  }
+
+  // New format
+  Object.keys(locData).forEach(loc => {
+    const d = locData[loc];
+    _locData[loc] = {
+      heads:       d.heads || [],
+      screens:     d.screens || [],
+      squeegees:   d.squeegees || [],
+      revolveData: (d.sequence||[]).map(r => ({ stations: r.stations||[] })),
+      revolveCount:(d.sequence||[]).length || 1,
+    };
+    // Activate the toggle button
+    const val = document.getElementById('loc' + loc.charAt(0).toUpperCase() + loc.slice(1) + 'Val');
+    const btn = document.getElementById('loc' + loc.charAt(0).toUpperCase() + loc.slice(1) + 'Btn');
+    if (val) val.value = 'on';
+    if (btn) btn.style.cssText = LOC_ACTIVE_STYLE;
+  });
+  onLocToggle();
+}
+
+
+
+function fmtLocSequence(seq) {
+  if (!seq || !seq.length) return '';
+  const lines = seq.map(r => {
+    const steps = (r.stations||[]).map(st => {
+      if (st.type === 'flash') return '⚡ Flash'+(st.head?' H'+st.head:'');
+      return [st.ink, st.head?'H'+st.head:'', st.strokes?st.strokes+'×':''].filter(Boolean).join('·') || '🖨';
+    }).join(' → ');
+    return '<div><span style="color:var(--flash)">R'+r.revolve+':</span> '+steps+'</div>';
+  }).join('');
+  return '<div style="margin-top:8px;font-family:IBM Plex Mono,monospace;font-size:.68rem;">'+lines+'</div>';
+}
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
   const t=document.getElementById('toast');
