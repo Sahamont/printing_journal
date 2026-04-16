@@ -10177,17 +10177,8 @@ function buildRevolveRow(rIdx) {
       ${data.stations.length === 0 ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.2);padding:4px;">Click + PRINT or + FLASH to add stations</div>' : ''}
     </div>`;
 
-  setTimeout(() => {
-    data.stations.forEach((st, sIdx) => {
-      const stEl = buildStationEl(rIdx, sIdx, st);
-      const container = document.getElementById('rev-stations-' + rIdx);
-      if (container) {
-        const placeholder = container.querySelector('div');
-        if (placeholder && placeholder.textContent.includes('Click')) placeholder.remove();
-        container.appendChild(stEl);
-      }
-    });
-  }, 0);
+  // Stations rendered after DOM insert via rerenderStations
+  setTimeout(() => rerenderStations(rIdx), 0);
 
   return div;
 }
@@ -10241,14 +10232,20 @@ function buildStationEl(rIdx, sIdx, station) {
         <div style="display:flex;flex-direction:column;gap:3px;">
           <select style="font-size:.65rem;" data-revolve-head="1" onchange="
             const opt=this.options[this.selectedIndex];
+            const hType=opt?.dataset?.htype||'';
+            const isFlash=hType.toLowerCase().includes('flash');
             updateRevolveStation(${rIdx},${sIdx},'head',this.value);
-            if(opt&&opt.dataset.ink){
+            updateRevolveStation(${rIdx},${sIdx},'stationType',hType);
+            if(isFlash){
+              updateRevolveStation(${rIdx},${sIdx},'type','flash');
+              rerenderStations(${rIdx});
+            } else if(opt&&opt.dataset.ink){
               updateRevolveStation(${rIdx},${sIdx},'ink',opt.dataset.ink);
               const inkDisp=this.closest('div').querySelector('.rev-ink-info');
               if(inkDisp)inkDisp.textContent=opt.dataset.ink+(opt.dataset.pms?' · '+opt.dataset.pms:'')+(opt.dataset.inktype?' ['+opt.dataset.inktype+']':'');
             }">
             <option value="">Select head…</option>
-            ${headOpts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType||''}" data-pms="${h.pms||''}" ${station.head==h.head?'selected':''}>${h.label}</option>`).join('')}
+            ${headOpts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType||''}" data-pms="${h.pms||''}" data-htype="${h.type||''}" ${station.head==h.head?'selected':''}>${h.label}</option>`).join('')}
             <option value="custom">Custom…</option>
           </select>
           <div class="rev-ink-info" style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--flash);min-height:13px;margin-top:1px;">
@@ -10276,7 +10273,7 @@ function refreshRevolveHeads() {
     if (!sel || !sel.dataset.revolveHead) return;
     const cur = sel.value;
     sel.innerHTML = '<option value="">Select head…</option>' +
-      opts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType}" data-pms="${h.pms}" ${h.head===cur?'selected':''}>${h.label}</option>`).join('') +
+      opts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType}" data-pms="${h.pms}" data-htype="${h.type||''}" ${h.head===cur?'selected':''}>${h.label}</option>`).join('') +
       '<option value="custom">Custom…</option>';
   });
   updateSequencePreview();
@@ -10309,27 +10306,29 @@ function updateRevolveStation(rIdx, sIdx, field, value) {
 function removeRevolveStation(rIdx, sIdx) {
   if (!_revolveData[rIdx]) return;
   _revolveData[rIdx].stations.splice(sIdx, 1);
-  // Rebuild this revolve row
-  const row = document.getElementById('revolve-' + rIdx);
-  if (row) {
-    const newRow = buildRevolveRow(rIdx);
-    row.replaceWith(newRow);
-    // Re-render stations
-    _revolveData[rIdx].stations.forEach((st, si) => {
-      const container = document.getElementById('rev-stations-' + rIdx);
-      if (!container) return;
-      const placeholder = container.querySelector('div');
-      if (placeholder && placeholder.textContent.includes('Click')) placeholder.remove();
-      if (si > 0) {
-        const arrow = document.createElement('div');
-        arrow.style.cssText = "font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);align-self:center;";
-        arrow.textContent = '→';
-        container.appendChild(arrow);
-      }
-      container.appendChild(buildStationEl(rIdx, si, st));
-    });
-  }
+  // Re-render just the stations container — don't rebuild the whole row
+  rerenderStations(rIdx);
   updateSequencePreview();
+}
+
+function rerenderStations(rIdx) {
+  const container = document.getElementById('rev-stations-' + rIdx);
+  if (!container) return;
+  container.innerHTML = '';
+  const stations = _revolveData[rIdx]?.stations || [];
+  if (!stations.length) {
+    container.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.2);padding:4px;">Click + PRINT or + FLASH to add stations</div>';
+    return;
+  }
+  stations.forEach((st, si) => {
+    if (si > 0) {
+      const arrow = document.createElement('div');
+      arrow.style.cssText = "font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);align-self:center;";
+      arrow.textContent = '→';
+      container.appendChild(arrow);
+    }
+    container.appendChild(buildStationEl(rIdx, si, st));
+  });
 }
 
 let _copiedRevolve = null;
@@ -10343,22 +10342,7 @@ function pasteRevolve(rIdx) {
   _revolveData[rIdx].stations = JSON.parse(JSON.stringify(_copiedRevolve));
   const row = document.getElementById('revolve-' + rIdx);
   if (row) row.replaceWith(buildRevolveRow(rIdx));
-  setTimeout(() => {
-    _revolveData[rIdx].stations.forEach((st, si) => {
-      const container = document.getElementById('rev-stations-' + rIdx);
-      if (!container) return;
-      const placeholder = container.querySelector('div');
-      if (placeholder && placeholder.textContent.includes('Click')) placeholder.remove();
-      if (si > 0) {
-        const arrow = document.createElement('div');
-        arrow.style.cssText = "font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);align-self:center;";
-        arrow.textContent = '→';
-        container.appendChild(arrow);
-      }
-      container.appendChild(buildStationEl(rIdx, si, st));
-    });
-    updateSequencePreview();
-  }, 50);
+  setTimeout(() => { rerenderStations(rIdx); updateSequencePreview(); }, 50);
 }
 
 function updateSequencePreview() {
