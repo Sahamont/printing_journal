@@ -10186,9 +10186,10 @@ function buildRevolveRow(rIdx) {
 function addRevolveStation(rIdx, type) {
   if (!_revolveData[rIdx]) _revolveData[rIdx] = { stations: [] };
   const sIdx = _revolveData[rIdx].stations.length;
+  const flashHeads = getHeadOptions().filter(h => h.type.toLowerCase().includes('flash'));
   const station = type === 'flash'
-    ? { type: 'flash', head: '', note: '' }
-    : { type: 'print', head: '', ink: '', strokes: '1', note: '' };
+    ? { type: 'flash', head: flashHeads.length === 1 ? flashHeads[0].head : '', note: '' }
+    : { type: 'print', head: '', ink: '', strokes: '2', note: '' };
   _revolveData[rIdx].stations.push(station);
 
   const container = document.getElementById('rev-stations-' + rIdx);
@@ -10215,13 +10216,25 @@ function buildStationEl(rIdx, sIdx, station) {
   el.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
 
   if (station.type === 'flash') {
+    const flashHeads = getHeadOptions().filter(h => h.type.toLowerCase().includes('flash'));
+    // Auto-assign if only one flash head and station has no head yet
+    if (flashHeads.length === 1 && !station.head) {
+      station.head = flashHeads[0].head;
+      if (_revolveData[rIdx]?.stations[sIdx]) _revolveData[rIdx].stations[sIdx].head = station.head;
+    }
     el.innerHTML = `
-      <div style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.35);border-radius:3px;padding:7px 10px;min-width:80px;text-align:center;">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:var(--yellow);letter-spacing:.08em;">⚡ FLASH</div>
-        <input type="text" placeholder="Head #" value="${station.head||''}"
-          style="width:60px;text-align:center;font-size:.65rem;margin-top:3px;border-color:rgba(245,200,0,.3);"
-          oninput="updateRevolveStation(${rIdx},${sIdx},'head',this.value)" />
-        <button type="button" onclick="removeRevolveStation(${rIdx},${sIdx})" style="display:block;width:100%;background:none;border:none;color:rgba(245,200,0,.4);cursor:pointer;font-size:.65rem;margin-top:2px;">✕</button>
+      <div style="background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.35);border-radius:3px;padding:7px 10px;min-width:100px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:var(--yellow);letter-spacing:.08em;margin-bottom:4px;">⚡ FLASH</div>
+        ${flashHeads.length > 0 ? `
+          <select style="font-size:.65rem;text-align:center;border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.08);"
+            onchange="updateRevolveStation(${rIdx},${sIdx},'head',this.value)">
+            <option value="">Head #</option>
+            ${flashHeads.map(h => `<option value="${h.head}" ${station.head==h.head?'selected':''}>${'Head '+h.head+(h.color?' — '+h.color:'')}</option>`).join('')}
+          </select>` : `
+          <input type="text" placeholder="Head #" value="${station.head||''}"
+            style="width:60px;text-align:center;font-size:.65rem;border-color:rgba(245,200,0,.3);"
+            oninput="updateRevolveStation(${rIdx},${sIdx},'head',this.value)" />`}
+        <button type="button" onclick="removeRevolveStation(${rIdx},${sIdx})" style="display:block;width:100%;background:none;border:none;color:rgba(245,200,0,.4);cursor:pointer;font-size:.65rem;margin-top:4px;">✕</button>
       </div>`;
   } else {
     // Get available heads from head rows
@@ -10267,7 +10280,6 @@ function onRevolveHeadChange(sel, rIdx, sIdx) {
   updateRevolveStation(rIdx, sIdx, 'pms',     pms);
   updateRevolveStation(rIdx, sIdx, 'type', isFlash ? 'flash' : 'print');
 
-  // Always rerender so flash/print card switches correctly
   rerenderStations(rIdx);
 }
 
