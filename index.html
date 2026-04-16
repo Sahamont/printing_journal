@@ -2615,7 +2615,11 @@ async function submitForm(e){
 
   const record={
     job_name:d.job_name, order_number:d.order_number, job_date:d.job_date, due_date:d.due_date||null,
-    operator:d.operator, customer:d.customer, email:d.email||null, print_location:d.print_location,
+    operator:d.operator, customer:d.customer, email:d.email||null, print_location: [
+      document.getElementById('locFrontVal')?.value === 'on' ? 'Front' : '',
+      document.getElementById('locBackVal')?.value  === 'on' ? 'Back'  : '',
+      document.getElementById('locOtherVal')?.value === 'on' ? (document.getElementById('locOtherSpec')?.querySelector('input')?.value || 'Other') : '',
+    ].filter(Boolean).join(', ') || null,
     quantity:grandTotal||null, status:d.status, notes:d.notes,
     print_sequence: collectRevolves(),
     press_speed:d.press_speed,
