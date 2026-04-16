@@ -10236,7 +10236,7 @@ function buildStationEl(rIdx, sIdx, station) {
             <option value="custom">Custom…</option>
           </select>
           <div class="rev-ink-info" style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--flash);min-height:13px;margin-top:1px;">
-            ${station.ink||''}${station.inkType?' ['+station.inkType+']':''}
+            ${[station.ink, station.pms ? '('+station.pms+')' : '', station.inkType ? '['+station.inkType+']' : ''].filter(Boolean).join(' ')}
           </div>
           <select style="font-size:.65rem;" onchange="updateRevolveStation(${rIdx},${sIdx},'strokes',this.value)">
             <option value="1" ${station.strokes=='1'?'selected':''}>1 stroke</option>
@@ -10255,34 +10255,28 @@ function buildStationEl(rIdx, sIdx, station) {
 
 function onRevolveHeadChange(sel, rIdx, sIdx) {
   const opt = sel.options[sel.selectedIndex];
-  const hType = opt ? (opt.getAttribute('data-htype') || '') : '';
-  const isFlash = hType.toLowerCase().includes('flash');
+  const hType    = opt ? (opt.getAttribute('data-htype')   || '') : '';
+  const ink      = opt ? (opt.getAttribute('data-ink')     || '') : '';
+  const inktype  = opt ? (opt.getAttribute('data-inktype') || '') : '';
+  const pms      = opt ? (opt.getAttribute('data-pms')     || '') : '';
+  const isFlash  = hType.toLowerCase().includes('flash');
+
   updateRevolveStation(rIdx, sIdx, 'head', sel.value);
-  if (isFlash) {
-    updateRevolveStation(rIdx, sIdx, 'type', 'flash');
-    rerenderStations(rIdx);
-  } else {
-    updateRevolveStation(rIdx, sIdx, 'type', 'print');
-    const ink = opt ? (opt.getAttribute('data-ink') || '') : '';
-    const pms = opt ? (opt.getAttribute('data-pms') || '') : '';
-    const inktype = opt ? (opt.getAttribute('data-inktype') || '') : '';
-    if (ink) updateRevolveStation(rIdx, sIdx, 'ink', ink);
-    const inkDisp = sel.closest('div') && sel.closest('div').querySelector('.rev-ink-info');
-    if (inkDisp) inkDisp.textContent = ink + (pms ? ' · ' + pms : '') + (inktype ? ' [' + inktype + ']' : '');
-  }
+  updateRevolveStation(rIdx, sIdx, 'ink',     ink);
+  updateRevolveStation(rIdx, sIdx, 'inkType', inktype);
+  updateRevolveStation(rIdx, sIdx, 'pms',     pms);
+  updateRevolveStation(rIdx, sIdx, 'type', isFlash ? 'flash' : 'print');
+
+  // Always rerender so flash/print card switches correctly
+  rerenderStations(rIdx);
 }
 
 function refreshRevolveHeads() {
-  // Re-render head dropdowns in open revolve stations
-  const opts = getHeadOptions();
-  document.querySelectorAll('[id^="rev-st-"]').forEach(stEl => {
-    const sel = stEl.querySelector('select');
-    if (!sel || !sel.dataset.revolveHead) return;
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">Select head…</option>' +
-      opts.map(h=>`<option value="${h.head}" data-ink="${h.ink}" data-inktype="${h.inkType}" data-pms="${h.pms}" data-htype="${h.type||''}" ${h.head===cur?'selected':''}>${h.label}</option>`).join('') +
-      '<option value="custom">Custom…</option>';
-  });
+  // Rebuild all revolve station cards so flash/print type stays correct
+  const count = _revolveData.length;
+  for (let r = 0; r < count; r++) {
+    rerenderStations(r);
+  }
   updateSequencePreview();
 }
 
