@@ -3018,43 +3018,59 @@ function exportPDF(){
   const _ac  = getPDFAccent();
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'letter', orientation:'portrait' });
-  const PW = doc.internal.pageSize.getWidth();
+  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight();
   const ML = 44, MR = PW - 44, TW = MR - ML;
 
-  // ── Header ──
-  let y = pdfHeader(doc,
-    data.job_name || 'Press Setup',
-    [data.order_number, fmtDate(data.job_date), data.status].filter(Boolean).join('  ·  '),
-    { ML, MR }
-  );
+  // ── Header bar ──────────────────────────────────────
+  doc.setFillColor(10,10,18);
+  doc.rect(0, 0, PW, 58, 'F');
 
-  // ── Job info strip ──
-  const _acDim = `rgba(${_ac.join(',')},0.12)`;
+  // Shop name — left
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(..._ac);
+  doc.text((shop.name||'PRESS SETUP DOC').toUpperCase(), ML, 22);
+  const contactParts = [shop.addr1, shop.phone, shop.email].filter(Boolean);
+  if (contactParts.length) {
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+    doc.text(contactParts.join('  ·  '), ML, 33);
+  }
+
+  // Job name — right (truncated)
+  const jobLabel = (data.job_name||'Press Setup').toUpperCase();
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(..._ac);
+  doc.text(jobLabel, MR, 22, {align:'right', maxWidth: TW*0.55});
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+  doc.text([data.order_number, fmtDate(data.job_date), data.status].filter(Boolean).join('  ·  '), MR, 33, {align:'right'});
+
+  // Accent rule
+  doc.setDrawColor(..._ac); doc.setLineWidth(1);
+  doc.line(ML, 58, MR, 58); doc.setLineWidth(0.4);
+  let y = 72;
+
+  // ── Job info strip ───────────────────────────────────
   doc.setFillColor(245,245,245);
-  doc.rect(ML, y, TW, 28, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(80,80,80);
+  doc.rect(ML, y, TW, 30, 'F');
   const infoItems = [
-    ['CUSTOMER', data.customer||'—'],
-    ['OPERATOR', data.operator||'—'],
-    ['QTY',      data.quantity||'—'],
-    ['EMAIL',    data.email||'—'],
-    ['DUE',      data.due_date ? fmtDate(data.due_date) : '—'],
-    ['LOCATION', data.print_location||'—'],
+    ['CUSTOMER', (data.customer||'—').slice(0,20)],
+    ['OPERATOR', (data.operator||'—').slice(0,14)],
+    ['QTY',      String(data.quantity||'—')],
+    ['EMAIL',    (data.email||'—').slice(0,22)],
+    ['DUE DATE', data.due_date ? fmtDate(data.due_date) : '—'],
+    ['LOCATION', (data.print_location||'—').slice(0,14)],
   ];
   const colW = TW / infoItems.length;
   infoItems.forEach(([lbl, val], i) => {
     const x = ML + i * colW + 4;
-    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(130,130,130);
+    doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(130,130,130);
     doc.text(lbl, x, y + 10);
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
-    doc.text(String(val).slice(0,18), x, y + 22);
+    doc.text(val, x, y + 23);
   });
-  y += 36;
+  y += 38;
 
-  // ── Shirt Types ──
+  // ── Shirt Types ──────────────────────────────────────
   if (data.shirt_types?.length) {
     y = pdfSection(doc, 'Shirt Types', ML, MR, y);
-    data.shirt_types.forEach((t, idx) => {
+    data.shirt_types.forEach((t) => {
       if (y > 680) { pdfFooter(doc,1); doc.addPage(); y = 44; }
       const tot = Object.values(t.sizes||{}).reduce((a,b)=>a+(parseInt(b)||0),0);
       doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
@@ -3062,151 +3078,199 @@ function exportPDF(){
       doc.setFont('helvetica','normal'); doc.setTextColor(..._ac);
       doc.text(`${tot} pcs`, MR, y, {align:'right'});
       y += 11;
-      const szStr = Object.entries(t.sizes||{}).filter(([,v])=>v>0)
+      const szStr = Object.entries(t.sizes||{}).filter(([,v])=>parseInt(v)>0)
         .map(([sz,q])=>`${sz}: ${q}`).join('   ');
       if (szStr) {
         doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,80);
-        doc.text(szStr, ML+8, y); y += 10;
+        const lines = doc.splitTextToSize(szStr, TW-8);
+        doc.text(lines, ML+8, y); y += lines.length * 10;
       }
-      y += 3;
+      y += 4;
     });
-    y += 4;
+    y += 2;
   }
 
-  // ── Press Settings ──
+  // ── Press Settings ───────────────────────────────────
   y = pdfSection(doc, 'Press Settings', ML, MR, y);
   const settings = [
-    ['Speed', data.press_speed||'—'],
-    ['Stroke', data.stroke_length ? data.stroke_length+'"' : '—'],
-    ['Off-Contact', data.off_contact ? data.off_contact+'"' : '—'],
-    ['Flash Temp', data.flash_temp ? data.flash_temp+'°F' : '—'],
-    ['Dwell', data.flash_dwell ? data.flash_dwell+'s' : '—'],
-    ['Dryer Temp', data.dryer_temp ? data.dryer_temp+'°F' : '—'],
-    ['Belt Speed', data.belt_speed ? data.belt_speed+'V' : '—'],
+    ['Speed',       data.press_speed   ? data.press_speed              : '—'],
+    ['Stroke',      data.stroke_length ? data.stroke_length+'"'        : '—'],
+    ['Off-Contact', data.off_contact   ? data.off_contact+'"'          : '—'],
+    ['Flash Temp',  data.flash_temp    ? data.flash_temp+'°F'          : '—'],
+    ['Dwell',       data.flash_dwell   ? data.flash_dwell+'s'          : '—'],
+    ['Dryer Temp',  data.dryer_temp    ? data.dryer_temp+'°F'          : '—'],
+    ['Belt Speed',  data.belt_speed    ? data.belt_speed+'V'           : '—'],
   ];
   const setColW = TW / 4;
   settings.forEach(([lbl, val], i) => {
     const col = i % 4, row = Math.floor(i / 4);
-    const x = ML + col * setColW;
-    const ry = y + row * 18;
-    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(120,120,120);
-    doc.text(lbl.toUpperCase(), x+2, ry);
+    const x = ML + col * setColW + 2;
+    const ry = y + row * 20;
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+    doc.text(lbl.toUpperCase(), x, ry);
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
-    doc.text(String(val), x+2, ry+10);
+    doc.text(val, x, ry + 11);
   });
-  y += Math.ceil(settings.length/4) * 18 + 8;
+  y += Math.ceil(settings.length/4) * 20 + 8;
 
-  // ── Per-location configs ──
+  // ── Per-location or fallback ─────────────────────────
   const locData = data.loc_data;
   const locs = locData ? Object.entries(locData) : [];
 
   if (locs.length) {
+    // New format — per-location sections
     locs.forEach(([loc, d]) => {
-      if (y > 600) { pdfFooter(doc,1); doc.addPage(); y = 44; }
-      y = pdfSection(doc, loc.toUpperCase()+' PRINT', ML, MR, y);
+      if (y > 580) { pdfFooter(doc,1); doc.addPage(); y = 44; }
+      y = pdfSection(doc, loc.toUpperCase()+' PRINT CONFIG', ML, MR, y);
 
-      // Heads table
+      // Heads
       if (d.heads?.length) {
-        y = pdfTableHeader(doc, ['HEAD','STATION TYPE','COLOR / LABEL','INK TYPE','PMS / CODE'], ML, y, [35,90,110,80,TW-315]);
-        doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-        d.heads.forEach((h, i) => {
-          if (y > 700) { pdfFooter(doc,1); doc.addPage(); y = 44; }
-          if (i%2===0) { doc.setFillColor(248,248,248); doc.rect(ML,y-9,TW,11,'F'); }
-          doc.setTextColor(0,0,0);
-          doc.text(String(h.head_num||'—'), ML+4, y);
-          doc.text(h.head_type||'—', ML+39, y);
-          doc.text(h.head_color||'—', ML+129, y);
-          doc.setTextColor(..._ac);
-          doc.text(h.ink_type||'—', ML+239, y);
-          doc.setTextColor(100,100,100);
-          doc.text(h.pms_code||'—', ML+319, y);
-          y += 11;
+        y = pdfTableHeader(doc,['HEAD','STATION TYPE','COLOR / LABEL','INK TYPE','PMS / CODE'],ML,y,[35,95,110,75,TW-315]);
+        d.heads.forEach((h,i) => {
+          if (y > 700) { pdfFooter(doc,1); doc.addPage(); y=44; }
+          if (i%2===0){doc.setFillColor(248,248,248);doc.rect(ML,y-9,TW,11,'F');}
+          doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+          doc.text(String(h.head_num||'—'),ML+4,y);
+          doc.text(h.head_type||'—',ML+39,y);
+          doc.text(h.head_color||'—',ML+134,y);
+          doc.setTextColor(..._ac); doc.text(h.ink_type||'—',ML+244,y);
+          doc.setTextColor(100,100,100); doc.text(h.pms_code||'—',ML+319,y);
+          y+=11;
         });
-        y += 6;
+        y+=6;
       }
 
-      // Screens table
-      if (d.screens?.filter(s=>s.screen_id||s.mesh_count).length) {
-        y = pdfTableHeader(doc, ['HEAD','SCREEN ID','MESH','NOTES'], ML, y, [40,100,60,TW-200]);
-        doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-        d.screens.forEach((s, i) => {
-          if (!s.screen_id && !s.mesh_count) return;
-          if (y > 700) { pdfFooter(doc,1); doc.addPage(); y = 44; }
-          if (i%2===0) { doc.setFillColor(248,248,248); doc.rect(ML,y-9,TW,11,'F'); }
-          doc.setTextColor(0,0,0);
-          doc.text(String(s.head_num||'—'), ML+4, y);
-          doc.text(s.screen_id||'—', ML+44, y);
-          doc.text(String(s.mesh_count||'—'), ML+144, y);
-          doc.setTextColor(100,100,100);
-          doc.text(s.notes||'—', ML+204, y);
-          y += 11;
+      // Screens
+      const validScreens = (d.screens||[]).filter(s=>s.screen_id||s.mesh_count);
+      if (validScreens.length) {
+        y = pdfTableHeader(doc,['HEAD','SCREEN ID','MESH','NOTES'],ML,y,[40,100,60,TW-200]);
+        validScreens.forEach((s,i) => {
+          if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
+          if (i%2===0){doc.setFillColor(248,248,248);doc.rect(ML,y-9,TW,11,'F');}
+          doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+          doc.text(String(s.head_num||'—'),ML+4,y);
+          doc.text(s.screen_id||'—',ML+44,y);
+          doc.text(String(s.mesh_count||'—'),ML+144,y);
+          doc.setTextColor(100,100,100); doc.text(s.notes||'—',ML+204,y);
+          y+=11;
         });
-        y += 6;
+        y+=6;
       }
 
-      // Squeegees table
-      if (d.squeegees?.filter(s=>s.blade||s.head_num).length) {
-        y = pdfTableHeader(doc, ['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'], ML, y, [40,80,55,80,TW-255]);
-        doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-        d.squeegees.forEach((s, i) => {
-          if (!s.blade && !s.head_num) return;
-          if (y > 700) { pdfFooter(doc,1); doc.addPage(); y = 44; }
-          if (i%2===0) { doc.setFillColor(248,248,248); doc.rect(ML,y-9,TW,11,'F'); }
-          doc.setTextColor(0,0,0);
-          doc.text(String(s.head_num||'—'), ML+4, y);
-          doc.text(s.blade||'—', ML+44, y);
-          doc.text(String(s.angle||'—'), ML+124, y);
-          doc.text(s.pressure||'—', ML+179, y);
-          doc.text(s.condition||'—', ML+259, y);
-          y += 11;
+      // Squeegees
+      const validSqs = (d.squeegees||[]).filter(s=>s.blade||s.head_num);
+      if (validSqs.length) {
+        y = pdfTableHeader(doc,['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'],ML,y,[40,80,55,80,TW-255]);
+        validSqs.forEach((s,i) => {
+          if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
+          if (i%2===0){doc.setFillColor(248,248,248);doc.rect(ML,y-9,TW,11,'F');}
+          doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+          doc.text(String(s.head_num||'—'),ML+4,y);
+          doc.text(s.blade||'—',ML+44,y);
+          doc.text(String(s.angle||'—'),ML+124,y);
+          doc.text(s.pressure||'—',ML+179,y);
+          doc.text(s.condition||'—',ML+259,y);
+          y+=11;
         });
-        y += 6;
+        y+=6;
       }
 
       // Print sequence
       if (d.sequence?.length) {
-        if (y > 660) { pdfFooter(doc,1); doc.addPage(); y = 44; }
+        if (y>660){pdfFooter(doc,1);doc.addPage();y=44;}
         doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(..._ac);
-        doc.text('PRINT SEQUENCE', ML, y); y += 12;
+        doc.text('PRINT SEQUENCE', ML, y); y+=12;
         d.sequence.forEach(rev => {
-          if (y > 700) { pdfFooter(doc,1); doc.addPage(); y = 44; }
+          if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
           const steps = (rev.stations||[]).map(st => {
             if (st.type==='flash') return '⚡ Flash'+(st.head?' H'+st.head:'');
-            return [st.ink, st.head?'H'+st.head:'', st.strokes?st.strokes+'×':''].filter(Boolean).join(' · ') || '🖨';
+            return [st.ink,st.head?'H'+st.head:'',st.strokes?st.strokes+'×':''].filter(Boolean).join(' · ')||'🖨';
           }).join('  →  ');
           doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(..._ac);
           doc.text('R'+rev.revolve+':', ML+4, y);
           doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0);
-          doc.text(steps, ML+30, y);
-          y += 12;
+          doc.text(steps, ML+28, y);
+          y+=12;
         });
-        y += 4;
+        y+=4;
       }
     });
-  } else if (data.head_locations?.length) {
-    // Fallback for old jobs
-    y = pdfSection(doc, 'Head Locations', ML, MR, y);
-    y = pdfTableHeader(doc, ['HEAD','TYPE','COLOR','INK TYPE','PMS'], ML, y, [35,90,110,80,TW-315]);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-    data.head_locations.forEach((h,i) => {
-      if (i%2===0) { doc.setFillColor(248,248,248); doc.rect(ML,y-9,TW,11,'F'); }
-      doc.setTextColor(0,0,0);
-      doc.text(String(h.head_num||'—'),ML+4,y);
-      doc.text(h.head_type||'—',ML+39,y);
-      doc.text(h.head_color||'—',ML+129,y);
-      doc.text(h.ink_type||'—',ML+239,y);
-      doc.text(h.pms_code||h.head_ink||'—',ML+319,y);
-      y+=11;
-    });
-    y += 6;
+
+  } else {
+    // Fallback for old jobs — show flat arrays
+    if (data.head_locations?.length) {
+      y = pdfSection(doc,'Head Locations',ML,MR,y);
+      y = pdfTableHeader(doc,['HEAD','TYPE','COLOR','INK TYPE','PMS/CODE'],ML,y,[35,90,110,80,TW-315]);
+      data.head_locations.forEach((h,i) => {
+        if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
+        if (i%2===0){doc.setFillColor(248,248,248);doc.rect(ML,y-9,TW,11,'F');}
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+        doc.text(String(h.head_num||'—'),ML+4,y);
+        doc.text(h.head_type||'—',ML+39,y);
+        doc.text(h.head_color||'—',ML+129,y);
+        doc.setTextColor(..._ac); doc.text(h.ink_type||h.ink_code||'—',ML+239,y);
+        doc.setTextColor(100,100,100); doc.text(h.pms_code||h.head_ink||'—',ML+319,y);
+        y+=11;
+      });
+      y+=6;
+    }
+    if (data.screen_specs?.length) {
+      y = pdfSection(doc,'Screen Specs',ML,MR,y);
+      y = pdfTableHeader(doc,['HEAD','SCREEN','MESH','EMULSION','NOTES'],ML,y,[40,90,55,80,TW-265]);
+      data.screen_specs.forEach((s,i) => {
+        if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
+        if (i%2===0){doc.setFillColor(248,248,248);doc.rect(ML,y-9,TW,11,'F');}
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+        doc.text(String(s.head_num||s.screen_num||'—'),ML+4,y);
+        doc.text(s.screen_id||s.screen_num||'—',ML+44,y);
+        doc.text(String(s.mesh||s.mesh_count||'—'),ML+134,y);
+        doc.text(s.emulsion||'—',ML+189,y);
+        doc.setTextColor(100,100,100); doc.text(s.notes||'—',ML+269,y);
+        y+=11;
+      });
+      y+=6;
+    }
+    if (data.squeegee_settings?.length) {
+      y = pdfSection(doc,'Squeegee Settings',ML,MR,y);
+      y = pdfTableHeader(doc,['HEAD','BLADE','ANGLE','PRESSURE','CONDITION'],ML,y,[40,80,55,80,TW-255]);
+      data.squeegee_settings.forEach((s,i) => {
+        if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
+        if (i%2===0){doc.setFillColor(248,248,248);doc.rect(ML,y-9,TW,11,'F');}
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+        doc.text(String(s.head_num||'—'),ML+4,y);
+        doc.text(s.blade||'—',ML+44,y);
+        doc.text(String(s.angle||'—'),ML+124,y);
+        doc.text(s.pressure||'—',ML+179,y);
+        doc.text(s.condition||'—',ML+259,y);
+        y+=11;
+      });
+      y+=6;
+    }
+    // Old print_sequence field
+    if (data.print_sequence?.length) {
+      if (y>660){pdfFooter(doc,1);doc.addPage();y=44;}
+      y = pdfSection(doc,'Print Sequence',ML,MR,y);
+      data.print_sequence.forEach(rev => {
+        if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
+        const steps = (rev.stations||[]).map(st => {
+          if (st.type==='flash') return '⚡ Flash'+(st.head?' H'+st.head:'');
+          return [st.ink,st.head?'H'+st.head:'',st.strokes?st.strokes+'×':''].filter(Boolean).join(' · ')||'🖨';
+        }).join('  →  ');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(..._ac);
+        doc.text('R'+rev.revolve+':', ML+4, y);
+        doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0);
+        doc.text(steps, ML+28, y); y+=12;
+      });
+      y+=4;
+    }
   }
 
-  // ── Notes ──
+  // ── Notes ────────────────────────────────────────────
   if (data.notes) {
-    if (y > 650) { pdfFooter(doc,1); doc.addPage(); y = 44; }
-    y = pdfSection(doc, 'Notes', ML, MR, y);
+    if (y>650){pdfFooter(doc,1);doc.addPage();y=44;}
+    y = pdfSection(doc,'Notes',ML,MR,y);
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-    doc.splitTextToSize(data.notes, TW).forEach(l => { doc.text(l, ML+4, y); y += 12; });
+    doc.splitTextToSize(data.notes, TW-8).forEach(l=>{doc.text(l,ML+4,y);y+=12;});
   }
 
   pdfFooter(doc, 1);
