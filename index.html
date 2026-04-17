@@ -2615,12 +2615,8 @@ async function submitForm(e){
 async function initForm(){
   document.getElementById('shirtTypeList').innerHTML='';
   stCount=0; addShirtType();
-  ['headRows','screenRows','sqRows'].forEach(id=>document.getElementById(id).innerHTML='');
+  // headRows/screenRows/sqRows now in per-location panels — reset handled by resetLocConfigs()
   hC=0;iC=0;scC=0;sqC=0;
-  addHeadRow();addHeadRow();addHeadRow();
-
-  addScreenRow();addScreenRow();
-  addSqRow();addSqRow();
   resetLocButtons();
   resetRevolves();
   resetLocConfigs();
@@ -3280,6 +3276,49 @@ function exportPDF(){
 
   pdfFooter(doc, 1);
   doc.save((data.job_name||'press-setup').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-'+new Date().toISOString().split('T')[0]+'.pdf');
+}
+
+
+// ══════════════════════════════════════════════════════
+// PIPELINE / KANBAN
+// ══════════════════════════════════════════════════════
+const STAGES = ['intake','receiving','printing','packaging','complete'];
+const COUNT_STAGES = ['receiving','packaging'];
+const STAGE_LABELS = {
+  intake:'Order Intake', receiving:'Receiving', printing:'Printing',
+  packaging:'Packaging', complete:'Complete'
+};
+
+async function loadPipeline() {
+  if (!sbClient) return;
+  const cols = {};
+  STAGES.forEach(s => {
+    const el = document.getElementById('col-'+s);
+    if (el) { el.innerHTML = ''; cols[s] = el; }
+    const cnt = document.getElementById('count-'+s);
+    if (cnt) cnt.textContent = '0';
+  });
+
+  const { data, error } = await sbClient
+    .from('print_setups')
+    .select('*')
+    .not('pipeline_stage','eq','archived')
+    .order('job_date', { ascending: true });
+
+  if (error || !data) return;
+
+  const active = data.filter(j => j.pipeline_stage !== 'complete');
+  const completed = data.filter(j => j.pipeline_stage === 'complete');
+  renderPipelineStats(completed, active);
+
+  data.forEach(job => {
+    const stage = job.pipeline_stage || 'intake';
+    const col = cols[stage];
+    if (!col) return;
+    col.appendChild(buildKCard(job, stage));
+    const cnt = document.getElementById('count-'+stage);
+    if (cnt) cnt.textContent = String(parseInt(cnt.textContent||0)+1);
+  });
 }
 
 function buildKCard(job,stage){
