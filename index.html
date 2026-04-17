@@ -11052,23 +11052,67 @@ function refreshLocRevolveHeads(loc) {
 // ── Screen rows per location ──────────────────────────
 let _locSC = {};
 
-function addLocScreenRow(loc, d={}) {
+async function addLocScreenRow(loc, d={}) {
   if (!_locSC[loc]) _locSC[loc] = 0;
   _locSC[loc]++;
   const i = loc + '_' + _locSC[loc];
   const container = document.getElementById('screenRows-'+loc);
   if (!container) return;
+
+  // Fetch available screens from inventory (same as old addScreenRow)
+  let screenOptions = '<option value="">Select screen…</option>';
+  if (sbClient) {
+    const {data} = await sbClient.from('screens').select('*').in('state',['clean','burned']).order('mesh_count').order('screen_id');
+    if (data && data.length) {
+      const byMesh = {};
+      data.forEach(s => {
+        const k = (MESH_LABELS[s.mesh_count]||s.mesh_count)+' mesh';
+        if (!byMesh[k]) byMesh[k] = [];
+        byMesh[k].push(s);
+      });
+      screenOptions += Object.entries(byMesh).map(([grp,screens]) =>
+        `<optgroup label="${grp}">${screens.map(s=>`<option value="${s.id}" data-mesh="${s.mesh_count}" data-frame="${s.frame_size||''}" data-state="${s.state}">${s.screen_id} (${STATE_LABELS[s.state]||s.state})</option>`).join('')}</optgroup>`
+      ).join('');
+      data.forEach(s => { window._screenMap = window._screenMap||{}; window._screenMap[s.id] = s; });
+    } else {
+      screenOptions += '<option disabled>No clean screens in inventory</option>';
+    }
+  }
+
+  const preselect = d.inventory_id || '';
   const r = document.createElement('div');
   r.id = 'scr-'+i;
   r.className = 'drow-wrap';
-  r.innerHTML = `<div class="drow" style="grid-template-columns:40px 1fr 1fr 1fr 22px;min-width:360px;">
+  r.innerHTML = `<div class="drow" style="grid-template-columns:1fr 80px 1fr 22px;min-width:340px;">
+    <div>
+      <label>Screen from Inventory</label>
+      <select name="sc_inv_${i}" onchange="onLocScreenSelected('${loc}',${JSON.stringify(i).replace(/"/g,"'")},this)">
+        ${screenOptions}
+      </select>
+    </div>
     <div><label>Head #</label><input type="number" name="sc_head_${i}" value="${d.head_num||''}" min="1" /></div>
-    <div><label>Screen ID</label><input type="text" name="sc_id_${i}" value="${d.screen_id||''}" placeholder="SCR-001" /></div>
-    <div><label>Mesh</label><input type="text" name="sc_mesh_${i}" value="${d.mesh_count||''}" placeholder="155" /></div>
-    <div><label>Notes</label><input type="text" name="sc_notes_${i}" value="${d.notes||''}" placeholder="EOM, SBQ…" /></div>
+    <div><label>Emulsion / Notes</label><input type="text" name="sc_emul_${i}" placeholder="Auto-fills or type manually" value="${d.emulsion||''}" /></div>
     <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('scr-${i}').remove()">✕</button></div>
-  </div>`;
+  </div>
+  <div id="scr-info-${i}" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);padding:3px 0 0 4px;"></div>`;
   container.appendChild(r);
+
+  if (preselect) {
+    const sel = r.querySelector(`[name="sc_inv_${i}"]`);
+    if (sel) { sel.value = preselect; onLocScreenSelected(loc, i, sel); }
+  }
+}
+
+function onLocScreenSelected(loc, i, sel) {
+  // Same logic as onScreenSelected but for loc-keyed rows
+  const screenId = sel.value;
+  const s = window._screenMap?.[screenId];
+  const infoEl = document.getElementById('scr-info-'+i);
+  if (s && infoEl) {
+    infoEl.textContent = `${s.screen_id} · ${MESH_LABELS[s.mesh_count]||s.mesh_count} mesh · ${s.frame_size||''} · ${STATE_LABELS[s.state]||s.state}`;
+  } else if (infoEl) {
+    infoEl.textContent = '';
+  }
 }
 
 function checkScreenInventoryLoc(loc) { checkScreenInventory(); }
@@ -11291,14 +11335,18 @@ function collectLocScreens(loc) {
   const screens = [];
   document.querySelectorAll(`[id^="scr-${loc}_"]`).forEach(r => {
     const i = r.id.replace('scr-','');
+    const invId  = document.querySelector(`[name="sc_inv_${i}"]`)?.value || '';
+    const screen = window._screenMap?.[invId];
     screens.push({
-      head_num:   document.querySelector(`[name="sc_head_${i}"]`)?.value || '',
-      screen_id:  document.querySelector(`[name="sc_id_${i}"]`)?.value || '',
-      mesh_count: document.querySelector(`[name="sc_mesh_${i}"]`)?.value || '',
-      notes:      document.querySelector(`[name="sc_notes_${i}"]`)?.value || '',
+      inventory_id: invId,
+      head_num:     document.querySelector(`[name="sc_head_${i}"]`)?.value || '',
+      screen_id:    screen?.screen_id || '',
+      mesh_count:   screen?.mesh_count || '',
+      frame_size:   screen?.frame_size || '',
+      emulsion:     document.querySelector(`[name="sc_emul_${i}"]`)?.value || '',
     });
   });
-  return screens;
+  return screens.filter(s => s.inventory_id || s.screen_id);
 }
 
 function collectLocSqueegees(loc) {
