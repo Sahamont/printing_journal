@@ -10737,10 +10737,22 @@ function buildLocPanelHTML(loc) {
 // ── Save / restore panel state ────────────────────────
 function saveLocPanel(loc) {
   if (!_locData[loc]) return;
-  // Save revolve count
   const cnt = document.getElementById('revolveCount-'+loc);
   if (cnt) _locData[loc].revolveCount = parseInt(cnt.value)||1;
-  // revolveData is already live in _locData[loc].revolveData via updateLocRevolveStation
+  // Also sync heads/screens/squeegees from DOM in case panel is active
+  const headContainer = document.getElementById('headRows-'+loc);
+  if (headContainer && headContainer.children.length) {
+    _locData[loc].heads = collectLocHeads(loc);
+  }
+  const scrContainer = document.getElementById('screenRows-'+loc);
+  if (scrContainer && scrContainer.children.length) {
+    _locData[loc].screens = collectLocScreens(loc);
+  }
+  const sqContainer = document.getElementById('sqRows-'+loc);
+  if (sqContainer && sqContainer.children.length) {
+    _locData[loc].squeegees = collectLocSqueegees(loc);
+  }
+  // revolveData stays live in _locData via updateLocStation
 }
 
 function restoreLocPanel(loc) {
@@ -11117,15 +11129,15 @@ function collectLocRevolves(loc) {
 }
 
 function collectAllLocData() {
-  // Save current active tab first
-  if (_activeLocTab) saveLocPanel(_activeLocTab);
+  // Save all active panels so DOM state is synced into _locData
+  getActiveLocs().forEach(loc => saveLocPanel(loc));
   const result = {};
   getActiveLocs().forEach(loc => {
     result[loc] = {
-      heads:      collectLocHeads(loc),
-      screens:    collectLocScreens(loc),
-      squeegees:  collectLocSqueegees(loc),
-      sequence:   collectLocRevolves(loc),
+      heads:     _locData[loc]?.heads     || [],
+      screens:   _locData[loc]?.screens   || [],
+      squeegees: _locData[loc]?.squeegees || [],
+      sequence:  collectLocRevolves(loc),
     };
   });
   return result;
