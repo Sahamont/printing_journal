@@ -3025,26 +3025,31 @@ function exportPDF(){
   doc.setFillColor(10,10,18);
   doc.rect(0, 0, PW, 58, 'F');
 
-  // Shop name — left
+  // Shop name — left of dark bar
   doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(..._ac);
-  doc.text((shop.name||'PRESS SETUP DOC').toUpperCase(), ML, 22);
+  doc.text((shop.name||'PRESS SETUP DOC').toUpperCase(), ML, 24);
   const contactParts = [shop.addr1, shop.phone, shop.email].filter(Boolean);
   if (contactParts.length) {
     doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
-    doc.text(contactParts.join('  ·  '), ML, 33);
+    doc.text(contactParts.join('  ·  '), ML, 36);
   }
-
-  // Job name — right (truncated)
-  const jobLabel = (data.job_name||'Press Setup').toUpperCase();
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(..._ac);
-  doc.text(jobLabel, MR, 22, {align:'right', maxWidth: TW*0.55});
+  // Order/date — right of dark bar
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
-  doc.text([data.order_number, fmtDate(data.job_date), data.status].filter(Boolean).join('  ·  '), MR, 33, {align:'right'});
+  doc.text([data.order_number, fmtDate(data.job_date), data.status].filter(Boolean).join('  ·  '), MR, 24, {align:'right'});
 
   // Accent rule
-  doc.setDrawColor(..._ac); doc.setLineWidth(1);
-  doc.line(ML, 58, MR, 58); doc.setLineWidth(0.4);
-  let y = 72;
+  doc.setDrawColor(..._ac); doc.setLineWidth(1.5);
+  doc.line(ML, 46, MR, 46); doc.setLineWidth(0.4);
+  let y = 48;
+
+  // Job name — full width below bar in accent color
+  doc.setFillColor(20,20,32);
+  doc.rect(0, 46, PW, 26, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(..._ac);
+  const jobLabel = (data.job_name||'Press Setup').toUpperCase();
+  const jobLines = doc.splitTextToSize(jobLabel, TW);
+  doc.text(jobLines[0], ML, 64);
+  y = 80;
 
   // ── Job info strip ───────────────────────────────────
   doc.setFillColor(245,245,245);
@@ -3183,9 +3188,9 @@ function exportPDF(){
         d.sequence.forEach(rev => {
           if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
           const steps = (rev.stations||[]).map(st => {
-            if (st.type==='flash') return '⚡ Flash'+(st.head?' H'+st.head:'');
+            if (st.type==='flash') return '[FLASH]'+(st.head?' H'+st.head:'');
             return [st.ink,st.head?'H'+st.head:'',st.strokes?st.strokes+'×':''].filter(Boolean).join(' · ')||'🖨';
-          }).join('  →  ');
+          }).join('  >>  ');
           doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(..._ac);
           doc.text('R'+rev.revolve+':', ML+4, y);
           doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0);
@@ -3253,9 +3258,9 @@ function exportPDF(){
       data.print_sequence.forEach(rev => {
         if (y>700){pdfFooter(doc,1);doc.addPage();y=44;}
         const steps = (rev.stations||[]).map(st => {
-          if (st.type==='flash') return '⚡ Flash'+(st.head?' H'+st.head:'');
+          if (st.type==='flash') return '[FLASH]'+(st.head?' H'+st.head:'');
           return [st.ink,st.head?'H'+st.head:'',st.strokes?st.strokes+'×':''].filter(Boolean).join(' · ')||'🖨';
-        }).join('  →  ');
+        }).join('  >>  ');
         doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(..._ac);
         doc.text('R'+rev.revolve+':', ML+4, y);
         doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0);
