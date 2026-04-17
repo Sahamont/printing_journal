@@ -11092,10 +11092,12 @@ async function addLocScreenRow(loc, d={}) {
     </div>
     <div><label>Head #</label><input type="number" name="sc_head_${i}" value="${d.head_num||''}" min="1" /></div>
     <div><label>Emulsion / Notes</label><input type="text" name="sc_emul_${i}" placeholder="Auto-fills or type manually" value="${d.emulsion||''}" /></div>
-    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="document.getElementById('scr-${i}').remove()">✕</button></div>
+    <div style="padding-bottom:2px;align-self:end;"><button type="button" class="row-remove" onclick="(() => { const sel=document.querySelector('[name=\'sc_inv_${i}\']'); if(sel?.value) unmarkScreenAssigned(sel.value); document.getElementById('scr-${i}').remove(); })()">✕</button></div>
   </div>
   <div id="scr-info-${i}" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);padding:3px 0 0 4px;"></div>`;
   container.appendChild(r);
+  // Mark already-assigned screens as disabled in this new dropdown
+  setTimeout(() => refreshScreenDropdownsForAssigned(), 50);
 
   if (preselect) {
     const sel = r.querySelector(`[name="sc_inv_${i}"]`);
@@ -11103,13 +11105,59 @@ async function addLocScreenRow(loc, d={}) {
   }
 }
 
+
+// ── Screen assignment tracker ─────────────────────────
+// Tracks which screen inventory IDs are currently assigned in the form
+let _assignedScreenIds = new Set();
+
+function markScreenAssigned(inventoryId, fromRowId) {
+  if (!inventoryId) return;
+  _assignedScreenIds.add(inventoryId);
+  // Disable this option in all other screen dropdowns
+  document.querySelectorAll('[name^="sc_inv_"]').forEach(sel => {
+    if (sel.closest('[id^="scr-"]')?.id === fromRowId) return; // skip own row
+    const opt = sel.querySelector(`option[value="${inventoryId}"]`);
+    if (opt) { opt.disabled = true; opt.textContent = opt.textContent.replace(' ✓ ASSIGNED','') + ' ✓ ASSIGNED'; }
+  });
+}
+
+function unmarkScreenAssigned(inventoryId) {
+  if (!inventoryId) return;
+  _assignedScreenIds.delete(inventoryId);
+  // Re-enable this option in all screen dropdowns
+  document.querySelectorAll(`[name^="sc_inv_"] option[value="${inventoryId}"]`).forEach(opt => {
+    opt.disabled = false;
+    opt.textContent = opt.textContent.replace(' ✓ ASSIGNED','');
+  });
+}
+
+function refreshScreenDropdownsForAssigned() {
+  // Mark all currently assigned screens in all dropdowns
+  _assignedScreenIds.forEach(id => {
+    document.querySelectorAll(`[name^="sc_inv_"] option[value="${id}"]`).forEach(opt => {
+      const sel = opt.closest('select');
+      if (sel?.value !== id) { // don't disable the one selected in its own row
+        opt.disabled = true;
+        if (!opt.textContent.includes('✓')) opt.textContent += ' ✓ ASSIGNED';
+      }
+    });
+  });
+}
+
 function onLocScreenSelected(loc, i, sel) {
-  // Same logic as onScreenSelected but for loc-keyed rows
   const screenId = sel.value;
+  const rowId = 'scr-'+i;
   const s = window._screenMap?.[screenId];
   const infoEl = document.getElementById('scr-info-'+i);
+
+  // Unmark previous selection for this row
+  const prevId = sel.dataset.prevSelection;
+  if (prevId && prevId !== screenId) unmarkScreenAssigned(prevId);
+  sel.dataset.prevSelection = screenId;
+
   if (s && infoEl) {
-    infoEl.textContent = `${s.screen_id} · ${MESH_LABELS[s.mesh_count]||s.mesh_count} mesh · ${s.frame_size||''} · ${STATE_LABELS[s.state]||s.state}`;
+    infoEl.innerHTML = `<span style="color:var(--green);">✓ ${s.screen_id} · ${MESH_LABELS[s.mesh_count]||s.mesh_count} mesh · ${s.frame_size||''} · ${STATE_LABELS[s.state]||s.state}</span>`;
+    markScreenAssigned(screenId, rowId);
   } else if (infoEl) {
     infoEl.textContent = '';
   }
@@ -11388,6 +11436,7 @@ function collectAllLocData() {
 // ── Reset / restore for form ──────────────────────────
 function resetLocConfigs() {
   _locData = {};
+  _assignedScreenIds = new Set();
   _locHC = {}; _locSC = {}; _locSQ = {};
   _activeLocTab = null;
   const area = document.getElementById('locConfigArea');
