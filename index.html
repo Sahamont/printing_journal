@@ -398,7 +398,51 @@
     .sop-step-type.tip{color:var(--green);}
     .sop-step-type.photo{color:var(--cyan);}
     .sop-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.6rem;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
-  </style>
+  
+    /* ── Marketing ── */
+    .mkt-tab{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.95rem;padding:9px 20px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;touch-action:manipulation;}
+    .mkt-tab.active{color:var(--flash);border-bottom-color:var(--flash);}
+    .mkt-tab:hover{color:var(--text);}
+    .lead-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;border-left:3px solid var(--border);}
+    .lead-card:hover{border-color:var(--flash-40);}
+    .lead-card.won{border-left-color:var(--green);}
+    .lead-card.qualified{border-left-color:var(--cyan);}
+    .lead-card.proposal{border-left-color:var(--flash);}
+    .lead-card.lost,.lead-card.cold{border-left-color:var(--muted);opacity:.65;}
+    .lead-card.new{border-left-color:var(--yellow);}
+    .lead-card.contacted{border-left-color:#b464ff;}
+    .pitch-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+    .pitch-card:hover{border-color:var(--flash-40);}
+    .pitch-card.won{border-left:3px solid var(--green);}
+    .pitch-card.lost{border-left:3px solid #ff4444;opacity:.7;}
+    .strat-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:14px;cursor:pointer;transition:border-color .15s;}
+    .strat-card:hover{border-color:var(--flash-40);}
+    .strat-card.active{border-top:3px solid var(--green);}
+    .strat-card.idea{border-top:3px solid var(--yellow);}
+    .strat-card.paused{border-top:3px solid var(--muted);}
+    .strat-card.done{border-top:3px solid var(--cyan);opacity:.7;}
+    .mkt-cal-day{background:var(--surface2);border:1px solid var(--border);border-radius:3px;min-height:80px;padding:5px;cursor:pointer;transition:border-color .15s;position:relative;}
+    .mkt-cal-day:hover{border-color:var(--flash-30);}
+    .mkt-cal-day.today{border-color:var(--flash);background:var(--flash-dim);}
+    .mkt-cal-day.other-month{opacity:.35;}
+    .mkt-cal-day-num{font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--muted);margin-bottom:3px;}
+    .mkt-cal-day.today .mkt-cal-day-num{color:var(--flash);}
+    .mkt-cal-event{font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:2px 5px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+    .mkt-ev-post{background:rgba(0,180,216,.2);color:var(--cyan);}
+    .mkt-ev-followup{background:rgba(245,200,0,.2);color:var(--yellow);}
+    .mkt-ev-pitch{background:rgba(232,80,10,.2);color:var(--flash);}
+    .mkt-ev-promo{background:rgba(180,100,255,.2);color:#b464ff;}
+    .mkt-ev-event{background:rgba(0,200,83,.2);color:var(--green);}
+    .mkt-ev-deadline{background:rgba(255,68,68,.2);color:#ff4444;}
+    .mkt-ev-other{background:rgba(245,240,232,.1);color:var(--muted);}
+    .lead-status-badge{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
+    .ls-new{background:rgba(245,200,0,.15);color:var(--yellow);border:1px solid rgba(245,200,0,.3);}
+    .ls-contacted{background:rgba(180,100,255,.15);color:#b464ff;border:1px solid rgba(180,100,255,.3);}
+    .ls-qualified{background:rgba(0,180,216,.15);color:var(--cyan);border:1px solid rgba(0,180,216,.3);}
+    .ls-proposal{background:rgba(232,80,10,.15);color:var(--flash);border:1px solid rgba(232,80,10,.3);}
+    .ls-won{background:rgba(0,200,83,.15);color:var(--green);border:1px solid rgba(0,200,83,.3);}
+    .ls-lost,.ls-cold{background:rgba(245,240,232,.07);color:var(--muted);border:1px solid rgba(245,240,232,.12);}
+</style>
 </head>
 <body class="grid-bg">
 
@@ -12551,49 +12595,6 @@ function exportSOPQR(sop) {
         .shop{font-size:7px;color:#aaa;margin-top:6px;}
         @media print{body{-webkit-print-color-adjust:exact;}}
       
-    /* ── Marketing ── */
-    .mkt-tab{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.95rem;padding:9px 20px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;touch-action:manipulation;}
-    .mkt-tab.active{color:var(--flash);border-bottom-color:var(--flash);}
-    .mkt-tab:hover{color:var(--text);}
-    .lead-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;border-left:3px solid var(--border);}
-    .lead-card:hover{border-color:var(--flash-40);}
-    .lead-card.won{border-left-color:var(--green);}
-    .lead-card.qualified{border-left-color:var(--cyan);}
-    .lead-card.proposal{border-left-color:var(--flash);}
-    .lead-card.lost,.lead-card.cold{border-left-color:var(--muted);opacity:.65;}
-    .lead-card.new{border-left-color:var(--yellow);}
-    .lead-card.contacted{border-left-color:#b464ff;}
-    .pitch-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
-    .pitch-card:hover{border-color:var(--flash-40);}
-    .pitch-card.won{border-left:3px solid var(--green);}
-    .pitch-card.lost{border-left:3px solid #ff4444;opacity:.7;}
-    .strat-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:14px;cursor:pointer;transition:border-color .15s;}
-    .strat-card:hover{border-color:var(--flash-40);}
-    .strat-card.active{border-top:3px solid var(--green);}
-    .strat-card.idea{border-top:3px solid var(--yellow);}
-    .strat-card.paused{border-top:3px solid var(--muted);}
-    .strat-card.done{border-top:3px solid var(--cyan);opacity:.7;}
-    .mkt-cal-day{background:var(--surface2);border:1px solid var(--border);border-radius:3px;min-height:80px;padding:5px;cursor:pointer;transition:border-color .15s;position:relative;}
-    .mkt-cal-day:hover{border-color:var(--flash-30);}
-    .mkt-cal-day.today{border-color:var(--flash);background:var(--flash-dim);}
-    .mkt-cal-day.other-month{opacity:.35;}
-    .mkt-cal-day-num{font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--muted);margin-bottom:3px;}
-    .mkt-cal-day.today .mkt-cal-day-num{color:var(--flash);}
-    .mkt-cal-event{font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:2px 5px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
-    .mkt-ev-post{background:rgba(0,180,216,.2);color:var(--cyan);}
-    .mkt-ev-followup{background:rgba(245,200,0,.2);color:var(--yellow);}
-    .mkt-ev-pitch{background:rgba(232,80,10,.2);color:var(--flash);}
-    .mkt-ev-promo{background:rgba(180,100,255,.2);color:#b464ff;}
-    .mkt-ev-event{background:rgba(0,200,83,.2);color:var(--green);}
-    .mkt-ev-deadline{background:rgba(255,68,68,.2);color:#ff4444;}
-    .mkt-ev-other{background:rgba(245,240,232,.1);color:var(--muted);}
-    .lead-status-badge{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
-    .ls-new{background:rgba(245,200,0,.15);color:var(--yellow);border:1px solid rgba(245,200,0,.3);}
-    .ls-contacted{background:rgba(180,100,255,.15);color:#b464ff;border:1px solid rgba(180,100,255,.3);}
-    .ls-qualified{background:rgba(0,180,216,.15);color:var(--cyan);border:1px solid rgba(0,180,216,.3);}
-    .ls-proposal{background:rgba(232,80,10,.15);color:var(--flash);border:1px solid rgba(232,80,10,.3);}
-    .ls-won{background:rgba(0,200,83,.15);color:var(--green);border:1px solid rgba(0,200,83,.3);}
-    .ls-lost,.ls-cold{background:rgba(245,240,232,.07);color:var(--muted);border:1px solid rgba(245,240,232,.12);}
 </style></head><body>
       <div class="qr"><img src="${dataUrl}" /></div>
       <div class="info">
