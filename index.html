@@ -384,6 +384,20 @@
     .cons-restock-btn{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:.06em;padding:5px 10px;cursor:pointer;touch-action:manipulation;border-radius:3px;transition:all .12s;}
     .cons-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;margin-bottom:5px;}
     .cons-log-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
+
+    /* ── SOPs ── */
+    .sop-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:13px 15px;cursor:pointer;transition:border-color .15s;}
+    .sop-card:hover{border-color:var(--flash-40);}
+    .sop-step{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:8px;position:relative;}
+    .sop-step.warning{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.04);}
+    .sop-step.tip{border-color:rgba(0,200,83,.3);background:rgba(0,200,83,.03);}
+    .sop-step.photo{border-color:rgba(0,180,216,.3);background:rgba(0,180,216,.03);}
+    .sop-step-type{font-family:'Bebas Neue',sans-serif;font-size:.75rem;letter-spacing:.08em;margin-bottom:5px;}
+    .sop-step-type.text{color:var(--muted);}
+    .sop-step-type.warning{color:var(--yellow);}
+    .sop-step-type.tip{color:var(--green);}
+    .sop-step-type.photo{color:var(--cyan);}
+    .sop-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.6rem;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
   </style>
 </head>
 <body class="grid-bg">
@@ -423,6 +437,7 @@
   <div class="tab hidden" id="tab-session" onclick="switchTab('session')" style="color:var(--flash);position:relative;">ACTIVE SESSION <span id="sessionPulse" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flash);margin-left:3px;vertical-align:middle;animation:pulse 1s infinite;"></span></div>
   <div class="tab" id="tab-reports" onclick="switchTab('reports')">REPORTS</div>
   <div class="tab" id="tab-showrooms" onclick="switchTab('showrooms')">SHOWROOMS</div>
+  <div class="tab" id="tab-sops" onclick="switchTab('sops')">SOPs</div>
   <div class="tab" id="tab-quotes" onclick="switchTab('quotes')">QUOTES <span id="quotesBadge" style="display:none;background:var(--cyan);color:#000;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-consumables" onclick="switchTab('consumables')">CONSUMABLES <span id="consumablesBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-inventory" onclick="switchTab('inventory')">INVENTORY <span id="inventoryBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
@@ -1152,6 +1167,33 @@
     <!-- Grid -->
     <div id="consGrid"></div>
 
+  </div>
+
+
+  <!-- ═══ SOPs ═══ -->
+  <div id="pane-sops" class="hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">STANDARD OPERATING PROCEDURES</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">Step-by-step procedures for your team</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="loadSOPs()">↺ REFRESH</button>
+        <button class="btn-primary" onclick="openSOPBuilder()">+ NEW SOP</button>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div id="sopSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:14px;"></div>
+
+    <!-- Category filters -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="sopCatFilters"></div>
+
+    <!-- Search -->
+    <input type="text" id="sopSearch" placeholder="Search SOPs…" style="width:100%;margin-bottom:14px;" oninput="renderSOPList()" />
+
+    <!-- List -->
+    <div id="sopList"></div>
   </div>
 
 
@@ -2218,6 +2260,100 @@
   </div>
 </div>
 
+<!-- SOP BUILDER MODAL -->
+<div id="sopBuilderModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:700px;padding:22px;margin:8px auto;width:100%;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.08em;" id="sopBuilderTitle">NEW SOP</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="exportSOPPDF()">⬇ PDF</button>
+        <button class="btn-ghost" onclick="exportSOPQR()">⬛ QR CODE</button>
+        <button class="btn-primary" onclick="saveSOP()">💾 SAVE</button>
+        <button class="btn-ghost" onclick="closeSOPBuilder()">✕</button>
+      </div>
+    </div>
+
+    <!-- Header fields -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div style="grid-column:1/-1"><label>SOP Title</label><input type="text" id="sop_title" placeholder="e.g. How to Reclaim a Screen" /></div>
+      <div>
+        <label>Category</label>
+        <select id="sop_category">
+          <option value="Screen Room">Screen Room</option>
+          <option value="Press Setup">Press Setup</option>
+          <option value="Ink Handling">Ink Handling</option>
+          <option value="Equipment Maintenance">Equipment Maintenance</option>
+          <option value="Quality Control">Quality Control</option>
+          <option value="Safety">Safety</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Version</label>
+        <input type="text" id="sop_version" placeholder="v1.0" value="v1.0" />
+      </div>
+      <div>
+        <label>Link to Machine (optional)</label>
+        <select id="sop_machine">
+          <option value="">None</option>
+        </select>
+      </div>
+      <div>
+        <label>Link to Task (optional)</label>
+        <select id="sop_task">
+          <option value="">None</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1">
+        <label>Tools / Materials Needed</label>
+        <input type="text" id="sop_tools" placeholder="e.g. Emulsion remover, pressure washer, gloves, eye protection" />
+      </div>
+      <div style="grid-column:1/-1">
+        <label>Summary / Purpose</label>
+        <textarea id="sop_summary" rows="2" placeholder="Brief description of what this SOP covers and when to use it…"></textarea>
+      </div>
+    </div>
+
+    <!-- Steps -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;color:var(--flash);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+      <span>STEPS</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addSOPStep('text')">+ STEP</button>
+        <button class="btn-ghost" style="font-size:.65rem;color:var(--yellow);" onclick="addSOPStep('warning')">⚠ WARNING</button>
+        <button class="btn-ghost" style="font-size:.65rem;color:var(--green);" onclick="addSOPStep('tip')">💡 TIP</button>
+        <button class="btn-ghost" style="font-size:.65rem;color:var(--cyan);" onclick="addSOPStep('photo')">📷 PHOTO STEP</button>
+      </div>
+    </div>
+    <div id="sopSteps"></div>
+
+    <!-- Footer -->
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn-danger" id="deleteSOPBtn" onclick="deleteSOP()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeSOPBuilder()">CANCEL</button>
+        <button class="btn-primary" onclick="saveSOP()">💾 SAVE SOP</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SOP VIEW MODAL (read-only, clean view for staff) -->
+<div id="sopViewModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:680px;padding:22px;margin:8px auto;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div id="sopViewHeader"></div>
+      <div style="display:flex;gap:7px;">
+        <button class="btn-secondary" onclick="exportSOPPDF()">⬇ PDF</button>
+        <button class="btn-ghost" onclick="openSOPBuilder(_currentSOP)">✏ EDIT</button>
+        <button class="btn-ghost" onclick="closeSOPView()">✕</button>
+      </div>
+    </div>
+    <div id="sopViewContent"></div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -2270,6 +2406,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     initSupabase(url,key);
     document.getElementById('configModal').style.display='none';
     setTimeout(handleDeepLink, 600);
+    setTimeout(checkSOPDeepLink, 800);
     startRealtime();
     loadInvStyleCache(); // load after Supabase is ready
     // Update notification button state
@@ -2283,7 +2420,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes','consumables'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes','consumables','sops'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -2298,6 +2435,7 @@ function switchTab(tab){
   if(tab==='tasks') loadTasks();
   if(tab==='new' && sbClient) loadInvStyleCache();
   if(tab==='inventory') loadInventory();
+  if(tab==='sops') loadSOPs();
   if(tab==='consumables') loadConsumables();
   if(tab==='quotes') loadQuotes();
 }
@@ -4880,6 +5018,20 @@ function printQR() {
     .cons-restock-btn{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:.06em;padding:5px 10px;cursor:pointer;touch-action:manipulation;border-radius:3px;transition:all .12s;}
     .cons-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;margin-bottom:5px;}
     .cons-log-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
+
+    /* ── SOPs ── */
+    .sop-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:13px 15px;cursor:pointer;transition:border-color .15s;}
+    .sop-card:hover{border-color:var(--flash-40);}
+    .sop-step{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:8px;position:relative;}
+    .sop-step.warning{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.04);}
+    .sop-step.tip{border-color:rgba(0,200,83,.3);background:rgba(0,200,83,.03);}
+    .sop-step.photo{border-color:rgba(0,180,216,.3);background:rgba(0,180,216,.03);}
+    .sop-step-type{font-family:'Bebas Neue',sans-serif;font-size:.75rem;letter-spacing:.08em;margin-bottom:5px;}
+    .sop-step-type.text{color:var(--muted);}
+    .sop-step-type.warning{color:var(--yellow);}
+    .sop-step-type.tip{color:var(--green);}
+    .sop-step-type.photo{color:var(--cyan);}
+    .sop-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.6rem;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
   </style></head><body>${area}
     <script>window.onload=()=>{window.print();window.close();}<\/script>
     </body></html>`);
@@ -8508,6 +8660,20 @@ function printQR() {
     .cons-restock-btn{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:.06em;padding:5px 10px;cursor:pointer;touch-action:manipulation;border-radius:3px;transition:all .12s;}
     .cons-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;margin-bottom:5px;}
     .cons-log-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
+
+    /* ── SOPs ── */
+    .sop-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:13px 15px;cursor:pointer;transition:border-color .15s;}
+    .sop-card:hover{border-color:var(--flash-40);}
+    .sop-step{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:8px;position:relative;}
+    .sop-step.warning{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.04);}
+    .sop-step.tip{border-color:rgba(0,200,83,.3);background:rgba(0,200,83,.03);}
+    .sop-step.photo{border-color:rgba(0,180,216,.3);background:rgba(0,180,216,.03);}
+    .sop-step-type{font-family:'Bebas Neue',sans-serif;font-size:.75rem;letter-spacing:.08em;margin-bottom:5px;}
+    .sop-step-type.text{color:var(--muted);}
+    .sop-step-type.warning{color:var(--yellow);}
+    .sop-step-type.tip{color:var(--green);}
+    .sop-step-type.photo{color:var(--cyan);}
+    .sop-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.6rem;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
   </style>
   </head><body>
     <div class="qr-side"><img src="${dataUrl}" /></div>
@@ -8663,6 +8829,20 @@ async function printBatchQR() {
     .cons-restock-btn{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.25);color:var(--green);font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:.06em;padding:5px 10px;cursor:pointer;touch-action:manipulation;border-radius:3px;transition:all .12s;}
     .cons-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;margin-bottom:5px;}
     .cons-log-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;}
+
+    /* ── SOPs ── */
+    .sop-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:13px 15px;cursor:pointer;transition:border-color .15s;}
+    .sop-card:hover{border-color:var(--flash-40);}
+    .sop-step{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:8px;position:relative;}
+    .sop-step.warning{border-color:rgba(245,200,0,.4);background:rgba(245,200,0,.04);}
+    .sop-step.tip{border-color:rgba(0,200,83,.3);background:rgba(0,200,83,.03);}
+    .sop-step.photo{border-color:rgba(0,180,216,.3);background:rgba(0,180,216,.03);}
+    .sop-step-type{font-family:'Bebas Neue',sans-serif;font-size:.75rem;letter-spacing:.08em;margin-bottom:5px;}
+    .sop-step-type.text{color:var(--muted);}
+    .sop-step-type.warning{color:var(--yellow);}
+    .sop-step-type.tip{color:var(--green);}
+    .sop-step-type.photo{color:var(--cyan);}
+    .sop-cat-pill{font-family:'IBM Plex Mono',monospace;font-size:.6rem;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
   </style>
   </head><body>
     <h2>${shop.name||'PRESS SETUP DOC'} · Screen QR Labels · ${new Date().toLocaleDateString()} · ${screens.length} screens</h2>
@@ -11536,6 +11716,551 @@ function fmtLocSequence(seq) {
   }).join('');
   return '<div style="margin-top:8px;font-family:IBM Plex Mono,monospace;font-size:.68rem;">'+lines+'</div>';
 }
+
+// ══════════════════════════════════════════════════════
+// SOPs — STANDARD OPERATING PROCEDURES
+// ══════════════════════════════════════════════════════
+const SOP_CATEGORIES = ['Screen Room','Press Setup','Ink Handling','Equipment Maintenance','Quality Control','Safety','Other'];
+const SOP_CAT_COLORS = {
+  'Screen Room':'#00b4d8','Press Setup':'#e8500a','Ink Handling':'#b464ff',
+  'Equipment Maintenance':'#f5c000','Quality Control':'#00c853','Safety':'#ff4444','Other':'#a0a0a0'
+};
+const SOP_STEP_TYPES = {
+  text:    { label:'STEP',    icon:'',   color:'var(--muted)' },
+  warning: { label:'WARNING', icon:'⚠ ', color:'var(--yellow)' },
+  tip:     { label:'TIP',     icon:'💡 ',color:'var(--green)' },
+  photo:   { label:'PHOTO',   icon:'📷 ',color:'var(--cyan)' },
+};
+
+let _allSOPs      = [];
+let _currentSOP   = null;
+let _editSOPId    = null;
+let _sopStepCount = 0;
+let _sopCatFilter = '';
+let _sopPhotoBlobs = {}; // stepId -> File
+
+// ── Load ──────────────────────────────────────────────
+async function loadSOPs() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('sops').select('*').order('category').order('title');
+  _allSOPs = data || [];
+  renderSOPSummary();
+  renderSOPCatFilters();
+  renderSOPList();
+  // Populate machine + task selects in builder
+  await populateSOPLinkedSelects();
+}
+
+function renderSOPSummary() {
+  const el = document.getElementById('sopSummary');
+  if (!el) return;
+  const total = _allSOPs.length;
+  const byCat = {};
+  _allSOPs.forEach(s => { byCat[s.category] = (byCat[s.category]||0)+1; });
+  const topCat = Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+  el.innerHTML = [
+    ['TOTAL SOPs', total, 'var(--text)'],
+    ['CATEGORIES', Object.keys(byCat).length, 'var(--cyan)'],
+    ['MOST COMMON', topCat ? topCat[0].split(' ')[0] : '—', 'var(--flash)'],
+  ].map(([l,v,c]) => `<div class="task-stat-card">
+    <div class="task-stat-val" style="color:${c};font-size:1.3rem;">${v}</div>
+    <div class="task-stat-lbl">${l}</div>
+  </div>`).join('');
+}
+
+function renderSOPCatFilters() {
+  const el = document.getElementById('sopCatFilters');
+  if (!el) return;
+  const used = [...new Set(_allSOPs.map(s => s.category).filter(Boolean))];
+  el.innerHTML = used.map(cat => {
+    const color = SOP_CAT_COLORS[cat] || 'var(--muted)';
+    const active = _sopCatFilter === cat;
+    return `<button onclick="setSOPCatFilter('${cat}')"
+      style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;padding:3px 10px;border-radius:10px;
+             cursor:pointer;border:1px solid ${color};background:${active?color:'transparent'};
+             color:${active?'#000':color};">${cat}</button>`;
+  }).join('');
+}
+
+function setSOPCatFilter(cat) {
+  _sopCatFilter = _sopCatFilter === cat ? '' : cat;
+  renderSOPCatFilters();
+  renderSOPList();
+}
+
+function renderSOPList() {
+  const el = document.getElementById('sopList');
+  if (!el) return;
+  const q = (document.getElementById('sopSearch')?.value || '').toLowerCase();
+  let sops = _allSOPs;
+  if (_sopCatFilter) sops = sops.filter(s => s.category === _sopCatFilter);
+  if (q) sops = sops.filter(s => s.title.toLowerCase().includes(q) || (s.summary||'').toLowerCase().includes(q));
+
+  if (!sops.length) {
+    el.innerHTML = `<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">
+      No SOPs found. Click + NEW SOP to create your first one.</div>`;
+    return;
+  }
+
+  // Group by category
+  const groups = {};
+  sops.forEach(s => { if (!groups[s.category]) groups[s.category]=[]; groups[s.category].push(s); });
+  el.innerHTML = '';
+  SOP_CATEGORIES.filter(c => groups[c]).forEach(cat => {
+    const color = SOP_CAT_COLORS[cat] || 'var(--muted)';
+    const grpLabel = document.createElement('div');
+    grpLabel.style.cssText = `font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em;
+      color:${color};border-bottom:1px solid ${color}33;padding-bottom:3px;margin:16px 0 8px;
+      display:flex;align-items:center;justify-content:space-between;`;
+    grpLabel.innerHTML = `<span>${cat.toUpperCase()}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">
+        ${groups[cat].length} SOP${groups[cat].length!==1?'s':''}</span>`;
+    el.appendChild(grpLabel);
+
+    groups[cat].forEach(sop => el.appendChild(buildSOPCard(sop)));
+  });
+}
+
+function buildSOPCard(sop) {
+  const div = document.createElement('div');
+  div.className = 'sop-card';
+  const color = SOP_CAT_COLORS[sop.category] || 'var(--muted)';
+  const steps = (sop.steps||[]).length;
+  div.innerHTML = `
+    <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+          <span style="font-weight:600;font-size:.92rem;">${sop.title}</span>
+          <span class="sop-cat-pill" style="background:${color}22;color:${color};border:1px solid ${color}44;">
+            ${sop.category||'Other'}</span>
+          ${sop.version?`<span style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">${sop.version}</span>`:''}
+        </div>
+        ${sop.summary?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);margin-bottom:4px;">${sop.summary}</div>`:''}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">
+          <span>📋 ${steps} step${steps!==1?'s':''}</span>
+          ${sop.tools?`<span>🔧 ${sop.tools.slice(0,40)}${sop.tools.length>40?'…':''}</span>`:''}
+          ${sop.machine_name?`<span>⚙ ${sop.machine_name}</span>`:''}
+          ${sop.task_name?`<span>✓ ${sop.task_name}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn-ghost" style="font-size:.6rem;" onclick="event.stopPropagation();exportSOPPDFById('${sop.id}')">⬇ PDF</button>
+        <button class="btn-ghost" style="font-size:.6rem;" onclick="event.stopPropagation();exportSOPQRById('${sop.id}')">⬛ QR</button>
+        <button class="btn-secondary" style="font-size:.65rem;" onclick="event.stopPropagation();openSOPBuilder(${JSON.stringify(sop).replace(/"/g,'&quot;')})">✏ EDIT</button>
+      </div>
+    </div>`;
+  div.onclick = () => openSOPView(sop);
+  return div;
+}
+
+// ── Linked selects ─────────────────────────────────────
+async function populateSOPLinkedSelects() {
+  if (!sbClient) return;
+  const machSel = document.getElementById('sop_machine');
+  const taskSel = document.getElementById('sop_task');
+  if (!machSel || !taskSel) return;
+
+  const [{ data: machines }, { data: tasks }] = await Promise.all([
+    sbClient.from('machines_2').select('id,name').order('name'),
+    sbClient.from('tasks').select('id,name').order('name'),
+  ]);
+
+  machSel.innerHTML = '<option value="">None</option>' +
+    (machines||[]).map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  taskSel.innerHTML = '<option value="">None</option>' +
+    (tasks||[]).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+}
+
+// ── Builder ───────────────────────────────────────────
+function openSOPBuilder(sop) {
+  if (typeof sop === 'string') sop = JSON.parse(sop);
+  _editSOPId = sop?.id || null;
+  _currentSOP = sop || null;
+  _sopStepCount = 0;
+  _sopPhotoBlobs = {};
+
+  document.getElementById('sopBuilderTitle').textContent = sop ? 'EDIT SOP' : 'NEW SOP';
+  document.getElementById('sop_title').value    = sop?.title    || '';
+  document.getElementById('sop_category').value = sop?.category || 'Screen Room';
+  document.getElementById('sop_version').value  = sop?.version  || 'v1.0';
+  document.getElementById('sop_tools').value    = sop?.tools    || '';
+  document.getElementById('sop_summary').value  = sop?.summary  || '';
+  document.getElementById('deleteSOPBtn').style.display = sop ? 'inline-block' : 'none';
+
+  // Machine + task links
+  populateSOPLinkedSelects().then(() => {
+    if (sop?.machine_id) document.getElementById('sop_machine').value = sop.machine_id;
+    if (sop?.task_id)    document.getElementById('sop_task').value    = sop.task_id;
+  });
+
+  // Steps
+  const container = document.getElementById('sopSteps');
+  container.innerHTML = '';
+  if (sop?.steps?.length) {
+    sop.steps.forEach(step => addSOPStep(step.type, step));
+  } else {
+    addSOPStep('text');
+  }
+
+  document.getElementById('sopBuilderModal').classList.remove('hidden');
+}
+
+function closeSOPBuilder() {
+  document.getElementById('sopBuilderModal').classList.add('hidden');
+  _editSOPId = null; _currentSOP = null; _sopPhotoBlobs = {};
+}
+
+function addSOPStep(type, d={}) {
+  _sopStepCount++;
+  const id = _sopStepCount;
+  const container = document.getElementById('sopSteps');
+  const st = SOP_STEP_TYPES[type] || SOP_STEP_TYPES.text;
+  const div = document.createElement('div');
+  div.id = 'sop-step-'+id;
+  div.className = `sop-step ${type}`;
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div class="sop-step-type ${type}">${st.icon}${st.label} ${id}</div>
+      <div style="display:flex;gap:5px;">
+        <button type="button" onclick="moveSOPStep(${id},-1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px;">↑</button>
+        <button type="button" onclick="moveSOPStep(${id},1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px;">↓</button>
+        <button type="button" onclick="document.getElementById('sop-step-${id}').remove();renumberSOPSteps()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 5px;">✕</button>
+      </div>
+    </div>
+    ${type === 'photo' ? `
+      <textarea name="sop_step_text_${id}" rows="2" placeholder="Describe what the photo shows…" style="width:100%;margin-bottom:6px;">${d.text||''}</textarea>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="document.getElementById('sop-photo-${id}').click()">📷 Upload / Take Photo</button>
+        <input type="file" id="sop-photo-${id}" accept="image/*" style="display:none;" onchange="handleSOPStepPhoto(${id},this)" />
+        <div id="sop-photo-preview-${id}" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">
+          ${d.photo_url ? `<img src="${d.photo_url}" style="height:60px;border-radius:3px;object-fit:cover;" />` : 'No photo'}
+        </div>
+      </div>
+      <input type="hidden" name="sop_step_photo_url_${id}" value="${d.photo_url||''}" />` : `
+      <textarea name="sop_step_text_${id}" rows="${type==='text'?3:2}" placeholder="${
+        type==='warning'?'Describe the safety risk or caution…':
+        type==='tip'?'Share a helpful tip or best practice…':
+        'Describe this step clearly and specifically…'
+      }" style="width:100%;">${d.text||''}</textarea>`}
+    <input type="hidden" name="sop_step_type_${id}" value="${type}" />`;
+  container.appendChild(div);
+}
+
+function renumberSOPSteps() {
+  let n = 1;
+  document.querySelectorAll('[id^="sop-step-"]').forEach(div => {
+    const type = div.querySelector('[name^="sop_step_type_"]')?.value || 'text';
+    const st = SOP_STEP_TYPES[type] || SOP_STEP_TYPES.text;
+    const lbl = div.querySelector('.sop-step-type');
+    if (lbl) lbl.textContent = st.icon + st.label + ' ' + n;
+    n++;
+  });
+}
+
+function moveSOPStep(id, dir) {
+  const el = document.getElementById('sop-step-'+id);
+  if (!el) return;
+  const parent = el.parentNode;
+  const steps = [...parent.querySelectorAll('[id^="sop-step-"]')];
+  const idx = steps.indexOf(el);
+  const target = steps[idx + dir];
+  if (!target) return;
+  if (dir === -1) parent.insertBefore(el, target);
+  else parent.insertBefore(target, el);
+  renumberSOPSteps();
+}
+
+function handleSOPStepPhoto(id, input) {
+  const file = input.files[0];
+  if (!file) return;
+  _sopPhotoBlobs[id] = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const prev = document.getElementById('sop-photo-preview-'+id);
+    if (prev) prev.innerHTML = `<img src="${ev.target.result}" style="height:60px;border-radius:3px;object-fit:cover;" />`;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Collect steps ─────────────────────────────────────
+function collectSOPSteps() {
+  const steps = [];
+  document.querySelectorAll('[id^="sop-step-"]').forEach(div => {
+    const rawId = div.id.replace('sop-step-','');
+    const type = div.querySelector(`[name="sop_step_type_${rawId}"]`)?.value || 'text';
+    const text = div.querySelector(`[name="sop_step_text_${rawId}"]`)?.value.trim() || '';
+    const photoUrl = div.querySelector(`[name="sop_step_photo_url_${rawId}"]`)?.value || '';
+    steps.push({ type, text, photo_url: photoUrl });
+  });
+  return steps;
+}
+
+// ── Save ──────────────────────────────────────────────
+async function saveSOP() {
+  if (!sbClient) return;
+  const btn = document.querySelector('#sopBuilderModal .btn-primary');
+  if (btn) { btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true; }
+
+  // Upload any new step photos
+  const steps = collectSOPSteps();
+  for (let i = 0; i < steps.length; i++) {
+    const stepDiv = document.querySelectorAll('[id^="sop-step-"]')[i];
+    const rawId = stepDiv?.id.replace('sop-step-','');
+    const blob = _sopPhotoBlobs[rawId];
+    if (blob) {
+      const ext = blob.name.split('.').pop();
+      const path = `sops/${Date.now()}_${i}.${ext}`;
+      const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, blob, { upsert: true });
+      if (!upErr) {
+        const { data: urlData } = sbClient.storage.from('press-setups').getPublicUrl(path);
+        steps[i].photo_url = urlData?.publicUrl || '';
+        // Update hidden input
+        const hiddenUrl = stepDiv?.querySelector(`[name="sop_step_photo_url_${rawId}"]`);
+        if (hiddenUrl) hiddenUrl.value = steps[i].photo_url;
+      }
+    }
+  }
+
+  const machSel = document.getElementById('sop_machine');
+  const taskSel = document.getElementById('sop_task');
+  const machineId = machSel?.value || null;
+  const taskId    = taskSel?.value || null;
+  // Get display names for cards
+  const machineName = machSel?.options[machSel.selectedIndex]?.text !== 'None' ? machSel?.options[machSel.selectedIndex]?.text : null;
+  const taskName    = taskSel?.options[taskSel.selectedIndex]?.text !== 'None' ? taskSel?.options[taskSel.selectedIndex]?.text : null;
+
+  const record = {
+    title:        document.getElementById('sop_title').value.trim(),
+    category:     document.getElementById('sop_category').value,
+    version:      document.getElementById('sop_version').value.trim() || 'v1.0',
+    tools:        document.getElementById('sop_tools').value.trim() || null,
+    summary:      document.getElementById('sop_summary').value.trim() || null,
+    machine_id:   machineId || null,
+    machine_name: machineName || null,
+    task_id:      taskId || null,
+    task_name:    taskName || null,
+    steps,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (!record.title) {
+    showToast('SOP title is required.', 'error');
+    if (btn) { btn.innerHTML = '💾 SAVE SOP'; btn.disabled = false; }
+    return;
+  }
+
+  let error;
+  if (_editSOPId) {
+    ({ error } = await sbClient.from('sops').update(record).eq('id', _editSOPId));
+  } else {
+    record.created_at = new Date().toISOString();
+    ({ error } = await sbClient.from('sops').insert([record]));
+  }
+
+  if (btn) { btn.innerHTML = '💾 SAVE SOP'; btn.disabled = false; }
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast(_editSOPId ? 'SOP updated!' : 'SOP created!', 'success');
+  closeSOPBuilder();
+  loadSOPs();
+}
+
+async function deleteSOP() {
+  if (!sbClient || !_editSOPId) return;
+  if (!confirm('Delete this SOP? This cannot be undone.')) return;
+  const { error } = await sbClient.from('sops').delete().eq('id', _editSOPId);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('SOP deleted.', 'success');
+  closeSOPBuilder();
+  loadSOPs();
+}
+
+// ── View modal ────────────────────────────────────────
+function openSOPView(sop) {
+  if (typeof sop === 'string') sop = JSON.parse(sop);
+  _currentSOP = sop;
+  const color = SOP_CAT_COLORS[sop.category] || 'var(--muted)';
+
+  document.getElementById('sopViewHeader').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;">${sop.title}</div>
+      <span class="sop-cat-pill" style="background:${color}22;color:${color};border:1px solid ${color}44;">${sop.category}</span>
+      ${sop.version?`<span style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${sop.version}</span>`:''}
+    </div>
+    ${sop.summary?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);">${sop.summary}</div>`:''}`;
+
+  let html = '';
+  if (sop.tools) html += `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.8rem;color:var(--flash);margin-bottom:4px;">🔧 TOOLS / MATERIALS NEEDED</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;">${sop.tools}</div>
+    </div>`;
+
+  if (sop.machine_name || sop.task_name) html += `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      ${sop.machine_name?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:4px 10px;">⚙ Machine: ${sop.machine_name}</div>`:''}
+      ${sop.task_name?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:4px 10px;">✓ Task: ${sop.task_name}</div>`:''}
+    </div>`;
+
+  let stepNum = 1;
+  (sop.steps || []).forEach(step => {
+    const st = SOP_STEP_TYPES[step.type] || SOP_STEP_TYPES.text;
+    const isText = step.type === 'text';
+    html += `<div class="sop-step ${step.type}" style="margin-bottom:10px;">
+      <div class="sop-step-type ${step.type}" style="margin-bottom:6px;">${st.icon}${isText?'STEP '+stepNum:st.label}</div>
+      ${step.text?`<div style="font-size:.9rem;line-height:1.6;">${step.text}</div>`:''}
+      ${step.photo_url?`<img src="${step.photo_url}" style="width:100%;max-height:260px;object-fit:cover;border-radius:3px;margin-top:8px;" />`:''}
+    </div>`;
+    if (isText) stepNum++;
+  });
+
+  document.getElementById('sopViewContent').innerHTML = html;
+  document.getElementById('sopViewModal').classList.remove('hidden');
+}
+
+function closeSOPView() {
+  document.getElementById('sopViewModal').classList.add('hidden');
+}
+
+// ── PDF Export ────────────────────────────────────────
+async function exportSOPPDFById(id) {
+  const sop = _allSOPs.find(s => s.id === id);
+  if (sop) exportSOPPDF(sop);
+}
+
+function exportSOPPDF(sop) {
+  sop = sop || _currentSOP;
+  if (!sop) return;
+  const shop = getShopSettings();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const PW = doc.internal.pageSize.getWidth();
+  const ML = 44, MR = PW - 44, TW = MR - ML;
+  const _ac = getPDFAccent();
+
+  let y = pdfHeader(doc, sop.title, sop.category + (sop.version ? '  ·  ' + sop.version : ''), { ML, MR });
+
+  // Summary
+  if (sop.summary) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(60, 60, 60);
+    doc.splitTextToSize(sop.summary, TW).forEach(l => { doc.text(l, ML, y); y += 13; });
+    y += 6;
+  }
+
+  // Tools
+  if (sop.tools) {
+    doc.setFillColor(245, 245, 245); doc.rect(ML, y - 4, TW, 24, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(..._ac);
+    doc.text('TOOLS / MATERIALS NEEDED', ML + 4, y + 6);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60);
+    const toolLines = doc.splitTextToSize(sop.tools, TW - 8);
+    toolLines.forEach(l => { doc.text(l, ML + 4, y + 16); y += 12; });
+    y += 18;
+  }
+
+  // Links
+  if (sop.machine_name || sop.task_name) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
+    const parts = [];
+    if (sop.machine_name) parts.push('Machine: ' + sop.machine_name);
+    if (sop.task_name) parts.push('Task: ' + sop.task_name);
+    doc.text(parts.join('   ·   '), ML, y); y += 14;
+  }
+
+  y = pdfSection(doc, 'Steps', ML, MR, y);
+
+  let stepNum = 1;
+  (sop.steps || []).forEach(step => {
+    const isText = step.type === 'text';
+    const st = SOP_STEP_TYPES[step.type] || SOP_STEP_TYPES.text;
+    if (y > 680) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+
+    // Step type label
+    const typeColors = { text: [80,80,80], warning: [180,140,0], tip: [0,150,60], photo: [0,120,180] };
+    const tc = typeColors[step.type] || typeColors.text;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...tc);
+    doc.text((isText ? 'STEP ' + stepNum : st.icon.replace(/[^\x20-\x7E]/g,'') + st.label), ML + 2, y);
+    y += 11;
+
+    if (step.text) {
+      doc.setFont('helvetica', isText ? 'normal' : 'bold');
+      doc.setFontSize(9.5); doc.setTextColor(0, 0, 0);
+      const lines = doc.splitTextToSize(step.text, TW - 12);
+      lines.forEach(l => {
+        if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+        doc.text(l, ML + 8, y); y += 13;
+      });
+    }
+    if (isText) stepNum++;
+    y += 6;
+  });
+
+  pdfFooter(doc, 1);
+  doc.save('sop-' + sop.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.pdf');
+}
+
+// ── QR Code Export ────────────────────────────────────
+async function exportSOPQRById(id) {
+  const sop = _allSOPs.find(s => s.id === id);
+  if (sop) exportSOPQR(sop);
+}
+
+function exportSOPQR(sop) {
+  sop = sop || _currentSOP;
+  if (!sop) return;
+  const shop = getShopSettings();
+  const qrUrl = window.location.href.split('?')[0] + '?sop=' + sop.id;
+
+  const tmp = document.createElement('div');
+  tmp.style.cssText = 'position:fixed;left:-9999px;top:0;';
+  document.body.appendChild(tmp);
+  new QRCode(tmp, {
+    text: qrUrl, width: 128, height: 128,
+    colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+  setTimeout(() => {
+    const canvas = tmp.querySelector('canvas');
+    const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+    document.body.removeChild(tmp);
+    const color = SOP_CAT_COLORS[sop.category] || '#888';
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html><head><title>SOP QR — ${sop.title}</title>
+      <style>
+        @page{size:3in 2in;margin:0;}*{box-sizing:border-box;margin:0;padding:0;}
+        body{width:3in;height:2in;display:flex;align-items:center;font-family:'Courier New',monospace;background:#fff;}
+        .qr{width:1.8in;height:1.8in;display:flex;align-items:center;justify-content:center;padding:4px;border-right:1px solid #ddd;flex-shrink:0;}
+        .qr img{width:1.7in;height:1.7in;}
+        .info{flex:1;padding:8px 10px;overflow:hidden;}
+        .cat{font-size:8px;color:${color};text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+        .title{font-size:12px;font-weight:900;line-height:1.2;margin-bottom:4px;}
+        .meta{font-size:8px;color:#666;}
+        .shop{font-size:7px;color:#aaa;margin-top:6px;}
+        @media print{body{-webkit-print-color-adjust:exact;}}
+      </style></head><body>
+      <div class="qr"><img src="${dataUrl}" /></div>
+      <div class="info">
+        <div class="cat">${sop.category}</div>
+        <div class="title">${sop.title}</div>
+        <div class="meta">${sop.version||''}</div>
+        ${shop.name?`<div class="shop">${shop.name}</div>`:''}
+      </div>
+      <script>window.onload=()=>{window.print();window.close();}<\/script>
+      </body></html>`);
+    win.document.close();
+  }, 200);
+}
+
+// ── Deep link handler ─────────────────────────────────
+function checkSOPDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const sopId = params.get('sop');
+  if (!sopId || !sbClient) return;
+  sbClient.from('sops').select('*').eq('id', sopId).single().then(({ data }) => {
+    if (data) openSOPView(data);
+  });
+}
+
+
 // ── TOAST ───────────────────────────────────────────────────
 function showToast(msg,type='success'){
   const t=document.getElementById('toast');
