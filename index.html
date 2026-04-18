@@ -2358,6 +2358,33 @@
 
 <script>
 'use strict';
+
+// ── IMAGE COMPRESSION ─────────────────────────────────
+// Compresses any image File or Blob to JPEG before upload.
+// Max dimension 1200px, quality 0.82 — good clarity, ~80-90% smaller than phone photos.
+// Always returns a Blob (JPEG). Safe to use for all upload points.
+async function compressImage(fileOrBlob, maxDim = 1200, quality = 0.82) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(fileOrBlob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      // Scale down if either dimension exceeds maxDim
+      if (width > maxDim || height > maxDim) {
+        if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else { width = Math.round(width * maxDim / height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => resolve(blob || fileOrBlob), 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(fileOrBlob); }; // fallback: use original
+    img.src = url;
+  });
+}
+
 // ── DATE FORMATTING ───────────────────────────────────
 // Converts YYYY-MM-DD to MM/DD/YYYY for display everywhere
 function fmtDate(d) {
@@ -2696,11 +2723,14 @@ async function submitForm(e){
 
   let imageUrl=null;
   const file=document.getElementById('photoInput').files[0];
-  if(file){
-    const ext=file.name.split('.').pop();
-    const path='job-photos/'+Date.now()+'.'+ext;
-    const {error:upErr}=await sbClient.storage.from('press-setups').upload(path,file,{upsert:true});
+  const camBlob = window._jobCamBlob;
+  const rawPhoto = file || camBlob;
+  if(rawPhoto){
+    const compressed = await compressImage(rawPhoto);
+    const path='job-photos/'+Date.now()+'.jpg';
+    const {error:upErr}=await sbClient.storage.from('press-setups').upload(path,compressed,{upsert:true,contentType:'image/jpeg'});
     if(!upErr){const {data:ud}=sbClient.storage.from('press-setups').getPublicUrl(path);imageUrl=ud.publicUrl;}
+    window._jobCamBlob = null;
   }
 
   const shirtTypes=collectShirtTypes();
@@ -3830,10 +3860,10 @@ async function saveMachine() {
   const file = document.getElementById('m_photo').files[0];
   const camBlob = window._machCamBlob;
   const uploadFile = file || camBlob;
-  const uploadExt = file ? file.name.split('.').pop() : (window._machCamExt || 'jpg');
   if (uploadFile) {
-    const path = 'machine-photos/' + Date.now() + '.' + uploadExt;
-    const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, uploadFile, { upsert: true, contentType: file ? undefined : 'image/jpeg' });
+    const compressed = await compressImage(uploadFile);
+    const path = 'machine-photos/' + Date.now() + '.jpg';
+    const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
     if (!upErr) { const { data: ud } = sbClient.storage.from('press-setups').getPublicUrl(path); photoUrl = ud.publicUrl; }
     window._machCamBlob = null;
   }
@@ -10607,9 +10637,9 @@ async function saveConsumable() {
   }
   // Upload new photo if selected — overrides existing
   if (_consPhotoBlob) {
-    const ext = _consPhotoBlob.name.split('.').pop();
-    const path = `consumables/${Date.now()}.${ext}`;
-    const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, _consPhotoBlob, { upsert: true });
+    const compressed = await compressImage(_consPhotoBlob);
+    const path = `consumables/${Date.now()}.jpg`;
+    const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
     if (!upErr) {
       const { data: urlData } = sbClient.storage.from('press-setups').getPublicUrl(path);
       photoUrl = urlData?.publicUrl || null;
@@ -12009,8 +12039,9 @@ async function saveSOP() {
     const blob = _sopPhotoBlobs[rawId];
     if (blob) {
       const ext = blob.name.split('.').pop();
-      const path = `sops/${Date.now()}_${i}.${ext}`;
-      const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, blob, { upsert: true });
+      const compressedSopPhoto = await compressImage(blob);
+      const path = `sops/${Date.now()}_${i}.jpg`;
+      const { error: upErr } = await sbClient.storage.from('press-setups').upload(path, compressedSopPhoto, { upsert: true, contentType: 'image/jpeg' });
       if (!upErr) {
         const { data: urlData } = sbClient.storage.from('press-setups').getPublicUrl(path);
         steps[i].photo_url = urlData?.publicUrl || '';
