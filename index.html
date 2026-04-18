@@ -1276,7 +1276,10 @@
             <option value="cold">Cold</option>
           </select>
         </div>
-        <button class="btn-primary" onclick="openLeadModal()">+ NEW LEAD</button>
+        <div style="display:flex;gap:7px;">
+          <button class="btn-ghost" onclick="exportLeadsPDF()">⬇ PDF REPORT</button>
+          <button class="btn-primary" onclick="openLeadModal()">+ NEW LEAD</button>
+        </div>
       </div>
       <!-- Summary bar -->
       <div id="leadSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:14px;"></div>
@@ -1298,7 +1301,10 @@
             <option value="lost">Lost</option>
           </select>
         </div>
-        <button class="btn-primary" onclick="openPitchModal()">+ NEW PITCH</button>
+        <div style="display:flex;gap:7px;">
+          <button class="btn-ghost" onclick="exportPitchesPDF()">⬇ PDF REPORT</button>
+          <button class="btn-primary" onclick="openPitchModal()">+ NEW PITCH</button>
+        </div>
       </div>
       <div id="pitchSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:14px;"></div>
       <div id="pitchList"></div>
@@ -1319,7 +1325,10 @@
             <option value="Other">Other</option>
           </select>
         </div>
-        <button class="btn-primary" onclick="openStrategyModal()">+ NEW STRATEGY</button>
+        <div style="display:flex;gap:7px;">
+          <button class="btn-ghost" onclick="exportStrategiesPDF()">⬇ PDF REPORT</button>
+          <button class="btn-primary" onclick="openStrategyModal()">+ NEW STRATEGY</button>
+        </div>
       </div>
       <div id="strategyList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;"></div>
     </div>
@@ -1334,6 +1343,7 @@
         </div>
         <div style="display:flex;gap:7px;">
           <button class="btn-ghost" onclick="goMktToday()">TODAY</button>
+          <button class="btn-ghost" onclick="exportCalendarPDF()">⬇ PDF</button>
           <button class="btn-primary" onclick="openCalEventModal()">+ ADD EVENT</button>
         </div>
       </div>
@@ -13136,6 +13146,451 @@ async function deleteCalEvent() {
   closeCalEventModal();
   await loadCalEvents();
   renderMktCalendar();
+}
+
+
+// ══════════════════════════════════════════════════════
+// MARKETING PDF REPORTS
+// ══════════════════════════════════════════════════════
+
+// ── Leads PDF ────────────────────────────────────────
+function exportLeadsPDF() {
+  if (!_allLeads.length) { showToast('No leads to export.', 'error'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const PW = doc.internal.pageSize.getWidth();
+  const ML = 44, MR = PW - 44, TW = MR - ML;
+  const _ac = getPDFAccent();
+
+  const q = (document.getElementById('leadSearch')?.value||'').toLowerCase();
+  const sf = document.getElementById('leadStatusFilter')?.value||'';
+  let leads = _allLeads;
+  if (q) leads = leads.filter(l => (l.name||'').toLowerCase().includes(q)||(l.contact||'').toLowerCase().includes(q));
+  if (sf) leads = leads.filter(l => l.status === sf);
+
+  const won      = leads.filter(l => l.status==='won').length;
+  const open     = leads.filter(l => !['won','lost','cold'].includes(l.status)).length;
+  const pipeline = leads.filter(l => !['won','lost','cold'].includes(l.status))
+                        .reduce((s,l) => s+(parseFloat(l.est_value)||0), 0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const overdue = leads.filter(l => l.followup_date && new Date(l.followup_date+'T00:00:00') <= today && !['won','lost'].includes(l.status)).length;
+
+  const subtitle = `${leads.length} leads  ·  ${open} open  ·  ${won} won  ·  Pipeline $${pipeline.toLocaleString()}${sf?' · Filter: '+LEAD_STATUSES[sf]:''}`;
+  let y = pdfHeader(doc, 'Leads Report', subtitle, { ML, MR });
+
+  // Summary stat row
+  const stats = [
+    ['TOTAL LEADS', leads.length, _ac],
+    ['OPEN', open, [0,180,216]],
+    ['WON', won, [0,200,83]],
+    ['PIPELINE', '$'+pipeline.toLocaleString(), _ac],
+    ['FOLLOW-UPS DUE', overdue, overdue > 0 ? [220,170,0] : [120,120,120]],
+  ];
+  const sw = TW / stats.length;
+  stats.forEach(([lbl, val, color], i) => {
+    const x = ML + i * sw + sw / 2;
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...color);
+    doc.text(String(val), x, y + 10, { align:'center' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+    doc.text(lbl, x, y + 20, { align:'center' });
+  });
+  y += 36;
+
+  // Table header
+  const cols    = ['COMPANY / NAME','CONTACT','STATUS','SOURCE','EST. VALUE','FOLLOW-UP','INDUSTRY'];
+  const colW    = [130, 90, 70, 65, 60, 65, TW-480];
+  y = pdfTableHeader(doc, cols, ML, y, colW);
+
+  const statusColors = {
+    new:[180,140,0], contacted:[140,80,200], qualified:[0,160,200],
+    proposal:[200,80,10], won:[0,180,60], lost:[150,150,150], cold:[150,150,150]
+  };
+
+  leads.forEach((l, idx) => {
+    const descLines = doc.splitTextToSize(l.notes||'', colW[colW.length-1]-4);
+    const rowH = Math.max(14, (descLines.length > 1 ? 11 : 0) + 14);
+    if (y + rowH > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+    if (idx % 2 === 0) { doc.setFillColor(248,248,248); doc.rect(ML, y-9, TW, rowH+2, 'F'); }
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+    const nameLines = doc.splitTextToSize(l.name||'—', colW[0]-4);
+    doc.text(nameLines[0], ML+4, y);
+    doc.setFont('helvetica','normal');
+    doc.text(l.contact||'—', ML+134, y);
+    const sc = statusColors[l.status] || [120,120,120];
+    doc.setTextColor(...sc);
+    doc.text(LEAD_STATUSES[l.status]||l.status||'—', ML+224, y);
+    doc.setTextColor(0,0,0);
+    doc.text(LEAD_SOURCES[l.source]||l.source||'—', ML+294, y);
+    doc.setTextColor(..._ac);
+    doc.text(l.est_value ? '$'+parseFloat(l.est_value).toLocaleString() : '—', ML+359, y);
+    doc.setTextColor(0,0,0);
+    const fu = l.followup_date ? fmtDate(l.followup_date) : '—';
+    const fuOverdue = l.followup_date && new Date(l.followup_date+'T00:00:00') <= today && !['won','lost'].includes(l.status);
+    if (fuOverdue) doc.setTextColor(200,120,0);
+    doc.text(fu, ML+419, y);
+    doc.setTextColor(100,100,100);
+    doc.text(l.industry||'—', ML+484, y);
+    y += rowH;
+  });
+
+  // Notes section for leads that have them
+  const withNotes = leads.filter(l => l.notes);
+  if (withNotes.length) {
+    if (y > 640) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+    y += 10;
+    y = pdfSection(doc, 'Notes', ML, MR, y);
+    withNotes.forEach(l => {
+      if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(..._ac);
+      doc.text(l.name, ML+4, y); y += 11;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(60,60,60);
+      const lines = doc.splitTextToSize(l.notes, TW-12);
+      lines.forEach(line => {
+        if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+        doc.text(line, ML+8, y); y += 11;
+      });
+      y += 4;
+    });
+  }
+
+  pdfFooter(doc, 1);
+  doc.save('leads-report-'+new Date().toISOString().split('T')[0]+'.pdf');
+  showToast('Leads PDF exported!', 'success');
+}
+
+// ── Pitches PDF ───────────────────────────────────────
+function exportPitchesPDF() {
+  if (!_allPitches.length) { showToast('No pitches to export.', 'error'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const PW = doc.internal.pageSize.getWidth();
+  const ML = 44, MR = PW - 44, TW = MR - ML;
+  const _ac = getPDFAccent();
+
+  const q = (document.getElementById('pitchSearch')?.value||'').toLowerCase();
+  const sf = document.getElementById('pitchStatusFilter')?.value||'';
+  let pitches = _allPitches;
+  if (q) pitches = pitches.filter(p => (p.title||'').toLowerCase().includes(q)||(p.prospect||'').toLowerCase().includes(q));
+  if (sf) pitches = pitches.filter(p => p.status===sf);
+
+  const won      = pitches.filter(p => p.status==='won').length;
+  const lost     = pitches.filter(p => p.status==='lost').length;
+  const open     = pitches.filter(p => !['won','lost'].includes(p.status)).length;
+  const winRate  = (won+lost) > 0 ? Math.round(won/(won+lost)*100) : 0;
+  const pipeline = pitches.filter(p => !['won','lost'].includes(p.status)).reduce((s,p)=>s+(parseFloat(p.est_value)||0),0);
+  const wonValue = pitches.filter(p => p.status==='won').reduce((s,p)=>s+(parseFloat(p.est_value)||0),0);
+
+  let y = pdfHeader(doc, 'Pitches Report',
+    `${pitches.length} pitches  ·  ${open} open  ·  Win rate ${winRate}%  ·  Won value $${wonValue.toLocaleString()}`,
+    { ML, MR });
+
+  // Stats
+  const stats = [
+    ['TOTAL', pitches.length, [120,120,120]],
+    ['OPEN', open, [0,180,216]],
+    ['WON', won, [0,200,83]],
+    ['LOST', lost, [200,80,80]],
+    ['WIN RATE', winRate+'%', won > 0 ? [0,200,83] : [120,120,120]],
+    ['WON VALUE', '$'+wonValue.toLocaleString(), _ac],
+  ];
+  const sw = TW / stats.length;
+  stats.forEach(([lbl, val, color], i) => {
+    const x = ML + i * sw + sw / 2;
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...color);
+    doc.text(String(val), x, y+10, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+    doc.text(lbl, x, y+20, {align:'center'});
+  });
+  y += 36;
+
+  // Group by status for a cleaner report
+  const groups = [
+    { label:'OPEN PITCHES', items: pitches.filter(p=>!['won','lost'].includes(p.status)), color: _ac },
+    { label:'WON', items: pitches.filter(p=>p.status==='won'), color: [0,180,60] },
+    { label:'LOST', items: pitches.filter(p=>p.status==='lost'), color: [180,60,60] },
+  ].filter(g => g.items.length);
+
+  const colW = [160, 100, 70, 65, 65, TW-460];
+  const cols = ['TITLE','PROSPECT','STATUS','PITCH DATE','DECISION','EST. VALUE'];
+
+  groups.forEach(group => {
+    if (y > 660) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+    y = pdfSection(doc, group.label + ' ('+group.items.length+')', ML, MR, y);
+    y = pdfTableHeader(doc, cols, ML, y, colW);
+
+    group.items.forEach((p, idx) => {
+      if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+      if (idx % 2 === 0) { doc.setFillColor(248,248,248); doc.rect(ML, y-9, TW, 13, 'F'); }
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+      const tLines = doc.splitTextToSize(p.title||'—', colW[0]-4);
+      doc.text(tLines[0], ML+4, y);
+      doc.setFont('helvetica','normal');
+      doc.text(p.prospect||'—', ML+164, y);
+      doc.setTextColor(...group.color);
+      doc.text(PITCH_STATUSES[p.status]||p.status||'—', ML+264, y);
+      doc.setTextColor(0,0,0);
+      doc.text(p.pitch_date ? fmtDate(p.pitch_date) : '—', ML+334, y);
+      doc.text(p.decision_date ? fmtDate(p.decision_date) : '—', ML+399, y);
+      doc.setTextColor(..._ac);
+      doc.text(p.est_value ? '$'+parseFloat(p.est_value).toLocaleString() : '—', ML+464, y);
+      y += 13;
+
+      if (p.summary) {
+        doc.setTextColor(80,80,80); doc.setFontSize(7.5);
+        const sl = doc.splitTextToSize(p.summary, TW-12);
+        sl.slice(0,2).forEach(line => { if(y>700){pdfFooter(doc,null);doc.addPage();y=44;} doc.text(line, ML+8, y); y+=10; });
+        doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+      }
+    });
+    y += 8;
+  });
+
+  pdfFooter(doc, 1);
+  doc.save('pitches-report-'+new Date().toISOString().split('T')[0]+'.pdf');
+  showToast('Pitches PDF exported!', 'success');
+}
+
+// ── Strategies PDF ────────────────────────────────────
+function exportStrategiesPDF() {
+  if (!_allStrategies.length) { showToast('No strategies to export.', 'error'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const PW = doc.internal.pageSize.getWidth();
+  const ML = 44, MR = PW - 44, TW = MR - ML;
+  const _ac = getPDFAccent();
+
+  const cf = document.getElementById('stratCatFilter')?.value||'';
+  let strats = _allStrategies;
+  if (cf) strats = strats.filter(s => s.category === cf);
+
+  const active   = strats.filter(s => s.status==='active').length;
+  const ideas    = strats.filter(s => s.status==='idea').length;
+  const done     = strats.filter(s => s.status==='done').length;
+
+  let y = pdfHeader(doc, 'Marketing Strategies',
+    `${strats.length} strategies  ·  ${active} active  ·  ${ideas} ideas  ·  ${done} completed`+
+    (cf ? '  ·  Category: '+cf : ''),
+    { ML, MR });
+
+  // Stats
+  const statusColorMap = { idea:[180,140,0], active:[0,180,60], paused:[120,120,120], done:[0,160,200] };
+  const statCounts = {};
+  strats.forEach(s => { statCounts[s.status] = (statCounts[s.status]||0)+1; });
+  const statEntries = [['idea','IDEAS'],['active','ACTIVE'],['paused','PAUSED'],['done','DONE']].filter(([k])=>statCounts[k]);
+  const sw = TW / Math.max(statEntries.length, 1);
+  statEntries.forEach(([status, label], i) => {
+    const x = ML + i * sw + sw/2;
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...(statusColorMap[status]||[120,120,120]));
+    doc.text(String(statCounts[status]||0), x, y+10, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+    doc.text(label, x, y+20, {align:'center'});
+  });
+  y += 36;
+
+  // Group by category
+  const catOrder = ['Social Media','Outreach','Referral','Pricing','Branding','Events','Other'];
+  const groups = {};
+  strats.forEach(s => { const c=s.category||'Other'; if(!groups[c])groups[c]=[]; groups[c].push(s); });
+  const orderedCats = [...catOrder.filter(c=>groups[c]), ...Object.keys(groups).filter(c=>!catOrder.includes(c))];
+
+  orderedCats.forEach(cat => {
+    const items = groups[cat];
+    if (!items) return;
+    if (y > 660) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+    y = pdfSection(doc, cat.toUpperCase() + ' ('+items.length+')', ML, MR, y);
+
+    items.forEach((s, idx) => {
+      // Measure row height
+      const descLines = s.description ? doc.splitTextToSize(s.description, TW-60) : [];
+      const notesLines = s.notes ? doc.splitTextToSize('Results: '+s.notes, TW-60) : [];
+      const rowH = 14 + (descLines.length * 10) + (notesLines.length * 10) + (s.goal||s.audience ? 10 : 0) + 6;
+      if (y + rowH > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+
+      if (idx % 2 === 0) { doc.setFillColor(248,248,248); doc.rect(ML, y-9, TW, rowH+2, 'F'); }
+
+      // Title + status
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+      doc.text(s.title, ML+4, y);
+      const sc = statusColorMap[s.status]||[120,120,120];
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...sc);
+      doc.text((s.status||'').toUpperCase(), MR-4, y, {align:'right'});
+      y += 11;
+
+      // Audience + goal inline
+      const meta = [s.audience?'🎯 '+s.audience:'', s.goal?'📊 '+s.goal:'', s.budget?'💰 '+s.budget:''].filter(Boolean).join('   ');
+      if (meta) {
+        doc.setFontSize(7.5); doc.setTextColor(100,100,100);
+        doc.text(meta.slice(0,110), ML+8, y); y += 10;
+      }
+
+      // Description
+      if (descLines.length) {
+        doc.setFontSize(8); doc.setTextColor(60,60,60);
+        descLines.forEach(line => { if(y>700){pdfFooter(doc,null);doc.addPage();y=44;} doc.text(line, ML+8, y); y+=10; });
+      }
+
+      // Notes/results
+      if (notesLines.length) {
+        doc.setFontSize(7.5); doc.setTextColor(80,120,80);
+        notesLines.forEach(line => { if(y>700){pdfFooter(doc,null);doc.addPage();y=44;} doc.text(line, ML+8, y); y+=10; });
+      }
+      y += 6;
+    });
+    y += 4;
+  });
+
+  pdfFooter(doc, 1);
+  doc.save('strategies-report-'+new Date().toISOString().split('T')[0]+'.pdf');
+  showToast('Strategies PDF exported!', 'success');
+}
+
+// ── Calendar PDF ──────────────────────────────────────
+function exportCalendarPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'landscape' });
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const ML = 36, MR = PW - 36, TW = MR - ML;
+  const _ac = getPDFAccent();
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const monthName = months[_mktCalMonth] + ' ' + _mktCalYear;
+
+  let y = pdfHeader(doc, 'Marketing Calendar', monthName, { ML, MR });
+
+  // Build calendar grid dimensions
+  const firstDay    = new Date(_mktCalYear, _mktCalMonth, 1).getDay();
+  const daysInMonth = new Date(_mktCalYear, _mktCalMonth+1, 0).getDate();
+  const daysInPrev  = new Date(_mktCalYear, _mktCalMonth, 0).getDate();
+  const totalCells  = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+  const weeks       = totalCells / 7;
+
+  // Grid area
+  const gridTop  = y + 4;
+  const dayLabels = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const cellW    = TW / 7;
+  const labelH   = 16;
+  const availH   = PH - gridTop - labelH - 50;
+  const cellH    = availH / weeks;
+
+  // Day-of-week headers
+  doc.setFillColor(20, 20, 30);
+  doc.rect(ML, gridTop, TW, labelH, 'F');
+  dayLabels.forEach((d, i) => {
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(..._ac);
+    doc.text(d, ML + i * cellW + cellW/2, gridTop + 11, { align:'center' });
+  });
+
+  // Build event lookup
+  const evByDate = {};
+  _allCalEvents.forEach(ev => {
+    if (!evByDate[ev.event_date]) evByDate[ev.event_date] = [];
+    evByDate[ev.event_date].push(ev);
+  });
+
+  const now = new Date();
+  const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+
+  // Type color map for PDF (RGB)
+  const typeColors = {
+    post:     [0,150,200],
+    followup: [180,140,0],
+    pitch:    [200,80,10],
+    promo:    [150,80,200],
+    event:    [0,180,60],
+    deadline: [200,50,50],
+    other:    [120,120,120],
+  };
+
+  for (let i = 0; i < totalCells; i++) {
+    const col = i % 7;
+    const row = Math.floor(i / 7);
+    const x   = ML + col * cellW;
+    const cy  = gridTop + labelH + row * cellH;
+
+    let dayNum, dateStr, isOther = false;
+    if (i < firstDay) {
+      dayNum = daysInPrev - firstDay + i + 1;
+      const pm = _mktCalMonth - 1 < 0 ? 11 : _mktCalMonth - 1;
+      const py = _mktCalMonth - 1 < 0 ? _mktCalYear - 1 : _mktCalYear;
+      dateStr = py+'-'+String(pm+1).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
+      isOther = true;
+    } else if (i >= firstDay + daysInMonth) {
+      dayNum = i - firstDay - daysInMonth + 1;
+      const nm = _mktCalMonth + 1 > 11 ? 0 : _mktCalMonth + 1;
+      const ny = _mktCalMonth + 1 > 11 ? _mktCalYear + 1 : _mktCalYear;
+      dateStr = ny+'-'+String(nm+1).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
+      isOther = true;
+    } else {
+      dayNum = i - firstDay + 1;
+      dateStr = _mktCalYear+'-'+String(_mktCalMonth+1).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
+    }
+
+    const isToday = dateStr === todayStr;
+    const isWeekend = col === 0 || col === 6;
+
+    // Cell background
+    if (isToday) {
+      doc.setFillColor(..._ac.map(v => Math.min(255, v + 180)));
+      doc.rect(x, cy, cellW, cellH, 'F');
+    } else if (isOther) {
+      doc.setFillColor(240,240,240);
+      doc.rect(x, cy, cellW, cellH, 'F');
+    } else if (isWeekend) {
+      doc.setFillColor(248,248,252);
+      doc.rect(x, cy, cellW, cellH, 'F');
+    }
+
+    // Cell border
+    doc.setDrawColor(210,210,210); doc.setLineWidth(0.3);
+    doc.rect(x, cy, cellW, cellH);
+
+    // Day number
+    doc.setFont('helvetica', isToday ? 'bold' : 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(isOther ? 180 : isToday ? _ac[0] : 40, isOther ? 180 : isToday ? _ac[1] : 40, isOther ? 180 : isToday ? _ac[2] : 40);
+    doc.text(String(dayNum), x + 5, cy + 12);
+
+    // Events
+    const evs = evByDate[dateStr] || [];
+    let ey = cy + 22;
+    evs.slice(0, Math.floor((cellH - 22) / 13)).forEach(ev => {
+      const tc = typeColors[ev.event_type] || typeColors.other;
+      // Colored dot
+      doc.setFillColor(...tc);
+      doc.circle(x + 7, ey - 3, 2.5, 'F');
+      // Event title
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...tc);
+      const evTitle = doc.splitTextToSize(ev.title, cellW - 16)[0];
+      doc.text(evTitle, x + 12, ey);
+      ey += 11;
+    });
+
+    // +N more indicator
+    if (evs.length > Math.floor((cellH - 22) / 13)) {
+      const shown = Math.floor((cellH - 22) / 13);
+      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(140,140,140);
+      doc.text('+' + (evs.length - shown) + ' more', x + 5, cy + cellH - 4);
+    }
+  }
+
+  // Legend
+  const legendY = PH - 28;
+  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(80,80,80);
+  doc.text('EVENT TYPES:', ML, legendY);
+  const types = [['post','Social Post'],['followup','Follow-up'],['pitch','Pitch'],['promo','Promo'],['event','Event'],['deadline','Deadline']];
+  let lx = ML + 72;
+  types.forEach(([type, label]) => {
+    const tc = typeColors[type]||[120,120,120];
+    doc.setFillColor(...tc); doc.circle(lx+3, legendY-3, 3, 'F');
+    doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
+    doc.text(label, lx+9, legendY);
+    lx += doc.getTextWidth(label) + 20;
+  });
+
+  pdfFooter(doc, 1);
+  doc.save('marketing-calendar-'+monthName.replace(' ','-').toLowerCase()+'.pdf');
+  showToast('Calendar PDF exported!', 'success');
 }
 
 
