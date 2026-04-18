@@ -438,6 +438,7 @@
   <div class="tab" id="tab-reports" onclick="switchTab('reports')">REPORTS</div>
   <div class="tab" id="tab-showrooms" onclick="switchTab('showrooms')">SHOWROOMS</div>
   <div class="tab" id="tab-sops" onclick="switchTab('sops')">SOPs</div>
+  <div class="tab" id="tab-marketing" onclick="switchTab('marketing')">MARKETING</div>
   <div class="tab" id="tab-quotes" onclick="switchTab('quotes')">QUOTES <span id="quotesBadge" style="display:none;background:var(--cyan);color:#000;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-consumables" onclick="switchTab('consumables')">CONSUMABLES <span id="consumablesBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-inventory" onclick="switchTab('inventory')">INVENTORY <span id="inventoryBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
@@ -1194,6 +1195,117 @@
 
     <!-- List -->
     <div id="sopList"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ MARKETING ═══ -->
+  <div id="pane-marketing" class="hidden">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">MARKETING</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">Leads · Pitches · Strategy · Calendar</div>
+      </div>
+    </div>
+
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto;">
+      <button class="mkt-tab active" id="mkt-tab-leads"    onclick="switchMktTab('leads')">LEADS</button>
+      <button class="mkt-tab"        id="mkt-tab-pitches"  onclick="switchMktTab('pitches')">PITCHES</button>
+      <button class="mkt-tab"        id="mkt-tab-strategy" onclick="switchMktTab('strategy')">STRATEGY</button>
+      <button class="mkt-tab"        id="mkt-tab-calendar" onclick="switchMktTab('calendar')">CALENDAR</button>
+    </div>
+
+    <!-- ── LEADS ── -->
+    <div id="mkt-pane-leads">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="leadSearch" placeholder="Search leads…" style="width:200px;" oninput="renderLeads()" />
+          <select id="leadStatusFilter" style="width:130px;" onchange="renderLeads()">
+            <option value="">All Statuses</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="qualified">Qualified</option>
+            <option value="proposal">Proposal Sent</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+            <option value="cold">Cold</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="openLeadModal()">+ NEW LEAD</button>
+      </div>
+      <!-- Summary bar -->
+      <div id="leadSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:14px;"></div>
+      <!-- List -->
+      <div id="leadList"></div>
+    </div>
+
+    <!-- ── PITCHES ── -->
+    <div id="mkt-pane-pitches" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="pitchSearch" placeholder="Search pitches…" style="width:200px;" oninput="renderPitches()" />
+          <select id="pitchStatusFilter" style="width:130px;" onchange="renderPitches()">
+            <option value="">All</option>
+            <option value="draft">Draft</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="delivered">Delivered</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="openPitchModal()">+ NEW PITCH</button>
+      </div>
+      <div id="pitchSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:14px;"></div>
+      <div id="pitchList"></div>
+    </div>
+
+    <!-- ── STRATEGY ── -->
+    <div id="mkt-pane-strategy" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+          <select id="stratCatFilter" style="width:160px;" onchange="renderStrategies()">
+            <option value="">All Categories</option>
+            <option value="Social Media">Social Media</option>
+            <option value="Outreach">Outreach</option>
+            <option value="Referral">Referral</option>
+            <option value="Pricing">Pricing</option>
+            <option value="Branding">Branding</option>
+            <option value="Events">Events</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="openStrategyModal()">+ NEW STRATEGY</button>
+      </div>
+      <div id="strategyList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;"></div>
+    </div>
+
+    <!-- ── CALENDAR ── -->
+    <div id="mkt-pane-calendar" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn-ghost" onclick="shiftMktMonth(-1)">← PREV</button>
+          <div id="mktCalTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.08em;min-width:160px;text-align:center;"></div>
+          <button class="btn-ghost" onclick="shiftMktMonth(1)">NEXT →</button>
+        </div>
+        <div style="display:flex;gap:7px;">
+          <button class="btn-ghost" onclick="goMktToday()">TODAY</button>
+          <button class="btn-primary" onclick="openCalEventModal()">+ ADD EVENT</button>
+        </div>
+      </div>
+      <!-- Day-of-week headers -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">SUN</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">MON</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">TUE</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">WED</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">THU</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">FRI</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">SAT</div>
+      </div>
+      <div id="mktCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
+    </div>
+
   </div>
 
 
@@ -2354,6 +2466,176 @@
   </div>
 </div>
 
+
+<!-- LEAD MODAL -->
+<div id="leadModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:560px;padding:20px;margin:8px auto;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="leadModalTitle">NEW LEAD</div>
+      <button class="btn-ghost" onclick="closeLeadModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="grid-column:1/-1"><label>Company / Name</label><input type="text" id="lead_name" placeholder="Acme Apparel Co." /></div>
+      <div><label>Contact Person</label><input type="text" id="lead_contact" placeholder="Jane Smith" /></div>
+      <div><label>Phone</label><input type="text" id="lead_phone" placeholder="(210) 555-0000" /></div>
+      <div style="grid-column:1/-1"><label>Email</label><input type="text" id="lead_email" placeholder="jane@acme.com" /></div>
+      <div>
+        <label>Status</label>
+        <select id="lead_status">
+          <option value="new">New</option>
+          <option value="contacted">Contacted</option>
+          <option value="qualified">Qualified</option>
+          <option value="proposal">Proposal Sent</option>
+          <option value="won">Won ✓</option>
+          <option value="lost">Lost</option>
+          <option value="cold">Cold</option>
+        </select>
+      </div>
+      <div>
+        <label>Source</label>
+        <select id="lead_source">
+          <option value="referral">Referral</option>
+          <option value="instagram">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="google">Google</option>
+          <option value="walkin">Walk-in</option>
+          <option value="cold_call">Cold Call</option>
+          <option value="event">Event</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div><label>Est. Value ($)</label><input type="number" id="lead_value" placeholder="0" min="0" step="50" /></div>
+      <div><label>Follow-up Date</label><input type="date" id="lead_followup" /></div>
+      <div><label>Industry / Type</label><input type="text" id="lead_industry" placeholder="Schools, Sports teams, Corporate…" /></div>
+      <div><label>Qty Estimate</label><input type="text" id="lead_qty" placeholder="~100 shirts" /></div>
+      <div style="grid-column:1/-1"><label>Notes</label><textarea id="lead_notes" rows="3" placeholder="Any context, conversation history, or next steps…"></textarea></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" id="deleteLeadBtn" onclick="deleteLead()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeLeadModal()">CANCEL</button>
+        <button class="btn-primary" id="saveLeadBtn" onclick="saveLead()">SAVE LEAD</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PITCH MODAL -->
+<div id="pitchModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:560px;padding:20px;margin:8px auto;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="pitchModalTitle">NEW PITCH</div>
+      <button class="btn-ghost" onclick="closePitchModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="grid-column:1/-1"><label>Pitch Title</label><input type="text" id="pitch_title" placeholder="Spring League Shirts — SA Soccer Club" /></div>
+      <div style="grid-column:1/-1"><label>Prospect / Company</label><input type="text" id="pitch_prospect" placeholder="Who are you pitching to?" /></div>
+      <div>
+        <label>Status</label>
+        <select id="pitch_status">
+          <option value="draft">Draft</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="delivered">Delivered</option>
+          <option value="won">Won ✓</option>
+          <option value="lost">Lost</option>
+        </select>
+      </div>
+      <div><label>Pitch Date</label><input type="date" id="pitch_date" /></div>
+      <div><label>Est. Value ($)</label><input type="number" id="pitch_value" placeholder="0" min="0" step="50" /></div>
+      <div><label>Decision Date</label><input type="date" id="pitch_decision" /></div>
+      <div style="grid-column:1/-1"><label>Pitch Summary</label><textarea id="pitch_summary" rows="2" placeholder="What are you proposing? Key selling points…"></textarea></div>
+      <div style="grid-column:1/-1"><label>Objections / Notes</label><textarea id="pitch_notes" rows="2" placeholder="Their concerns, your responses, follow-up actions…"></textarea></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" id="deletePitchBtn" onclick="deletePitch()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closePitchModal()">CANCEL</button>
+        <button class="btn-primary" id="savePitchBtn" onclick="savePitch()">SAVE PITCH</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STRATEGY MODAL -->
+<div id="strategyModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:560px;padding:20px;margin:8px auto;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="stratModalTitle">NEW STRATEGY</div>
+      <button class="btn-ghost" onclick="closeStrategyModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="grid-column:1/-1"><label>Strategy Title</label><input type="text" id="strat_title" placeholder="Instagram Reels — Behind the Scenes Press" /></div>
+      <div>
+        <label>Category</label>
+        <select id="strat_category">
+          <option value="Social Media">Social Media</option>
+          <option value="Outreach">Outreach</option>
+          <option value="Referral">Referral</option>
+          <option value="Pricing">Pricing</option>
+          <option value="Branding">Branding</option>
+          <option value="Events">Events</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Status</label>
+        <select id="strat_status">
+          <option value="idea">Idea</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="done">Completed</option>
+        </select>
+      </div>
+      <div><label>Target Audience</label><input type="text" id="strat_audience" placeholder="Local sports teams, schools…" /></div>
+      <div><label>Goal / KPI</label><input type="text" id="strat_goal" placeholder="5 new clients / month" /></div>
+      <div style="grid-column:1/-1"><label>Description</label><textarea id="strat_desc" rows="3" placeholder="What's the plan? How will you execute it?"></textarea></div>
+      <div style="grid-column:1/-1"><label>Budget / Resources</label><input type="text" id="strat_budget" placeholder="$0 — time only / $200 ads / etc." /></div>
+      <div style="grid-column:1/-1"><label>Notes / Results</label><textarea id="strat_notes" rows="2" placeholder="Progress, what's working, what to change…"></textarea></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" id="deleteStratBtn" onclick="deleteStrategy()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeStrategyModal()">CANCEL</button>
+        <button class="btn-primary" id="saveStratBtn" onclick="saveStrategy()">SAVE STRATEGY</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR EVENT MODAL -->
+<div id="calEventModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:480px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="calEventModalTitle">NEW EVENT</div>
+      <button class="btn-ghost" onclick="closeCalEventModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="grid-column:1/-1"><label>Event Title</label><input type="text" id="cal_title" placeholder="Post Instagram reel, Follow up with client…" /></div>
+      <div>
+        <label>Type</label>
+        <select id="cal_type">
+          <option value="post">📱 Social Post</option>
+          <option value="followup">📞 Follow-up</option>
+          <option value="pitch">🎯 Pitch</option>
+          <option value="promo">🏷 Promo / Sale</option>
+          <option value="event">📅 Event</option>
+          <option value="deadline">⏰ Deadline</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div><label>Date</label><input type="date" id="cal_date" /></div>
+      <div><label>Notes</label><input type="text" id="cal_notes" placeholder="Any details…" /></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" id="deleteCalEventBtn" onclick="deleteCalEvent()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeCalEventModal()">CANCEL</button>
+        <button class="btn-primary" id="saveCalEventBtn" onclick="saveCalEvent()">SAVE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -2447,7 +2729,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes','consumables','sops'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes','consumables','sops','marketing'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -2465,6 +2747,7 @@ function switchTab(tab){
   if(tab==='sops') loadSOPs();
   if(tab==='consumables') loadConsumables();
   if(tab==='quotes') loadQuotes();
+  if(tab==='marketing') initMarketing();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -12267,7 +12550,51 @@ function exportSOPQR(sop) {
         .meta{font-size:8px;color:#666;}
         .shop{font-size:7px;color:#aaa;margin-top:6px;}
         @media print{body{-webkit-print-color-adjust:exact;}}
-      </style></head><body>
+      
+    /* ── Marketing ── */
+    .mkt-tab{font-family:'Bebas Neue',sans-serif;letter-spacing:.08em;font-size:.95rem;padding:9px 20px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;touch-action:manipulation;}
+    .mkt-tab.active{color:var(--flash);border-bottom-color:var(--flash);}
+    .mkt-tab:hover{color:var(--text);}
+    .lead-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;border-left:3px solid var(--border);}
+    .lead-card:hover{border-color:var(--flash-40);}
+    .lead-card.won{border-left-color:var(--green);}
+    .lead-card.qualified{border-left-color:var(--cyan);}
+    .lead-card.proposal{border-left-color:var(--flash);}
+    .lead-card.lost,.lead-card.cold{border-left-color:var(--muted);opacity:.65;}
+    .lead-card.new{border-left-color:var(--yellow);}
+    .lead-card.contacted{border-left-color:#b464ff;}
+    .pitch-card{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+    .pitch-card:hover{border-color:var(--flash-40);}
+    .pitch-card.won{border-left:3px solid var(--green);}
+    .pitch-card.lost{border-left:3px solid #ff4444;opacity:.7;}
+    .strat-card{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:14px;cursor:pointer;transition:border-color .15s;}
+    .strat-card:hover{border-color:var(--flash-40);}
+    .strat-card.active{border-top:3px solid var(--green);}
+    .strat-card.idea{border-top:3px solid var(--yellow);}
+    .strat-card.paused{border-top:3px solid var(--muted);}
+    .strat-card.done{border-top:3px solid var(--cyan);opacity:.7;}
+    .mkt-cal-day{background:var(--surface2);border:1px solid var(--border);border-radius:3px;min-height:80px;padding:5px;cursor:pointer;transition:border-color .15s;position:relative;}
+    .mkt-cal-day:hover{border-color:var(--flash-30);}
+    .mkt-cal-day.today{border-color:var(--flash);background:var(--flash-dim);}
+    .mkt-cal-day.other-month{opacity:.35;}
+    .mkt-cal-day-num{font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--muted);margin-bottom:3px;}
+    .mkt-cal-day.today .mkt-cal-day-num{color:var(--flash);}
+    .mkt-cal-event{font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:2px 5px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+    .mkt-ev-post{background:rgba(0,180,216,.2);color:var(--cyan);}
+    .mkt-ev-followup{background:rgba(245,200,0,.2);color:var(--yellow);}
+    .mkt-ev-pitch{background:rgba(232,80,10,.2);color:var(--flash);}
+    .mkt-ev-promo{background:rgba(180,100,255,.2);color:#b464ff;}
+    .mkt-ev-event{background:rgba(0,200,83,.2);color:var(--green);}
+    .mkt-ev-deadline{background:rgba(255,68,68,.2);color:#ff4444;}
+    .mkt-ev-other{background:rgba(245,240,232,.1);color:var(--muted);}
+    .lead-status-badge{font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
+    .ls-new{background:rgba(245,200,0,.15);color:var(--yellow);border:1px solid rgba(245,200,0,.3);}
+    .ls-contacted{background:rgba(180,100,255,.15);color:#b464ff;border:1px solid rgba(180,100,255,.3);}
+    .ls-qualified{background:rgba(0,180,216,.15);color:var(--cyan);border:1px solid rgba(0,180,216,.3);}
+    .ls-proposal{background:rgba(232,80,10,.15);color:var(--flash);border:1px solid rgba(232,80,10,.3);}
+    .ls-won{background:rgba(0,200,83,.15);color:var(--green);border:1px solid rgba(0,200,83,.3);}
+    .ls-lost,.ls-cold{background:rgba(245,240,232,.07);color:var(--muted);border:1px solid rgba(245,240,232,.12);}
+</style></head><body>
       <div class="qr"><img src="${dataUrl}" /></div>
       <div class="info">
         <div class="cat">${sop.category}</div>
@@ -12289,6 +12616,525 @@ function checkSOPDeepLink() {
   sbClient.from('sops').select('*').eq('id', sopId).single().then(({ data }) => {
     if (data) openSOPView(data);
   });
+}
+
+
+
+// ══════════════════════════════════════════════════════
+// MARKETING
+// ══════════════════════════════════════════════════════
+let _mktTab = 'leads';
+let _allLeads = [], _allPitches = [], _allStrategies = [], _allCalEvents = [];
+let _editLeadId = null, _editPitchId = null, _editStratId = null, _editCalEventId = null;
+let _mktCalYear, _mktCalMonth;
+
+const LEAD_STATUSES = { new:'New', contacted:'Contacted', qualified:'Qualified', proposal:'Proposal Sent', won:'Won', lost:'Lost', cold:'Cold' };
+const LEAD_SOURCES  = { referral:'Referral', instagram:'Instagram', facebook:'Facebook', google:'Google', walkin:'Walk-in', cold_call:'Cold Call', event:'Event', other:'Other' };
+const PITCH_STATUSES= { draft:'Draft', scheduled:'Scheduled', delivered:'Delivered', won:'Won', lost:'Lost' };
+const STRAT_STATUSES= { idea:'Idea', active:'Active', paused:'Paused', done:'Completed' };
+const STRAT_COLORS  = { 'Social Media':'#00b4d8','Outreach':'#e8500a','Referral':'#00c853','Pricing':'#f5c000','Branding':'#b464ff','Events':'#ff4488','Other':'#a0a0a0' };
+const CAL_TYPE_CLS  = { post:'mkt-ev-post', followup:'mkt-ev-followup', pitch:'mkt-ev-pitch', promo:'mkt-ev-promo', event:'mkt-ev-event', deadline:'mkt-ev-deadline', other:'mkt-ev-other' };
+const CAL_TYPE_ICON = { post:'📱', followup:'📞', pitch:'🎯', promo:'🏷', event:'📅', deadline:'⏰', other:'•' };
+
+// ── Init ──────────────────────────────────────────────
+async function initMarketing() {
+  const now = new Date();
+  if (!_mktCalYear) { _mktCalYear = now.getFullYear(); _mktCalMonth = now.getMonth(); }
+  await Promise.all([loadLeads(), loadPitches(), loadStrategies(), loadCalEvents()]);
+  switchMktTab(_mktTab);
+}
+
+function switchMktTab(tab) {
+  _mktTab = tab;
+  ['leads','pitches','strategy','calendar'].forEach(t => {
+    document.getElementById('mkt-pane-'+t)?.classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById('mkt-tab-'+t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'calendar') renderMktCalendar();
+}
+
+// ══════════════════════════════════════════════════════
+// LEADS
+// ══════════════════════════════════════════════════════
+async function loadLeads() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('marketing_leads').select('*').order('created_at', { ascending: false });
+  _allLeads = data || [];
+  renderLeadSummary();
+  renderLeads();
+}
+
+function renderLeadSummary() {
+  const el = document.getElementById('leadSummary');
+  if (!el) return;
+  const total = _allLeads.length;
+  const won   = _allLeads.filter(l => l.status === 'won').length;
+  const open  = _allLeads.filter(l => !['won','lost','cold'].includes(l.status)).length;
+  const pipeline = _allLeads.filter(l => !['won','lost','cold'].includes(l.status))
+    .reduce((s,l) => s + (parseFloat(l.est_value)||0), 0);
+  const followups = _allLeads.filter(l => {
+    if (!l.followup_date) return false;
+    const d = new Date(l.followup_date+'T00:00:00');
+    const now = new Date(); now.setHours(0,0,0,0);
+    return d <= now && !['won','lost'].includes(l.status);
+  }).length;
+
+  el.innerHTML = [
+    ['TOTAL LEADS', total, 'var(--text)'],
+    ['OPEN', open, 'var(--cyan)'],
+    ['WON', won, 'var(--green)'],
+    ['PIPELINE', '$'+pipeline.toLocaleString(), 'var(--flash)'],
+    ['FOLLOW-UPS DUE', followups, followups > 0 ? 'var(--yellow)' : 'var(--muted)'],
+  ].map(([l,v,c]) => `<div class="task-stat-card">
+    <div class="task-stat-val" style="color:${c};font-size:1.3rem;">${v}</div>
+    <div class="task-stat-lbl">${l}</div>
+  </div>`).join('');
+}
+
+function renderLeads() {
+  const el = document.getElementById('leadList');
+  if (!el) return;
+  const q = (document.getElementById('leadSearch')?.value||'').toLowerCase();
+  const sf = document.getElementById('leadStatusFilter')?.value||'';
+  let leads = _allLeads;
+  if (q) leads = leads.filter(l => (l.name||'').toLowerCase().includes(q) || (l.contact||'').toLowerCase().includes(q) || (l.industry||'').toLowerCase().includes(q));
+  if (sf) leads = leads.filter(l => l.status === sf);
+  if (!leads.length) {
+    el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:28px 0;">No leads yet — click + NEW LEAD to add one.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  leads.forEach(l => el.appendChild(buildLeadCard(l)));
+}
+
+function buildLeadCard(l) {
+  const div = document.createElement('div');
+  div.className = 'lead-card ' + (l.status||'new');
+  div.onclick = () => openLeadModal(l);
+  const now = new Date(); now.setHours(0,0,0,0);
+  const followupDue = l.followup_date && new Date(l.followup_date+'T00:00:00') <= now && !['won','lost'].includes(l.status);
+  div.innerHTML = `
+    <div style="display:flex;align-items:start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+          <span style="font-weight:600;font-size:.92rem;">${l.name||'Unnamed Lead'}</span>
+          <span class="lead-status-badge ls-${l.status||'new'}">${LEAD_STATUSES[l.status]||l.status}</span>
+          ${followupDue ? '<span style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--yellow);background:rgba(245,200,0,.1);border:1px solid rgba(245,200,0,.3);padding:1px 6px;border-radius:2px;">⏰ FOLLOW-UP DUE</span>' : ''}
+        </div>
+        <div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;">
+          ${l.contact ? `<span>👤 ${l.contact}</span>` : ''}
+          ${l.phone   ? `<span>📞 ${l.phone}</span>` : ''}
+          ${l.industry? `<span>🏷 ${l.industry}</span>` : ''}
+          ${l.source  ? `<span>↗ ${LEAD_SOURCES[l.source]||l.source}</span>` : ''}
+          ${l.followup_date ? `<span>📅 Follow-up: ${fmtDate(l.followup_date)}</span>` : ''}
+        </div>
+        ${l.notes ? `<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.35);margin-top:4px;white-space:pre-wrap;">${l.notes.slice(0,120)}${l.notes.length>120?'…':''}</div>` : ''}
+      </div>
+      ${l.est_value ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--flash);flex-shrink:0;">$${parseFloat(l.est_value).toLocaleString()}</div>` : ''}
+    </div>`;
+  return div;
+}
+
+function openLeadModal(l) {
+  _editLeadId = l?.id || null;
+  document.getElementById('leadModalTitle').textContent = l ? 'EDIT LEAD' : 'NEW LEAD';
+  document.getElementById('lead_name').value     = l?.name     || '';
+  document.getElementById('lead_contact').value  = l?.contact  || '';
+  document.getElementById('lead_phone').value    = l?.phone    || '';
+  document.getElementById('lead_email').value    = l?.email    || '';
+  document.getElementById('lead_status').value   = l?.status   || 'new';
+  document.getElementById('lead_source').value   = l?.source   || 'referral';
+  document.getElementById('lead_value').value    = l?.est_value|| '';
+  document.getElementById('lead_followup').value = l?.followup_date || '';
+  document.getElementById('lead_industry').value = l?.industry || '';
+  document.getElementById('lead_qty').value      = l?.qty_estimate || '';
+  document.getElementById('lead_notes').value    = l?.notes    || '';
+  document.getElementById('deleteLeadBtn').style.display = l ? 'inline-block' : 'none';
+  document.getElementById('leadModal').classList.remove('hidden');
+}
+function closeLeadModal() { document.getElementById('leadModal').classList.add('hidden'); _editLeadId = null; }
+
+async function saveLead() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveLeadBtn');
+  btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true;
+  const record = {
+    name:         document.getElementById('lead_name').value.trim(),
+    contact:      document.getElementById('lead_contact').value.trim()||null,
+    phone:        document.getElementById('lead_phone').value.trim()||null,
+    email:        document.getElementById('lead_email').value.trim()||null,
+    status:       document.getElementById('lead_status').value,
+    source:       document.getElementById('lead_source').value,
+    est_value:    parseFloat(document.getElementById('lead_value').value)||null,
+    followup_date:document.getElementById('lead_followup').value||null,
+    industry:     document.getElementById('lead_industry').value.trim()||null,
+    qty_estimate: document.getElementById('lead_qty').value.trim()||null,
+    notes:        document.getElementById('lead_notes').value.trim()||null,
+    updated_at:   new Date().toISOString(),
+  };
+  if (!record.name) { showToast('Company/name required.','error'); btn.innerHTML='SAVE LEAD'; btn.disabled=false; return; }
+  let error;
+  if (_editLeadId) { ({error}=await sbClient.from('marketing_leads').update(record).eq('id',_editLeadId)); }
+  else { record.created_at=new Date().toISOString(); ({error}=await sbClient.from('marketing_leads').insert([record])); }
+  btn.innerHTML='SAVE LEAD'; btn.disabled=false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editLeadId?'Lead updated!':'Lead added!','success');
+  closeLeadModal(); loadLeads();
+}
+
+async function deleteLead() {
+  if (!sbClient||!_editLeadId) return;
+  if (!confirm('Delete this lead?')) return;
+  await sbClient.from('marketing_leads').delete().eq('id',_editLeadId);
+  showToast('Lead deleted.','success');
+  closeLeadModal(); loadLeads();
+}
+
+// ══════════════════════════════════════════════════════
+// PITCHES
+// ══════════════════════════════════════════════════════
+async function loadPitches() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('marketing_pitches').select('*').order('pitch_date', { ascending: false });
+  _allPitches = data || [];
+  renderPitchSummary();
+  renderPitches();
+}
+
+function renderPitchSummary() {
+  const el = document.getElementById('pitchSummary');
+  if (!el) return;
+  const won  = _allPitches.filter(p => p.status==='won').length;
+  const lost = _allPitches.filter(p => p.status==='lost').length;
+  const open = _allPitches.filter(p => !['won','lost'].includes(p.status)).length;
+  const total = _allPitches.length;
+  const winRate = total > 0 ? Math.round((won/(won+lost||1))*100) : 0;
+  const pipeline = _allPitches.filter(p=>!['won','lost'].includes(p.status)).reduce((s,p)=>s+(parseFloat(p.est_value)||0),0);
+
+  el.innerHTML = [
+    ['TOTAL', total, 'var(--text)'],
+    ['OPEN', open, 'var(--cyan)'],
+    ['WON', won, 'var(--green)'],
+    ['WIN RATE', winRate+'%', won>0?'var(--green)':'var(--muted)'],
+    ['PIPELINE', '$'+pipeline.toLocaleString(), 'var(--flash)'],
+  ].map(([l,v,c]) => `<div class="task-stat-card">
+    <div class="task-stat-val" style="color:${c};font-size:1.3rem;">${v}</div>
+    <div class="task-stat-lbl">${l}</div>
+  </div>`).join('');
+}
+
+function renderPitches() {
+  const el = document.getElementById('pitchList');
+  if (!el) return;
+  const q = (document.getElementById('pitchSearch')?.value||'').toLowerCase();
+  const sf = document.getElementById('pitchStatusFilter')?.value||'';
+  let pitches = _allPitches;
+  if (q) pitches = pitches.filter(p => (p.title||'').toLowerCase().includes(q)||(p.prospect||'').toLowerCase().includes(q));
+  if (sf) pitches = pitches.filter(p => p.status===sf);
+  if (!pitches.length) {
+    el.innerHTML='<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:28px 0;">No pitches yet.</div>';
+    return;
+  }
+  el.innerHTML='';
+  pitches.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'pitch-card ' + (p.status||'draft');
+    div.onclick = () => openPitchModal(p);
+    const statusColors = { draft:'var(--muted)', scheduled:'var(--cyan)', delivered:'var(--yellow)', won:'var(--green)', lost:'#ff4444' };
+    div.innerHTML = `
+      <div style="display:flex;align-items:start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <span style="font-weight:600;font-size:.92rem;">${p.title||'Untitled Pitch'}</span>
+            <span style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:${statusColors[p.status]||'var(--muted)'};background:${statusColors[p.status]||'var(--muted)'}22;border:1px solid ${statusColors[p.status]||'var(--muted)'}44;padding:2px 7px;border-radius:10px;">${PITCH_STATUSES[p.status]||p.status}</span>
+          </div>
+          <div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;">
+            ${p.prospect ? `<span>🏢 ${p.prospect}</span>` : ''}
+            ${p.pitch_date ? `<span>📅 ${fmtDate(p.pitch_date)}</span>` : ''}
+            ${p.decision_date ? `<span>⏰ Decision: ${fmtDate(p.decision_date)}</span>` : ''}
+          </div>
+          ${p.summary ? `<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.4);margin-top:4px;">${p.summary.slice(0,100)}${p.summary.length>100?'…':''}</div>` : ''}
+        </div>
+        ${p.est_value ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:${p.status==='won'?'var(--green)':'var(--flash)'};flex-shrink:0;">$${parseFloat(p.est_value).toLocaleString()}</div>` : ''}
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function openPitchModal(p) {
+  _editPitchId = p?.id || null;
+  document.getElementById('pitchModalTitle').textContent = p ? 'EDIT PITCH' : 'NEW PITCH';
+  document.getElementById('pitch_title').value    = p?.title||'';
+  document.getElementById('pitch_prospect').value = p?.prospect||'';
+  document.getElementById('pitch_status').value   = p?.status||'draft';
+  document.getElementById('pitch_date').value     = p?.pitch_date||'';
+  document.getElementById('pitch_value').value    = p?.est_value||'';
+  document.getElementById('pitch_decision').value = p?.decision_date||'';
+  document.getElementById('pitch_summary').value  = p?.summary||'';
+  document.getElementById('pitch_notes').value    = p?.notes||'';
+  document.getElementById('deletePitchBtn').style.display = p ? 'inline-block' : 'none';
+  document.getElementById('pitchModal').classList.remove('hidden');
+}
+function closePitchModal() { document.getElementById('pitchModal').classList.add('hidden'); _editPitchId=null; }
+
+async function savePitch() {
+  if (!sbClient) return;
+  const btn = document.getElementById('savePitchBtn');
+  btn.innerHTML='<span class="loader"></span>'; btn.disabled=true;
+  const record = {
+    title:        document.getElementById('pitch_title').value.trim(),
+    prospect:     document.getElementById('pitch_prospect').value.trim()||null,
+    status:       document.getElementById('pitch_status').value,
+    pitch_date:   document.getElementById('pitch_date').value||null,
+    est_value:    parseFloat(document.getElementById('pitch_value').value)||null,
+    decision_date:document.getElementById('pitch_decision').value||null,
+    summary:      document.getElementById('pitch_summary').value.trim()||null,
+    notes:        document.getElementById('pitch_notes').value.trim()||null,
+    updated_at:   new Date().toISOString(),
+  };
+  if (!record.title) { showToast('Title required.','error'); btn.innerHTML='SAVE PITCH'; btn.disabled=false; return; }
+  let error;
+  if (_editPitchId) { ({error}=await sbClient.from('marketing_pitches').update(record).eq('id',_editPitchId)); }
+  else { record.created_at=new Date().toISOString(); ({error}=await sbClient.from('marketing_pitches').insert([record])); }
+  btn.innerHTML='SAVE PITCH'; btn.disabled=false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editPitchId?'Pitch updated!':'Pitch added!','success');
+  closePitchModal(); loadPitches();
+}
+
+async function deletePitch() {
+  if (!sbClient||!_editPitchId) return;
+  if (!confirm('Delete this pitch?')) return;
+  await sbClient.from('marketing_pitches').delete().eq('id',_editPitchId);
+  showToast('Pitch deleted.','success');
+  closePitchModal(); loadPitches();
+}
+
+// ══════════════════════════════════════════════════════
+// STRATEGIES
+// ══════════════════════════════════════════════════════
+async function loadStrategies() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('marketing_strategies').select('*').order('created_at', { ascending: false });
+  _allStrategies = data || [];
+  renderStrategies();
+}
+
+function renderStrategies() {
+  const el = document.getElementById('strategyList');
+  if (!el) return;
+  const cf = document.getElementById('stratCatFilter')?.value||'';
+  let strats = _allStrategies;
+  if (cf) strats = strats.filter(s => s.category===cf);
+  if (!strats.length) {
+    el.innerHTML='<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:24px 0;">No strategies yet. Click + NEW STRATEGY to add one.</div>';
+    return;
+  }
+  el.innerHTML='';
+  strats.forEach(s => {
+    const div = document.createElement('div');
+    div.className='strat-card '+(s.status||'idea');
+    div.onclick=()=>openStrategyModal(s);
+    const color = STRAT_COLORS[s.category]||'var(--muted)';
+    const statusColors = { idea:'var(--yellow)', active:'var(--green)', paused:'var(--muted)', done:'var(--cyan)' };
+    div.innerHTML=`
+      <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;margin-bottom:6px;">
+        <span style="font-weight:600;font-size:.9rem;flex:1;">${s.title}</span>
+        <span style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:${statusColors[s.status]||'var(--muted)'};flex-shrink:0;">${STRAT_STATUSES[s.status]||s.status}</span>
+      </div>
+      <span style="font-family:IBM Plex Mono,monospace;font-size:.58rem;padding:2px 8px;border-radius:10px;background:${color}22;color:${color};border:1px solid ${color}44;display:inline-block;margin-bottom:7px;">${s.category||'Other'}</span>
+      ${s.audience?`<div style="font-family:IBM Plex Mono,monospace;font-size:.63rem;color:var(--muted);margin-bottom:3px;">🎯 ${s.audience}</div>`:''}
+      ${s.goal?`<div style="font-family:IBM Plex Mono,monospace;font-size:.63rem;color:var(--cyan);margin-bottom:4px;">📊 ${s.goal}</div>`:''}
+      ${s.description?`<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.4);line-height:1.5;">${s.description.slice(0,120)}${s.description.length>120?'…':''}</div>`:''}
+      ${s.budget?`<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);margin-top:6px;border-top:1px solid rgba(245,240,232,.06);padding-top:5px;">💰 ${s.budget}</div>`:''}`;
+    el.appendChild(div);
+  });
+}
+
+function openStrategyModal(s) {
+  _editStratId = s?.id||null;
+  document.getElementById('stratModalTitle').textContent = s ? 'EDIT STRATEGY' : 'NEW STRATEGY';
+  document.getElementById('strat_title').value    = s?.title||'';
+  document.getElementById('strat_category').value = s?.category||'Social Media';
+  document.getElementById('strat_status').value   = s?.status||'idea';
+  document.getElementById('strat_audience').value = s?.audience||'';
+  document.getElementById('strat_goal').value     = s?.goal||'';
+  document.getElementById('strat_desc').value     = s?.description||'';
+  document.getElementById('strat_budget').value   = s?.budget||'';
+  document.getElementById('strat_notes').value    = s?.notes||'';
+  document.getElementById('deleteStratBtn').style.display = s ? 'inline-block' : 'none';
+  document.getElementById('strategyModal').classList.remove('hidden');
+}
+function closeStrategyModal() { document.getElementById('strategyModal').classList.add('hidden'); _editStratId=null; }
+
+async function saveStrategy() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveStratBtn');
+  btn.innerHTML='<span class="loader"></span>'; btn.disabled=true;
+  const record = {
+    title:       document.getElementById('strat_title').value.trim(),
+    category:    document.getElementById('strat_category').value,
+    status:      document.getElementById('strat_status').value,
+    audience:    document.getElementById('strat_audience').value.trim()||null,
+    goal:        document.getElementById('strat_goal').value.trim()||null,
+    description: document.getElementById('strat_desc').value.trim()||null,
+    budget:      document.getElementById('strat_budget').value.trim()||null,
+    notes:       document.getElementById('strat_notes').value.trim()||null,
+    updated_at:  new Date().toISOString(),
+  };
+  if (!record.title) { showToast('Title required.','error'); btn.innerHTML='SAVE STRATEGY'; btn.disabled=false; return; }
+  let error;
+  if (_editStratId) { ({error}=await sbClient.from('marketing_strategies').update(record).eq('id',_editStratId)); }
+  else { record.created_at=new Date().toISOString(); ({error}=await sbClient.from('marketing_strategies').insert([record])); }
+  btn.innerHTML='SAVE STRATEGY'; btn.disabled=false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editStratId?'Updated!':'Strategy added!','success');
+  closeStrategyModal(); loadStrategies();
+}
+
+async function deleteStrategy() {
+  if (!sbClient||!_editStratId) return;
+  if (!confirm('Delete this strategy?')) return;
+  await sbClient.from('marketing_strategies').delete().eq('id',_editStratId);
+  showToast('Deleted.','success');
+  closeStrategyModal(); loadStrategies();
+}
+
+// ══════════════════════════════════════════════════════
+// MARKETING CALENDAR
+// ══════════════════════════════════════════════════════
+async function loadCalEvents() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('marketing_calendar').select('*').order('event_date');
+  _allCalEvents = data || [];
+}
+
+function renderMktCalendar() {
+  const now = new Date();
+  const todayStr = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('mktCalTitle').textContent = months[_mktCalMonth] + ' ' + _mktCalYear;
+
+  const firstDay = new Date(_mktCalYear, _mktCalMonth, 1).getDay();
+  const daysInMonth = new Date(_mktCalYear, _mktCalMonth+1, 0).getDate();
+  const daysInPrev  = new Date(_mktCalYear, _mktCalMonth, 0).getDate();
+  const grid = document.getElementById('mktCalGrid');
+  grid.innerHTML = '';
+
+  // Build event lookup by date string
+  const evByDate = {};
+  _allCalEvents.forEach(ev => {
+    const d = ev.event_date;
+    if (!evByDate[d]) evByDate[d] = [];
+    evByDate[d].push(ev);
+  });
+
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+  for (let i = 0; i < totalCells; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'mkt-cal-day';
+    let dateStr, dayNum, isOther = false;
+
+    if (i < firstDay) {
+      dayNum = daysInPrev - firstDay + i + 1;
+      dateStr = _mktCalYear+'-'+String(_mktCalMonth).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
+      isOther = true;
+    } else if (i >= firstDay + daysInMonth) {
+      dayNum = i - firstDay - daysInMonth + 1;
+      const nm = _mktCalMonth + 1 > 11 ? 0 : _mktCalMonth + 1;
+      const ny = _mktCalMonth + 1 > 11 ? _mktCalYear + 1 : _mktCalYear;
+      dateStr = ny+'-'+String(nm+1).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
+      isOther = true;
+    } else {
+      dayNum = i - firstDay + 1;
+      dateStr = _mktCalYear+'-'+String(_mktCalMonth+1).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
+    }
+
+    if (isOther) cell.classList.add('other-month');
+    if (dateStr === todayStr) cell.classList.add('today');
+
+    cell.innerHTML = `<div class="mkt-cal-day-num">${dayNum}</div>`;
+
+    // Add events for this date
+    const evs = evByDate[dateStr] || [];
+    evs.slice(0,3).forEach(ev => {
+      const badge = document.createElement('div');
+      badge.className = 'mkt-cal-event ' + (CAL_TYPE_CLS[ev.event_type]||'mkt-ev-other');
+      badge.textContent = (CAL_TYPE_ICON[ev.event_type]||'') + ' ' + ev.title;
+      badge.onclick = (e) => { e.stopPropagation(); openCalEventModal(ev); };
+      cell.appendChild(badge);
+    });
+    if (evs.length > 3) {
+      const more = document.createElement('div');
+      more.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.52rem;color:var(--muted);padding:1px 3px;';
+      more.textContent = '+' + (evs.length - 3) + ' more';
+      cell.appendChild(more);
+    }
+
+    // Click empty area to add event on that date
+    cell.onclick = () => openCalEventModal(null, dateStr);
+    grid.appendChild(cell);
+  }
+}
+
+function shiftMktMonth(dir) {
+  _mktCalMonth += dir;
+  if (_mktCalMonth > 11) { _mktCalMonth = 0; _mktCalYear++; }
+  if (_mktCalMonth < 0)  { _mktCalMonth = 11; _mktCalYear--; }
+  renderMktCalendar();
+}
+
+function goMktToday() {
+  const now = new Date();
+  _mktCalYear = now.getFullYear(); _mktCalMonth = now.getMonth();
+  renderMktCalendar();
+}
+
+function openCalEventModal(ev, prefillDate) {
+  _editCalEventId = ev?.id || null;
+  document.getElementById('calEventModalTitle').textContent = ev ? 'EDIT EVENT' : 'NEW EVENT';
+  document.getElementById('cal_title').value = ev?.title || '';
+  document.getElementById('cal_type').value  = ev?.event_type || 'post';
+  document.getElementById('cal_date').value  = ev?.event_date || prefillDate || new Date().toISOString().split('T')[0];
+  document.getElementById('cal_notes').value = ev?.notes || '';
+  document.getElementById('deleteCalEventBtn').style.display = ev ? 'inline-block' : 'none';
+  document.getElementById('calEventModal').classList.remove('hidden');
+}
+function closeCalEventModal() { document.getElementById('calEventModal').classList.add('hidden'); _editCalEventId=null; }
+
+async function saveCalEvent() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveCalEventBtn');
+  btn.innerHTML='<span class="loader"></span>'; btn.disabled=true;
+  const record = {
+    title:      document.getElementById('cal_title').value.trim(),
+    event_type: document.getElementById('cal_type').value,
+    event_date: document.getElementById('cal_date').value,
+    notes:      document.getElementById('cal_notes').value.trim()||null,
+    updated_at: new Date().toISOString(),
+  };
+  if (!record.title || !record.event_date) { showToast('Title and date required.','error'); btn.innerHTML='SAVE'; btn.disabled=false; return; }
+  let error;
+  if (_editCalEventId) { ({error}=await sbClient.from('marketing_calendar').update(record).eq('id',_editCalEventId)); }
+  else { record.created_at=new Date().toISOString(); ({error}=await sbClient.from('marketing_calendar').insert([record])); }
+  btn.innerHTML='SAVE'; btn.disabled=false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editCalEventId?'Event updated!':'Event added!','success');
+  closeCalEventModal();
+  await loadCalEvents();
+  renderMktCalendar();
+}
+
+async function deleteCalEvent() {
+  if (!sbClient||!_editCalEventId) return;
+  if (!confirm('Delete this event?')) return;
+  await sbClient.from('marketing_calendar').delete().eq('id',_editCalEventId);
+  showToast('Event deleted.','success');
+  closeCalEventModal();
+  await loadCalEvents();
+  renderMktCalendar();
 }
 
 
