@@ -421,13 +421,13 @@
     .strat-card.idea{border-top:3px solid var(--yellow);}
     .strat-card.paused{border-top:3px solid var(--muted);}
     .strat-card.done{border-top:3px solid var(--cyan);opacity:.7;}
-    .mkt-cal-day{background:var(--surface2);border:1px solid var(--border);border-radius:3px;min-height:80px;padding:5px;cursor:pointer;transition:border-color .15s;position:relative;}
+    .mkt-cal-day{background:var(--surface2);border:1px solid var(--border);border-radius:3px;min-height:80px;max-height:110px;padding:5px;cursor:pointer;transition:border-color .15s;position:relative;overflow:hidden;}
     .mkt-cal-day:hover{border-color:var(--flash-30);}
     .mkt-cal-day.today{border-color:var(--flash);background:var(--flash-dim);}
     .mkt-cal-day.other-month{opacity:.35;}
     .mkt-cal-day-num{font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--muted);margin-bottom:3px;}
     .mkt-cal-day.today .mkt-cal-day-num{color:var(--flash);}
-    .mkt-cal-event{font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:2px 5px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+    .mkt-cal-event{font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:2px 5px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;display:block;width:100%;box-sizing:border-box;}
     .mkt-ev-post{background:rgba(0,180,216,.2);color:var(--cyan);}
     .mkt-ev-followup{background:rgba(245,200,0,.2);color:var(--yellow);}
     .mkt-ev-pitch{background:rgba(232,80,10,.2);color:var(--flash);}
@@ -1248,7 +1248,6 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
       <div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">MARKETING</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">Leads · Pitches · Strategy · Calendar</div>
       </div>
     </div>
 
@@ -1348,7 +1347,7 @@
         </div>
       </div>
       <!-- Day-of-week headers -->
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;flex-shrink:0;">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">SUN</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">MON</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">TUE</div>
@@ -1357,7 +1356,7 @@
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">FRI</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-align:center;padding:4px 0;">SAT</div>
       </div>
-      <div id="mktCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
+      <div id="mktCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(80px,auto);gap:2px;"></div>
     </div>
 
   </div>
@@ -13050,7 +13049,9 @@ function renderMktCalendar() {
 
     if (i < firstDay) {
       dayNum = daysInPrev - firstDay + i + 1;
-      dateStr = _mktCalYear+'-'+String(_mktCalMonth).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
+      const pm = _mktCalMonth - 1 < 0 ? 11 : _mktCalMonth - 1;
+      const py = _mktCalMonth - 1 < 0 ? _mktCalYear - 1 : _mktCalYear;
+      dateStr = py+'-'+String(pm+1).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
       isOther = true;
     } else if (i >= firstDay + daysInMonth) {
       dayNum = i - firstDay - daysInMonth + 1;
