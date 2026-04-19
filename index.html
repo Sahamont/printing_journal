@@ -598,14 +598,41 @@
 
   <!-- ═══ SEARCH ═══ -->
   <div id="pane-search" class="hidden">
-    <div class="card" style="padding:13px;margin-bottom:13px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
-        <div style="grid-column:1/-1"><label>Search</label><input type="text" id="searchQuery" placeholder="Job name, order #, customer…" oninput="searchJobs()" /></div>
-        <div><label>Status</label><select id="statusFilter" onchange="searchJobs()"><option value="">All</option><option value="active">Active</option><option value="approved">Approved</option><option value="archived">Archived</option></select></div>
-        <div><label>Sort</label><select id="sortBy" onchange="searchJobs()"><option value="job_date">Date</option><option value="job_name">Job Name</option><option value="order_number">Order #</option></select></div>
-      </div>
+
+    <!-- Search subtabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto;">
+      <button class="mkt-tab active" id="srch-tab-jobs"     onclick="switchSearchTab('jobs')">🔍 JOBS</button>
+      <button class="mkt-tab"        id="srch-tab-sessions" onclick="switchSearchTab('sessions')">▶ SESSION REVIEW</button>
     </div>
-    <div id="searchResults"><div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">Results appear here</div></div>
+
+    <!-- JOBS PANE -->
+    <div id="srch-pane-jobs">
+      <div class="card" style="padding:13px;margin-bottom:13px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+          <div style="grid-column:1/-1"><label>Search</label><input type="text" id="searchQuery" placeholder="Job name, order #, customer…" oninput="searchJobs()" /></div>
+          <div><label>Status</label><select id="statusFilter" onchange="searchJobs()"><option value="">All</option><option value="active">Active</option><option value="approved">Approved</option><option value="archived">Archived</option></select></div>
+          <div><label>Sort</label><select id="sortBy" onchange="searchJobs()"><option value="job_date">Date</option><option value="job_name">Job Name</option><option value="order_number">Order #</option></select></div>
+        </div>
+      </div>
+      <div id="searchResults"><div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">Results appear here</div></div>
+    </div>
+
+    <!-- SESSION REVIEW PANE -->
+    <div id="srch-pane-sessions" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.08em;">SESSION HISTORY</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">All past print sessions — review, edit counts & add final notes</div>
+        </div>
+        <div style="display:flex;gap:7px;align-items:center;">
+          <input type="text" id="sessReviewSearch" placeholder="Search jobs…" style="width:180px;" oninput="renderSessionReview()" />
+          <button class="btn-ghost" onclick="loadSessionReview()">↺ REFRESH</button>
+        </div>
+      </div>
+      <div id="sessReviewStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:14px;"></div>
+      <div id="sessReviewList"></div>
+    </div>
+
   </div>
 
   <!-- ═══ PIPELINE ═══ -->
@@ -964,15 +991,6 @@
   <!-- ═══ ACTIVE SESSION ═══ -->
   <div id="pane-session" class="hidden">
 
-    <!-- Session subtabs -->
-    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px;overflow-x:auto;">
-      <button class="mkt-tab active" id="sess-tab-live"    onclick="switchSessTab('live')">▶ ACTIVE SESSION</button>
-      <button class="mkt-tab"        id="sess-tab-review"  onclick="switchSessTab('review')">📋 SESSION REVIEW</button>
-    </div>
-
-    <!-- LIVE SESSION PANE -->
-    <div id="sess-pane-live">
-
     <!-- Manual flash warning -->
     <div id="manualFlashAlert" class="manual-flash-alert hidden">⚡ MANUAL FLASH — FLASH UNIT IN USE ⚡</div>
 
@@ -1026,27 +1044,9 @@
     <div class="card" style="padding:14px;margin-top:12px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;color:var(--flash);margin-bottom:10px;">SESSION LOG</div>
       <div id="sessionLog" style="max-height:240px;overflow-y:auto;"></div>
-    </div><!-- /sess-pane-live -->
+    </div>
 
-    <!-- SESSION REVIEW PANE -->
-    <div id="sess-pane-review" class="hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.08em;">SESSION HISTORY</div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">All past print sessions — review, edit counts & add final notes</div>
-        </div>
-        <div style="display:flex;gap:7px;align-items:center;">
-          <input type="text" id="sessReviewSearch" placeholder="Search jobs…" style="width:180px;" oninput="renderSessionReview()" />
-          <button class="btn-ghost" onclick="loadSessionReview()">↺ REFRESH</button>
-        </div>
-      </div>
-      <!-- Summary stats -->
-      <div id="sessReviewStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:14px;"></div>
-      <!-- Session list -->
-      <div id="sessReviewList"></div>
-    </div><!-- /sess-pane-review -->
-
-  </div><!-- /pane-session -->
+  </div>
 
   <!-- TEMP CHECK MODAL -->
   <div id="tempCheckModal" class="temp-alert-modal hidden">
@@ -2863,7 +2863,7 @@ function switchTab(tab){
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
-  if(tab==='search') searchJobs();
+  if(tab==='search') { switchSearchTab('jobs'); }
   if(tab==='pipeline') loadPipeline();
   if(tab==='maint') loadMachines();
   if(tab==='screens') loadScreens();
@@ -13962,12 +13962,17 @@ let _sessEditJobId  = null;
 let _sessEditData   = null;
 
 function switchSessTab(tab) {
-  ['live','review'].forEach(t => {
-    document.getElementById('sess-pane-'+t)?.classList.toggle('hidden', t !== tab);
-    const btn = document.getElementById('sess-tab-'+t);
+  // kept for backward compat but session review now lives in Search
+}
+
+function switchSearchTab(tab) {
+  ['jobs','sessions'].forEach(t => {
+    document.getElementById('srch-pane-'+t)?.classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById('srch-tab-'+t);
     if (btn) btn.classList.toggle('active', t === tab);
   });
-  if (tab === 'review') loadSessionReview();
+  if (tab === 'jobs') searchJobs();
+  if (tab === 'sessions') loadSessionReview();
 }
 
 // ── Load all jobs that have session logs ──────────────
