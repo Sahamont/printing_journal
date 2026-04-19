@@ -13169,6 +13169,9 @@ function goMktToday() {
 }
 
 function openCalEventModal(ev, prefillDate) {
+  // Hide strategy badge if present
+  const _sb = document.getElementById('calEventStratBadge');
+  if (_sb) _sb.style.display = 'none';
   _editCalEventId = ev?.id || null;
   document.getElementById('calEventModalTitle').textContent = ev ? 'EDIT EVENT' : 'NEW EVENT';
   document.getElementById('cal_title').value = ev?.title || '';
@@ -13182,35 +13185,37 @@ function openCalEventModal(ev, prefillDate) {
 
 // ── Strategy quick-schedule ───────────────────────────
 function openStratQuickSchedule(s) {
-  // Pre-fill the cal event modal with strategy context
+  // Directly open the calendar event modal pre-filled with strategy context
   _editCalEventId = null;
   document.getElementById('calEventModalTitle').textContent = 'SCHEDULE ACTION';
-  document.getElementById('cal_title').value = s.title ? s.title + ' — ' : '';
+  document.getElementById('cal_title').value = (s.title ? s.title + ' — ' : '');
   document.getElementById('cal_type').value = 'post';
   document.getElementById('cal_date').value = new Date().toISOString().split('T')[0];
   document.getElementById('cal_notes').value = 'Strategy: ' + (s.title||'');
   document.getElementById('deleteCalEventBtn').style.display = 'none';
-  // Show which strategy this is linked to
+
+  // Show/create strategy badge inside the modal
   let badge = document.getElementById('calEventStratBadge');
   if (!badge) {
     badge = document.createElement('div');
     badge.id = 'calEventStratBadge';
-    badge.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.62rem;color:var(--cyan);background:rgba(0,180,216,.1);border:1px solid rgba(0,180,216,.25);border-radius:3px;padding:5px 10px;margin-bottom:10px;';
+    badge.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--cyan);background:rgba(0,180,216,.1);border:1px solid rgba(0,180,216,.25);border-radius:3px;padding:5px 10px;margin-bottom:12px;";
     const modalBox = document.querySelector('#calEventModal .modal-box');
-    const firstField = modalBox.querySelector('label');
-    if (firstField) modalBox.insertBefore(badge, firstField.closest('div[style]') || firstField.parentElement);
+    if (modalBox) {
+      // Insert after the title row
+      const titleRow = modalBox.querySelector('[id="calEventModalTitle"]');
+      if (titleRow && titleRow.parentElement && titleRow.parentElement.nextElementSibling) {
+        modalBox.insertBefore(badge, titleRow.parentElement.nextElementSibling);
+      } else {
+        modalBox.appendChild(badge);
+      }
+    }
   }
-  badge.textContent = '📣 Linked to strategy: ' + (s.title||'');
+  badge.innerHTML = '📣 Strategy: <strong style="color:var(--text);">' + (s.title||'') + '</strong>';
   badge.style.display = 'block';
-  document.getElementById('calEventModal').classList.remove('hidden');
-}
 
-// Hide strategy badge when opening normally
-const _origOpenCalEventModal = openCalEventModal;
-function openCalEventModal(ev, prefillDate) {
-  const badge = document.getElementById('calEventStratBadge');
-  if (badge) badge.style.display = 'none';
-  _origOpenCalEventModal(ev, prefillDate);
+  // Also hide badge on normal openCalEventModal calls by patching the existing function call
+  document.getElementById('calEventModal').classList.remove('hidden');
 }
 
 // ── Calendar Day Detail Modal ─────────────────────────
