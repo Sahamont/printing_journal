@@ -2689,6 +2689,24 @@
   </div>
 </div>
 
+
+<!-- MARKETING DAY DETAIL MODAL -->
+<div id="calDayModal" class="modal hidden">
+  <div class="card modal-box" style="max-width:420px;padding:20px;margin:8px auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.08em;" id="calDayTitle">APRIL 19</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);" id="calDayCount"></div>
+      </div>
+      <div style="display:flex;gap:7px;">
+        <button class="btn-secondary" style="font-size:.7rem;" onclick="addEventOnDay()">+ ADD EVENT</button>
+        <button class="btn-ghost" onclick="closeCalDayModal()">✕</button>
+      </div>
+    </div>
+    <div id="calDayList" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -12785,10 +12803,23 @@ async function saveLead() {
   };
   if (!record.name) { showToast('Company/name required.','error'); btn.innerHTML='SAVE LEAD'; btn.disabled=false; return; }
   let error;
+  // Capture old follow-up date before overwriting
+  const _oldLeadFollowup = _editLeadId ? (_allLeads.find(l=>l.id===_editLeadId)?.followup_date||null) : null;
+  let savedLeadId = _editLeadId;
   if (_editLeadId) { ({error}=await sbClient.from('marketing_leads').update(record).eq('id',_editLeadId)); }
-  else { record.created_at=new Date().toISOString(); ({error}=await sbClient.from('marketing_leads').insert([record])); }
+  else {
+    record.created_at=new Date().toISOString();
+    const { data: inserted, error: insErr } = await sbClient.from('marketing_leads').insert([record]).select('id').single();
+    error = insErr;
+    if (inserted) savedLeadId = inserted.id;
+  }
   btn.innerHTML='SAVE LEAD'; btn.disabled=false;
   if (error) { showToast('Error: '+error.message,'error'); return; }
+  // Sync calendar event
+  if (savedLeadId) {
+    await syncLeadToCalendar(savedLeadId, record.name, record.followup_date, _oldLeadFollowup);
+    if (_mktTab === 'calendar') { await loadCalEvents(); renderMktCalendar(); }
+  }
   showToast(_editLeadId?'Lead updated!':'Lead added!','success');
   closeLeadModal(); loadLeads();
 }
@@ -12796,9 +12827,11 @@ async function saveLead() {
 async function deleteLead() {
   if (!sbClient||!_editLeadId) return;
   if (!confirm('Delete this lead?')) return;
+  await deleteLinkedCalEvents('lead', _editLeadId);
   await sbClient.from('marketing_leads').delete().eq('id',_editLeadId);
   showToast('Lead deleted.','success');
   closeLeadModal(); loadLeads();
+  if (_mktTab === 'calendar') { await loadCalEvents(); renderMktCalendar(); }
 }
 
 // ══════════════════════════════════════════════════════
@@ -12905,10 +12938,27 @@ async function savePitch() {
   };
   if (!record.title) { showToast('Title required.','error'); btn.innerHTML='SAVE PITCH'; btn.disabled=false; return; }
   let error;
+  // Capture old dates before overwriting
+  const _oldPitch    = _editPitchId ? (_allPitches.find(p=>p.id===_editPitchId)||{}) : {};
+  let savedPitchId = _editPitchId;
   if (_editPitchId) { ({error}=await sbClient.from('marketing_pitches').update(record).eq('id',_editPitchId)); }
-  else { record.created_at=new Date().toISOString(); ({error}=await sbClient.from('marketing_pitches').insert([record])); }
+  else {
+    record.created_at=new Date().toISOString();
+    const { data: inserted, error: insErr } = await sbClient.from('marketing_pitches').insert([record]).select('id').single();
+    error = insErr;
+    if (inserted) savedPitchId = inserted.id;
+  }
   btn.innerHTML='SAVE PITCH'; btn.disabled=false;
   if (error) { showToast('Error: '+error.message,'error'); return; }
+  // Sync both calendar events
+  if (savedPitchId) {
+    await syncPitchToCalendar(
+      savedPitchId, record.title,
+      record.pitch_date, record.decision_date,
+      _oldPitch.pitch_date||null, _oldPitch.decision_date||null
+    );
+    if (_mktTab === 'calendar') { await loadCalEvents(); renderMktCalendar(); }
+  }
   showToast(_editPitchId?'Pitch updated!':'Pitch added!','success');
   closePitchModal(); loadPitches();
 }
@@ -12916,9 +12966,11 @@ async function savePitch() {
 async function deletePitch() {
   if (!sbClient||!_editPitchId) return;
   if (!confirm('Delete this pitch?')) return;
+  await deleteLinkedCalEvents('pitch', _editPitchId);
   await sbClient.from('marketing_pitches').delete().eq('id',_editPitchId);
   showToast('Pitch deleted.','success');
   closePitchModal(); loadPitches();
+  if (_mktTab === 'calendar') { await loadCalEvents(); renderMktCalendar(); }
 }
 
 // ══════════════════════════════════════════════════════
@@ -12958,6 +13010,14 @@ function renderStrategies() {
       ${s.goal?`<div style="font-family:IBM Plex Mono,monospace;font-size:.63rem;color:var(--cyan);margin-bottom:4px;">📊 ${s.goal}</div>`:''}
       ${s.description?`<div style="font-family:IBM Plex Mono,monospace;font-size:.62rem;color:rgba(245,240,232,.4);line-height:1.5;">${s.description.slice(0,120)}${s.description.length>120?'…':''}</div>`:''}
       ${s.budget?`<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);margin-top:6px;border-top:1px solid rgba(245,240,232,.06);padding-top:5px;">💰 ${s.budget}</div>`:''}`;
+    // Schedule action button
+    const schedBtn = document.createElement('button');
+    schedBtn.type = 'button';
+    schedBtn.className = 'btn-ghost';
+    schedBtn.style.cssText = 'font-size:.62rem;width:100%;margin-top:8px;border-top:1px solid rgba(245,240,232,.06);padding-top:8px;border-radius:0 0 3px 3px;';
+    schedBtn.textContent = '📅 SCHEDULE AN ACTION';
+    schedBtn.onclick = (e) => { e.stopPropagation(); openStratQuickSchedule(s); };
+    div.appendChild(schedBtn);
     el.appendChild(div);
   });
 }
@@ -13085,8 +13145,12 @@ function renderMktCalendar() {
       cell.appendChild(more);
     }
 
-    // Click empty area to add event on that date
-    cell.onclick = () => openCalEventModal(null, dateStr);
+    // Click cell: show day view if events exist, else open new event form
+    cell.onclick = () => {
+      const dayEvs = evByDate[dateStr] || [];
+      if (dayEvs.length > 0) openCalDayModal(dateStr, dayEvs);
+      else openCalEventModal(null, dateStr);
+    };
     grid.appendChild(cell);
   }
 }
@@ -13114,6 +13178,108 @@ function openCalEventModal(ev, prefillDate) {
   document.getElementById('deleteCalEventBtn').style.display = ev ? 'inline-block' : 'none';
   document.getElementById('calEventModal').classList.remove('hidden');
 }
+
+
+// ── Strategy quick-schedule ───────────────────────────
+function openStratQuickSchedule(s) {
+  // Pre-fill the cal event modal with strategy context
+  _editCalEventId = null;
+  document.getElementById('calEventModalTitle').textContent = 'SCHEDULE ACTION';
+  document.getElementById('cal_title').value = s.title ? s.title + ' — ' : '';
+  document.getElementById('cal_type').value = 'post';
+  document.getElementById('cal_date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('cal_notes').value = 'Strategy: ' + (s.title||'');
+  document.getElementById('deleteCalEventBtn').style.display = 'none';
+  // Show which strategy this is linked to
+  let badge = document.getElementById('calEventStratBadge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'calEventStratBadge';
+    badge.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:.62rem;color:var(--cyan);background:rgba(0,180,216,.1);border:1px solid rgba(0,180,216,.25);border-radius:3px;padding:5px 10px;margin-bottom:10px;';
+    const modalBox = document.querySelector('#calEventModal .modal-box');
+    const firstField = modalBox.querySelector('label');
+    if (firstField) modalBox.insertBefore(badge, firstField.closest('div[style]') || firstField.parentElement);
+  }
+  badge.textContent = '📣 Linked to strategy: ' + (s.title||'');
+  badge.style.display = 'block';
+  document.getElementById('calEventModal').classList.remove('hidden');
+}
+
+// Hide strategy badge when opening normally
+const _origOpenCalEventModal = openCalEventModal;
+function openCalEventModal(ev, prefillDate) {
+  const badge = document.getElementById('calEventStratBadge');
+  if (badge) badge.style.display = 'none';
+  _origOpenCalEventModal(ev, prefillDate);
+}
+
+// ── Calendar Day Detail Modal ─────────────────────────
+let _calDayDate = null;
+
+function openCalDayModal(dateStr, evs) {
+  _calDayDate = dateStr;
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const [y, m, d] = dateStr.split('-');
+  const label = months[parseInt(m)-1] + ' ' + parseInt(d) + ', ' + y;
+  document.getElementById('calDayTitle').textContent = label;
+  document.getElementById('calDayCount').textContent = evs.length + ' event' + (evs.length !== 1 ? 's' : '');
+
+  const list = document.getElementById('calDayList');
+  list.innerHTML = '';
+
+  const typeColors = {
+    post:'var(--cyan)', followup:'var(--yellow)', pitch:'var(--flash)',
+    promo:'#b464ff', event:'var(--green)', deadline:'#ff4444', other:'var(--muted)'
+  };
+  const typeBg = {
+    post:'rgba(0,180,216,.12)', followup:'rgba(245,200,0,.12)', pitch:'rgba(232,80,10,.12)',
+    promo:'rgba(180,100,255,.12)', event:'rgba(0,200,83,.12)', deadline:'rgba(255,68,68,.12)', other:'rgba(245,240,232,.06)'
+  };
+  const typeLabels = { post:'Social Post', followup:'Follow-up', pitch:'Pitch', promo:'Promo', event:'Event', deadline:'Deadline', other:'Other' };
+
+  evs.forEach(ev => {
+    const color = typeColors[ev.event_type] || typeColors.other;
+    const bg    = typeBg[ev.event_type]    || typeBg.other;
+    const icon  = CAL_TYPE_ICON[ev.event_type] || '•';
+    const div   = document.createElement('div');
+    div.style.cssText = `background:${bg};border:1px solid ${color}44;border-radius:3px;padding:11px 13px;cursor:pointer;transition:border-color .15s;`;
+    div.onmouseenter = () => div.style.borderColor = color;
+    div.onmouseleave = () => div.style.borderColor = color + '44';
+    div.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">
+            <span style="font-size:1rem;">${icon}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.8rem;color:var(--text);">${ev.title}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:${color};">${typeLabels[ev.event_type] || ev.event_type}</div>
+            ${ev.source_type === 'lead' ? '<span style="font-family:IBM Plex Mono,monospace;font-size:.52rem;padding:1px 6px;border-radius:8px;background:rgba(180,100,255,.15);color:#b464ff;border:1px solid rgba(180,100,255,.3);">AUTO · LEAD</span>' : ''}
+            ${ev.source_type === 'pitch' ? '<span style="font-family:IBM Plex Mono,monospace;font-size:.52rem;padding:1px 6px;border-radius:8px;background:rgba(232,80,10,.15);color:var(--flash);border:1px solid rgba(232,80,10,.3);">AUTO · PITCH</span>' : ''}
+          </div>
+          ${ev.notes ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:4px;">${ev.notes}</div>` : ''}
+        </div>
+        <button style="background:none;border:1px solid var(--dim);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.62rem;padding:4px 10px;border-radius:3px;cursor:pointer;white-space:nowrap;flex-shrink:0;"
+          onclick="event.stopPropagation();closeCalDayModal();openCalEventModal(${JSON.stringify(ev).replace(/"/g,'&quot;')})">✏ EDIT</button>
+      </div>`;
+    div.onclick = () => { closeCalDayModal(); openCalEventModal(ev); };
+    list.appendChild(div);
+  });
+
+  document.getElementById('calDayModal').classList.remove('hidden');
+}
+
+function closeCalDayModal() {
+  document.getElementById('calDayModal').classList.add('hidden');
+  _calDayDate = null;
+}
+
+function addEventOnDay() {
+  const date = _calDayDate;
+  closeCalDayModal();
+  openCalEventModal(null, date);
+}
+
 function closeCalEventModal() { document.getElementById('calEventModal').classList.add('hidden'); _editCalEventId=null; }
 
 async function saveCalEvent() {
@@ -13147,6 +13313,135 @@ async function deleteCalEvent() {
   closeCalEventModal();
   await loadCalEvents();
   renderMktCalendar();
+}
+
+
+// ══════════════════════════════════════════════════════
+// MARKETING CALENDAR AUTO-SYNC
+// ══════════════════════════════════════════════════════
+// Syncs leads & pitches → calendar events automatically.
+// Uses source_type + source_id columns to track which events belong to which record.
+// On save: upsert events. On delete: remove linked events.
+
+async function syncLeadToCalendar(leadId, leadName, followupDate, oldFollowupDate) {
+  if (!sbClient) return;
+
+  // Remove old event if date changed or was cleared
+  if (oldFollowupDate && oldFollowupDate !== followupDate) {
+    await sbClient.from('marketing_calendar')
+      .delete()
+      .eq('source_type', 'lead')
+      .eq('source_id', leadId)
+      .eq('event_type', 'followup');
+  }
+
+  if (!followupDate) return; // no date = no event
+
+  const title = '📞 Follow-up: ' + leadName;
+  // Check if event already exists for this lead+date
+  const { data: existing } = await sbClient.from('marketing_calendar')
+    .select('id')
+    .eq('source_type', 'lead')
+    .eq('source_id', leadId)
+    .eq('event_type', 'followup')
+    .single();
+
+  if (existing) {
+    // Update existing event
+    await sbClient.from('marketing_calendar')
+      .update({ title, event_date: followupDate, updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+  } else {
+    // Create new event
+    await sbClient.from('marketing_calendar').insert([{
+      title,
+      event_type: 'followup',
+      event_date: followupDate,
+      notes: 'Auto-created from Lead: ' + leadName,
+      source_type: 'lead',
+      source_id: leadId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }]);
+  }
+}
+
+async function syncPitchToCalendar(pitchId, pitchTitle, pitchDate, decisionDate, oldPitchDate, oldDecisionDate) {
+  if (!sbClient) return;
+
+  // Handle pitch date event
+  if (oldPitchDate && oldPitchDate !== pitchDate) {
+    await sbClient.from('marketing_calendar')
+      .delete()
+      .eq('source_type', 'pitch')
+      .eq('source_id', pitchId)
+      .eq('event_type', 'pitch');
+  }
+  if (pitchDate) {
+    const { data: existing } = await sbClient.from('marketing_calendar')
+      .select('id')
+      .eq('source_type', 'pitch')
+      .eq('source_id', pitchId)
+      .eq('event_type', 'pitch')
+      .maybeSingle();
+    if (existing) {
+      await sbClient.from('marketing_calendar')
+        .update({ title: '🎯 Pitch: ' + pitchTitle, event_date: pitchDate, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+    } else {
+      await sbClient.from('marketing_calendar').insert([{
+        title: '🎯 Pitch: ' + pitchTitle,
+        event_type: 'pitch',
+        event_date: pitchDate,
+        notes: 'Auto-created from Pitch: ' + pitchTitle,
+        source_type: 'pitch',
+        source_id: pitchId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }]);
+    }
+  }
+
+  // Handle decision date event
+  if (oldDecisionDate && oldDecisionDate !== decisionDate) {
+    await sbClient.from('marketing_calendar')
+      .delete()
+      .eq('source_type', 'pitch')
+      .eq('source_id', pitchId)
+      .eq('event_type', 'deadline');
+  }
+  if (decisionDate) {
+    const { data: existing2 } = await sbClient.from('marketing_calendar')
+      .select('id')
+      .eq('source_type', 'pitch')
+      .eq('source_id', pitchId)
+      .eq('event_type', 'deadline')
+      .maybeSingle();
+    if (existing2) {
+      await sbClient.from('marketing_calendar')
+        .update({ title: '⏰ Decision: ' + pitchTitle, event_date: decisionDate, updated_at: new Date().toISOString() })
+        .eq('id', existing2.id);
+    } else {
+      await sbClient.from('marketing_calendar').insert([{
+        title: '⏰ Decision: ' + pitchTitle,
+        event_type: 'deadline',
+        event_date: decisionDate,
+        notes: 'Auto-created from Pitch: ' + pitchTitle,
+        source_type: 'pitch',
+        source_id: pitchId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }]);
+    }
+  }
+}
+
+async function deleteLinkedCalEvents(sourceType, sourceId) {
+  if (!sbClient) return;
+  await sbClient.from('marketing_calendar')
+    .delete()
+    .eq('source_type', sourceType)
+    .eq('source_id', sourceId);
 }
 
 
