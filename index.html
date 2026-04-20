@@ -1111,32 +1111,41 @@
       <div style="display:flex;gap:7px;flex-wrap:wrap;">
         <button class="btn-ghost" onclick="loadTasks()">↺ REFRESH</button>
         <button class="btn-secondary" onclick="exportTasksPDF()">📋 REPORT</button>
-        <button class="btn-secondary" onclick="openManageTasksModal()">⚙ MANAGE TASKS</button>
         <button class="btn-primary" onclick="openAddTaskModal()">+ NEW TASK</button>
       </div>
     </div>
 
-    <!-- Stats dashboard -->
-    <div id="taskStatsBar" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px;"></div>
-
-    <!-- Overdue alert -->
-    <div id="taskOverdueAlert" style="display:none;margin-bottom:12px;"></div>
-
-    <!-- Filter bar -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
-      <button class="task-filter-btn active" id="tf-all"       onclick="setTaskFilter('all')">All</button>
-      <button class="task-filter-btn" id="tf-today"    onclick="setTaskFilter('today')">Today</button>
-      <button class="task-filter-btn" id="tf-overdue"  onclick="setTaskFilter('overdue')">🔴 Overdue</button>
-      <button class="task-filter-btn" id="tf-week"     onclick="setTaskFilter('week')">This Week</button>
-      <button class="task-filter-btn" id="tf-pending"  onclick="setTaskFilter('pending')">Pending</button>
-      <button class="task-filter-btn" id="tf-done"     onclick="setTaskFilter('done')">✓ Done Today</button>
+    <!-- Subtabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto;">
+      <button class="mkt-tab active" id="task-tab-today"     onclick="switchTaskTab('today')">📋 TODAY</button>
+      <button class="mkt-tab"        id="task-tab-dashboard" onclick="switchTaskTab('dashboard')">📊 DASHBOARD</button>
     </div>
 
-    <!-- Category filter pills -->
-    <div id="taskCatFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+    <!-- TODAY PANE -->
+    <div id="task-pane-today">
+      <!-- Stats dashboard -->
+      <div id="taskStatsBar" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px;"></div>
+      <!-- Overdue alert -->
+      <div id="taskOverdueAlert" style="display:none;margin-bottom:12px;"></div>
+      <!-- Filter bar -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="task-filter-btn active" id="tf-all"      onclick="setTaskFilter('all')">All</button>
+        <button class="task-filter-btn" id="tf-today"   onclick="setTaskFilter('today')">Today</button>
+        <button class="task-filter-btn" id="tf-overdue" onclick="setTaskFilter('overdue')">🔴 Overdue</button>
+        <button class="task-filter-btn" id="tf-week"    onclick="setTaskFilter('week')">This Week</button>
+        <button class="task-filter-btn" id="tf-pending" onclick="setTaskFilter('pending')">Pending</button>
+        <button class="task-filter-btn" id="tf-done"    onclick="setTaskFilter('done')">✓ Done Today</button>
+      </div>
+      <!-- Category filter pills -->
+      <div id="taskCatFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+      <!-- Task list -->
+      <div id="tasksList"></div>
+    </div>
 
-    <!-- Task list -->
-    <div id="tasksList"></div>
+    <!-- DASHBOARD PANE -->
+    <div id="task-pane-dashboard" class="hidden">
+      <div id="taskDashboard"></div>
+    </div>
 
   </div>
 
@@ -2762,6 +2771,56 @@
     <div id="sessEditTempLog" style="margin-top:14px;display:none;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.08em;color:var(--cyan);border-bottom:1px solid rgba(0,180,216,.2);padding-bottom:3px;margin-bottom:8px;">🌡 TEMPERATURE LOG</div>
       <div id="sessEditTempRows"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- TASK DETAIL MODAL -->
+<div id="taskDetailModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:600px;padding:20px;margin:8px auto;width:100%;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;gap:10px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="tdTitle"></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-top:3px;" id="tdMeta"></div>
+      </div>
+      <div style="display:flex;gap:7px;flex-shrink:0;">
+        <button class="btn-secondary" id="tdMarkDoneBtn" onclick="tdMarkDoneToday()" style="font-size:.72rem;">✓ MARK DONE</button>
+        <button class="btn-ghost" onclick="tdEditTask()" style="font-size:.72rem;">✏ EDIT</button>
+        <button class="btn-ghost" onclick="closeTaskDetailModal()">✕</button>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div id="tdStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:7px;margin:14px 0;"></div>
+
+    <!-- Heatmap - last 30 days -->
+    <div style="margin-bottom:16px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.08em;color:var(--flash);margin-bottom:8px;">LAST 30 DAYS</div>
+      <div id="tdHeatmap" style="display:flex;gap:3px;flex-wrap:wrap;"></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);">
+        <span>Less</span>
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(245,240,232,.08);border:1px solid var(--border);"></div>
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(0,200,83,.3);"></div>
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(0,200,83,.6);"></div>
+        <div style="width:10px;height:10px;border-radius:2px;background:var(--green);"></div>
+        <span>More</span>
+      </div>
+    </div>
+
+    <!-- Next 7 days forecast -->
+    <div style="margin-bottom:16px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.08em;color:var(--cyan);margin-bottom:8px;">NEXT 7 DAYS</div>
+      <div id="tdForecast" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+    </div>
+
+    <!-- Completion history -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.08em;color:var(--flash);">COMPLETION HISTORY</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);" id="tdHistCount"></div>
+      </div>
+      <div id="tdHistory" style="max-height:220px;overflow-y:auto;"></div>
     </div>
   </div>
 </div>
@@ -8572,7 +8631,7 @@ async function loadTasks() {
   const [{ data: tasks }, { data: logs }] = await Promise.all([
     sbClient.from('tasks').select('*').order('category').order('name'),
     sbClient.from('task_logs').select('*').gte('completed_date', (() => {
-      const d = new Date(); d.setDate(d.getDate()-7); return d.toISOString().split('T')[0];
+      const d = new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0];
     })()),
   ]);
 
@@ -8878,7 +8937,8 @@ async function confirmTaskComplete() {
   if (error) { showToast('Error: '+error.message,'error'); return; }
   showToast('Task marked done!','success');
   closeTaskCompleteModal();
-  loadTasks();
+  await loadTasks();
+  if (_taskTab === 'dashboard') renderTaskDashboard();
 }
 
 function openManageTasksModal() { openAddTaskModal(); }
@@ -14232,6 +14292,363 @@ async function saveSessionEdits() {
   showToast('Session notes saved!', 'success');
   closeSessEditModal();
   loadSessionReview();
+}
+
+
+// ══════════════════════════════════════════════════════
+// TASK DASHBOARD
+// ══════════════════════════════════════════════════════
+let _taskTab = 'today';
+let _tdTask  = null;   // currently open task in detail modal
+let _tdLogs  = [];     // all logs for that task
+
+function switchTaskTab(tab) {
+  _taskTab = tab;
+  ['today','dashboard'].forEach(t => {
+    document.getElementById('task-pane-'+t)?.classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById('task-tab-'+t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'dashboard') renderTaskDashboard();
+}
+
+// ── Dashboard renderer ────────────────────────────────
+async function renderTaskDashboard() {
+  const el = document.getElementById('taskDashboard');
+  if (!el) return;
+  el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);padding:20px 0;">Loading…</div>';
+
+  // Fetch last 30 days of logs for the dashboard
+  if (!sbClient) return;
+  const thirtyDaysAgo = (() => { const d=new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0]; })();
+  const { data: allLogs } = await sbClient.from('task_logs').select('*').gte('completed_date', thirtyDaysAgo).order('completed_date', { ascending: false });
+  const dashLogs = allLogs || [];
+
+  if (!_allTasks.length) {
+    el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:32px 0;">No tasks yet — click + NEW TASK to get started.</div>';
+    return;
+  }
+
+  el.innerHTML = '';
+
+  // Group tasks by category
+  const groups = {};
+  _allTasks.forEach(t => {
+    const cat = t.category || 'Other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(t);
+  });
+
+  const catOrder = ['Press Maintenance','Screen Room','Ink Room','Housekeeping','Quality Control','Equipment','End of Day / Shutdown','End of Week','Admin'];
+  const orderedCats = [...catOrder.filter(c => groups[c]), ...Object.keys(groups).filter(c => !catOrder.includes(c))];
+
+  orderedCats.forEach(cat => {
+    const tasks = groups[cat];
+    if (!tasks) return;
+    const color = CAT_COLORS[cat] || 'var(--muted)';
+
+    // Category header
+    const hdr = document.createElement('div');
+    hdr.style.cssText = `font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em;color:${color};border-bottom:1px solid ${color}33;padding-bottom:3px;margin:18px 0 10px;display:flex;align-items:center;justify-content:space-between;`;
+    const doneInCat = tasks.filter(t => isDoneToday(t.id)).length;
+    hdr.innerHTML = `<span>${cat.toUpperCase()}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${doneInCat}/${tasks.length} done today</span>`;
+    el.appendChild(hdr);
+
+    // Task cards grid
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:9px;';
+
+    tasks.forEach(task => {
+      const taskLogs30 = dashLogs.filter(l => l.task_id === task.id);
+      const doneToday  = isDoneToday(task.id);
+      const status     = getTaskStatus(task);
+      const color2     = CAT_COLORS[task.category] || 'var(--muted)';
+
+      // Completion rate last 30 days
+      const expectedDays = getExpectedDays(task, 30);
+      const doneDays     = new Set(taskLogs30.map(l => l.completed_date)).size;
+      const rate         = expectedDays > 0 ? Math.round(doneDays / expectedDays * 100) : null;
+      const rateColor    = rate === null ? 'var(--muted)' : rate >= 80 ? 'var(--green)' : rate >= 50 ? 'var(--yellow)' : 'var(--flash)';
+
+      const card = document.createElement('div');
+      card.style.cssText = `background:var(--surface2);border:1px solid ${doneToday?'rgba(0,200,83,.3)':status==='overdue'?'rgba(255,51,51,.35)':'var(--border)'};border-radius:4px;padding:12px;cursor:pointer;transition:border-color .15s;`;
+      card.onmouseenter = () => card.style.borderColor = color2;
+      card.onmouseleave = () => card.style.borderColor = doneToday?'rgba(0,200,83,.3)':status==='overdue'?'rgba(255,51,51,.35)':'var(--border)';
+      card.onclick = () => openTaskDetailModal(task, dashLogs.filter(l => l.task_id === task.id));
+
+      // Mini heatmap - last 14 days
+      const miniHeat = buildMiniHeatmap(task, taskLogs30, 14);
+
+      card.innerHTML = `
+        <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:.88rem;margin-bottom:3px;${doneToday?'color:var(--green);text-decoration:line-through;opacity:.7;':''}">${task.name}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;">
+              <span>${RECUR_LABELS[task.recurrence]||task.recurrence}${task.recurrence==='custom'&&task.interval_days?' (every '+task.interval_days+'d)':''}</span>
+              ${task.assignee?`<span>👤 ${task.assignee}</span>`:''}
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            ${doneToday ? '<div style="font-family:Bebas Neue,sans-serif;font-size:.9rem;color:var(--green);">✓ DONE</div>' :
+              status==='overdue' ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.58rem;color:#ff4444;">⚠ OVERDUE</div>' :
+              status==='due-today' ? '<div style="font-family:IBM Plex Mono,monospace;font-size:.58rem;color:var(--yellow);">DUE TODAY</div>' : ''}
+            ${rate !== null ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:${rateColor};line-height:1;">${rate}%</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--muted);">30d rate</div>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:2px;flex-wrap:wrap;">${miniHeat}</div>`;
+
+      grid.appendChild(card);
+    });
+    el.appendChild(grid);
+  });
+}
+
+// Build mini heatmap squares for a task
+function buildMiniHeatmap(task, logs, days) {
+  const doneDates = new Set(logs.map(l => l.completed_date));
+  const squares = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const wasDue = wasTaskDueOnDate(task, ds);
+    const done   = doneDates.has(ds);
+    const today  = i === 0;
+    let bg, title;
+    if (!wasDue)      { bg = 'rgba(245,240,232,.04)'; title = 'Not scheduled'; }
+    else if (done)    { bg = 'var(--green)'; title = 'Done'; }
+    else if (today)   { bg = 'rgba(245,200,0,.4)'; title = 'Due today'; }
+    else              { bg = 'rgba(255,68,68,.35)'; title = 'Missed'; }
+    squares.push(`<div style="width:12px;height:12px;border-radius:2px;background:${bg};" title="${ds}: ${title}"></div>`);
+  }
+  return squares.join('');
+}
+
+// Was this task scheduled on a given date string?
+function wasTaskDueOnDate(task, dateStr) {
+  const date  = new Date(dateStr + 'T00:00:00');
+  const start = task.start_date ? new Date(task.start_date + 'T00:00:00') : date;
+  if (date < start) return false;
+  if (task.recurrence === 'daily') return true;
+  if (task.recurrence === 'once') return task.start_date === dateStr;
+  if (task.recurrence === 'weekly') {
+    const diff = Math.round((date - start) / 86400000);
+    return diff % 7 === 0;
+  }
+  if (task.recurrence === 'custom' && task.interval_days) {
+    const diff = Math.round((date - start) / 86400000);
+    return diff % task.interval_days === 0;
+  }
+  return false;
+}
+
+// How many times was this task expected to be done in the last N days?
+function getExpectedDays(task, n) {
+  let count = 0;
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if (wasTaskDueOnDate(task, ds)) count++;
+  }
+  return count;
+}
+
+// ── Task Detail Modal ─────────────────────────────────
+async function openTaskDetailModal(task, recentLogs) {
+  _tdTask = task;
+
+  // Fetch full log history for this task
+  const { data: allLogs } = await sbClient.from('task_logs')
+    .select('*').eq('task_id', task.id)
+    .order('completed_date', { ascending: false });
+  _tdLogs = allLogs || [];
+
+  const color = CAT_COLORS[task.category] || 'var(--flash)';
+
+  // Title + meta
+  document.getElementById('tdTitle').textContent = task.name;
+  const recurLabel = RECUR_LABELS[task.recurrence] || task.recurrence;
+  const intervalStr = task.recurrence==='custom'&&task.interval_days ? ' every '+task.interval_days+' days' : '';
+  document.getElementById('tdMeta').textContent = [
+    recurLabel + intervalStr,
+    task.category,
+    task.assignee ? '👤 '+task.assignee : '',
+    task.due_time ? '🕐 '+task.due_time : '',
+  ].filter(Boolean).join('  ·  ');
+
+  // Mark done button state
+  const doneBtn = document.getElementById('tdMarkDoneBtn');
+  if (isDoneToday(task.id)) {
+    doneBtn.textContent = '✓ DONE TODAY';
+    doneBtn.disabled = true;
+    doneBtn.style.opacity = '.5';
+  } else {
+    doneBtn.textContent = '✓ MARK DONE';
+    doneBtn.disabled = false;
+    doneBtn.style.opacity = '1';
+  }
+
+  // Stats
+  const today = new Date(); today.setHours(0,0,0,0);
+  const thirtyAgo = new Date(today); thirtyAgo.setDate(today.getDate()-30);
+  const sevenAgo  = new Date(today); sevenAgo.setDate(today.getDate()-7);
+
+  const logs30   = _tdLogs.filter(l => new Date(l.completed_date+'T00:00:00') >= thirtyAgo);
+  const logs7    = _tdLogs.filter(l => new Date(l.completed_date+'T00:00:00') >= sevenAgo);
+  const exp30    = getExpectedDays(task, 30);
+  const exp7     = getExpectedDays(task, 7);
+  const done30   = new Set(logs30.map(l => l.completed_date)).size;
+  const done7    = new Set(logs7.map(l => l.completed_date)).size;
+  const rate30   = exp30 > 0 ? Math.round(done30/exp30*100) : null;
+  const rate7    = exp7  > 0 ? Math.round(done7/exp7*100)   : null;
+  const streak   = calcStreak(task, _tdLogs);
+  const totalAll = new Set(_tdLogs.map(l => l.completed_date)).size;
+
+  const rateColor = r => r===null?'var(--muted)':r>=80?'var(--green)':r>=50?'var(--yellow)':'var(--flash)';
+
+  document.getElementById('tdStats').innerHTML = [
+    ['7-DAY RATE',  rate7  !== null ? rate7+'%'  : '—', rateColor(rate7)],
+    ['30-DAY RATE', rate30 !== null ? rate30+'%' : '—', rateColor(rate30)],
+    ['STREAK',      streak+'d',  streak >= 5 ? 'var(--green)' : streak >= 2 ? 'var(--yellow)' : 'var(--muted)'],
+    ['TOTAL DONE',  totalAll,    'var(--cyan)'],
+    ['EXPECTED/MO', exp30 > 0 ? exp30+'x' : '—', 'var(--muted)'],
+    ['DONE/MO',     exp30 > 0 ? done30+'x' : '—', rateColor(rate30)],
+  ].map(([l,v,c]) => `<div class="task-stat-card">
+    <div class="task-stat-val" style="color:${c};font-size:1.2rem;">${v}</div>
+    <div class="task-stat-lbl">${l}</div>
+  </div>`).join('');
+
+  // 30-day heatmap
+  renderTdHeatmap(task, _tdLogs, 30);
+
+  // 7-day forecast
+  renderTdForecast(task, _tdLogs);
+
+  // History log
+  renderTdHistory(_tdLogs);
+
+  document.getElementById('taskDetailModal').classList.remove('hidden');
+}
+
+function closeTaskDetailModal() {
+  document.getElementById('taskDetailModal').classList.add('hidden');
+  _tdTask = null; _tdLogs = [];
+}
+
+// ── Streak calculator ─────────────────────────────────
+function calcStreak(task, logs) {
+  const doneDates = new Set(logs.map(l => l.completed_date));
+  let streak = 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today); d.setDate(today.getDate() - i);
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if (!wasTaskDueOnDate(task, ds)) continue; // skip non-scheduled days
+    if (doneDates.has(ds)) streak++;
+    else if (i > 0) break; // missed a due day — streak broken (skip today if not done yet)
+  }
+  return streak;
+}
+
+// ── 30-day heatmap ────────────────────────────────────
+function renderTdHeatmap(task, logs, days) {
+  const el = document.getElementById('tdHeatmap');
+  if (!el) return;
+  const doneDates = new Set(logs.map(l => l.completed_date));
+  el.innerHTML = '';
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const dayOfMonth = d.getDate();
+    const wasDue  = wasTaskDueOnDate(task, ds);
+    const done    = doneDates.has(ds);
+    const isToday = i === 0;
+
+    let bg, border = 'transparent';
+    if (!wasDue)      { bg = 'rgba(245,240,232,.05)'; }
+    else if (done)    { bg = 'var(--green)'; }
+    else if (isToday) { bg = 'rgba(245,200,0,.3)'; border = 'rgba(245,200,0,.6)'; }
+    else              { bg = 'rgba(255,68,68,.3)'; }
+
+    const cell = document.createElement('div');
+    cell.style.cssText = `width:20px;height:20px;border-radius:3px;background:${bg};border:1px solid ${border};cursor:default;flex-shrink:0;position:relative;`;
+    cell.title = ds + (wasDue ? (done?' — ✓ Done':isToday?' — Due today':' — Missed') : ' — Not scheduled');
+
+    // Show day number for first of month
+    if (dayOfMonth === 1) {
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'position:absolute;top:-14px;left:0;font-family:IBM Plex Mono,monospace;font-size:.45rem;color:var(--muted);white-space:nowrap;';
+      lbl.textContent = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+      cell.appendChild(lbl);
+    }
+    el.appendChild(cell);
+  }
+}
+
+// ── 7-day forecast ────────────────────────────────────
+function renderTdForecast(task, logs) {
+  const el = document.getElementById('tdForecast');
+  if (!el) return;
+  const doneDates = new Set(logs.map(l => l.completed_date));
+  el.innerHTML = '';
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const wasDue  = wasTaskDueOnDate(task, ds);
+    const done    = doneDates.has(ds);
+    const isToday = i === 0;
+
+    const cell = document.createElement('div');
+    cell.style.cssText = `background:${wasDue?(done?'rgba(0,200,83,.15)':'rgba(232,80,10,.1)'):'transparent'};border:1px solid ${wasDue?(done?'rgba(0,200,83,.3)':'rgba(232,80,10,.25)'):'rgba(245,240,232,.08)'};border-radius:3px;padding:6px 4px;text-align:center;`;
+
+    cell.innerHTML = `
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:${isToday?'var(--flash)':'var(--muted)'};">${isToday?'TODAY':dayNames[d.getDay()]}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${isToday?'var(--flash)':'var(--text)'};">${d.getDate()}</div>
+      ${wasDue ? `<div style="font-size:.7rem;margin-top:2px;">${done?'✓':'📋'}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:${done?'var(--green)':'var(--flash)'};">${done?'DONE':'DUE'}</div>`
+      : `<div style="font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--dim);margin-top:4px;">—</div>`}`;
+    el.appendChild(cell);
+  }
+}
+
+// ── History log ───────────────────────────────────────
+function renderTdHistory(logs) {
+  const el = document.getElementById('tdHistory');
+  const countEl = document.getElementById('tdHistCount');
+  if (!el) return;
+  if (countEl) countEl.textContent = logs.length + ' completion' + (logs.length!==1?'s':'') + ' total';
+
+  if (!logs.length) {
+    el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.7rem;color:var(--muted);padding:12px 0;text-align:center;">No completions logged yet.</div>';
+    return;
+  }
+
+  el.innerHTML = logs.slice(0,50).map(log => `
+    <div style="display:grid;grid-template-columns:90px 1fr auto;gap:8px;align-items:start;padding:7px 0;border-bottom:1px solid rgba(245,240,232,.05);">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">${fmtDate(log.completed_date)}</div>
+      <div>
+        ${log.completed_by?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--text);">👤 ${log.completed_by}</div>`:''}
+        ${log.notes?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:rgba(245,240,232,.45);margin-top:2px;">${log.notes}</div>`:''}
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);white-space:nowrap;">
+        ${log.completed_at ? new Date(log.completed_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ── Mark done from detail modal ───────────────────────
+function tdMarkDoneToday() {
+  if (!_tdTask) return;
+  closeTaskDetailModal();
+  openTaskCompleteModal(_tdTask.id, _tdTask.name);
+}
+
+function tdEditTask() {
+  if (!_tdTask) return;
+  closeTaskDetailModal();
+  openEditTaskModal(_tdTask);
 }
 
 
