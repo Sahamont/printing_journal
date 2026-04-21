@@ -1964,69 +1964,174 @@
 </div>
 
 <!-- ADD/EDIT PAYMENT MODAL -->
-<div id="addPaymentModal" class="modal hidden">
-  <div class="card modal-box" style="max-width:540px;padding:20px;margin:8px auto;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.08em;" id="payModalTitle">ADD INVOICE</div>
-      <button class="btn-ghost" onclick="closeAddPaymentModal()">✕</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
-      <!-- Customer / Job link -->
-      <div style="grid-column:1/-1">
-        <label>Customer / Client</label>
-        <input type="text" id="pay_customer" placeholder="Customer name" oninput="searchPaymentJobs()" />
+<div id="addPaymentModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:720px;padding:22px;margin:8px auto;width:100%;">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.08em;" id="payModalTitle">NEW INVOICE</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="previewInvoicePDF()">👁 PREVIEW PDF</button>
+        <button class="btn-primary" onclick="savePayment()">💾 SAVE</button>
+        <button class="btn-ghost" onclick="closeAddPaymentModal()">✕</button>
       </div>
-      <div style="grid-column:1/-1" id="payJobSearchResults" style="display:none;"></div>
-      <div style="grid-column:1/-1">
-        <label>Linked Job (optional)</label>
-        <div id="payLinkedJob" style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);padding:6px 0;">No job linked — <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="togglePayJobSearch()">link a job</button></div>
-        <input type="hidden" id="pay_job_id" value="" />
-        <div id="payJobSearchWrap" style="display:none;">
-          <input type="text" id="pay_job_search" placeholder="Search job name…" oninput="searchPaymentJobList()" style="margin-bottom:6px;" />
-          <div id="payJobSearchList" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:3px;"></div>
+    </div>
+
+    <!-- Job link — prominent at top, auto-populates everything -->
+    <div class="report-param-group" style="margin-bottom:16px;">
+      <div class="report-param-title">LINK TO JOB</div>
+      <div id="payLinkedJobDisplay" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;position:relative;">
+          <input type="text" id="pay_job_search_inline" placeholder="Search jobs by name, customer, order #…"
+            oninput="searchPayJobInline(this.value)" onfocus="searchPayJobInline(this.value)"
+            style="width:100%;" autocomplete="off" />
+          <div id="payJobDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;
+            background:var(--surface);border:1px solid var(--flash-30);border-radius:0 0 4px 4px;
+            max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
+        </div>
+        <div id="payLinkedJobBadge" style="display:none;align-items:center;gap:8px;
+          background:rgba(0,180,216,.1);border:1px solid rgba(0,180,216,.3);border-radius:3px;padding:6px 12px;
+          font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--cyan);white-space:nowrap;">
+          <span id="payLinkedJobName"></span>
+          <button type="button" onclick="clearPayJobInline()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:0;">✕</button>
         </div>
       </div>
-      <!-- Invoice details -->
-      <div><label>Invoice #</label><input type="text" id="pay_invoice_num" placeholder="INV-001" /></div>
-      <div>
-        <label>Status</label>
-        <select id="pay_status">
-          <option value="draft">Draft</option>
-          <option value="sent">Sent</option>
-          <option value="partial">Partial Payment</option>
-          <option value="paid">Paid</option>
-          <option value="overdue">Overdue</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+      <input type="hidden" id="pay_job_id" value="" />
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:5px;">
+        Linking a job auto-fills customer, invoice #, amounts and line items from the job data.
       </div>
-      <div><label>Amount Invoiced ($)</label><input type="number" id="pay_amount" placeholder="0.00" step="0.01" min="0" /></div>
-      <div><label>Amount Received ($)</label><input type="number" id="pay_received" placeholder="0.00" step="0.01" min="0" /></div>
-      <div><label>Invoice Sent Date</label><input type="date" id="pay_sent_date" /></div>
-      <div><label>Payment Due Date</label><input type="date" id="pay_due_date" /></div>
-      <div><label>Date Paid</label><input type="date" id="pay_paid_date" /></div>
-      <div>
-        <label>Payment Method</label>
-        <select id="pay_method">
-          <option value="">—</option>
-          <option value="check">Check</option>
-          <option value="cash">Cash</option>
-          <option value="card">Credit / Debit Card</option>
-          <option value="ach">ACH / Bank Transfer</option>
-          <option value="venmo">Venmo</option>
-          <option value="zelle">Zelle</option>
-          <option value="paypal">PayPal</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div style="grid-column:1/-1"><label>Notes</label><textarea id="pay_notes" rows="2" placeholder="Any notes about this invoice…"></textarea></div>
     </div>
-    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+
+    <!-- Two column: customer + invoice details -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div class="report-param-group">
+        <div class="report-param-title">Customer Info</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div><label>Customer / Client</label><input type="text" id="pay_customer" placeholder="Customer name" /></div>
+          <div><label>Contact / Email</label><input type="text" id="pay_contact_email" placeholder="Email or phone" /></div>
+        </div>
+      </div>
+      <div class="report-param-group">
+        <div class="report-param-title">Invoice Details</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div><label>Invoice #</label><input type="text" id="pay_invoice_num" placeholder="INV-001" /></div>
+          <div><label>Invoice Date</label><input type="date" id="pay_sent_date" /></div>
+          <div>
+            <label>Status</label>
+            <select id="pay_status">
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="partial">Partial Payment</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line items -->
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.08em;color:var(--flash);
+      margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+      <span>LINE ITEMS</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addPayLineItem('garment')">+ GARMENT</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addPayLineItem('print')">+ PRINT</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addPayLineItem('screen')">+ SCREEN FEE</button>
+        <button class="btn-ghost" style="font-size:.65rem;" onclick="addPayLineItem('custom')">+ CUSTOM</button>
+      </div>
+    </div>
+    <!-- Column headers -->
+    <div class="qli-row" style="padding-bottom:4px;border-bottom:1px solid rgba(245,240,232,.1);margin-bottom:6px;">
+      <div class="qli-label">Description</div>
+      <div class="qli-label" style="text-align:center;">Qty</div>
+      <div class="qli-label" style="text-align:center;">Unit Price</div>
+      <div class="qli-label" style="text-align:right;">Total</div>
+      <div></div>
+    </div>
+    <div id="payLineItems"></div>
+
+    <!-- Totals -->
+    <div style="margin-top:12px;padding:12px 14px;background:var(--bg);border:1px solid rgba(245,240,232,.08);border-radius:3px;margin-bottom:16px;">
+      <div class="quote-total-line">
+        <span style="color:var(--muted);">SUBTOTAL</span><span id="paySubtotal">$0.00</span>
+      </div>
+      <div class="quote-total-line" style="align-items:center;gap:8px;">
+        <span style="color:var(--muted);">DISCOUNT</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" id="pay_discount" min="0" placeholder="0" style="width:70px;text-align:right;" oninput="recalcPayInvoice()" />
+          <select id="pay_discount_type" style="width:auto;" onchange="recalcPayInvoice()">
+            <option value="flat">$ Flat</option>
+            <option value="pct">% Off</option>
+          </select>
+        </div>
+        <span id="payDiscountAmt" style="color:var(--yellow);">-$0.00</span>
+      </div>
+      <div class="quote-total-line" style="align-items:center;gap:8px;">
+        <span style="color:var(--muted);">TAX</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" id="pay_tax" min="0" step="0.1" placeholder="0" style="width:70px;text-align:right;" oninput="recalcPayInvoice()" />
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);">%</span>
+        </div>
+        <span id="payTaxAmt">+$0.00</span>
+      </div>
+      <div class="quote-total-line grand">
+        <span>TOTAL INVOICED</span><span id="payTotal">$0.00</span>
+      </div>
+    </div>
+
+    <!-- Payment tracking -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div class="report-param-group">
+        <div class="report-param-title">Payment Received</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div><label>Amount Received ($)</label><input type="number" id="pay_received" placeholder="0.00" step="0.01" min="0" /></div>
+          <div><label>Date Paid</label><input type="date" id="pay_paid_date" /></div>
+          <div>
+            <label>Payment Method</label>
+            <select id="pay_method">
+              <option value="">—</option>
+              <option value="check">Check</option>
+              <option value="cash">Cash</option>
+              <option value="card">Credit / Debit Card</option>
+              <option value="ach">ACH / Bank Transfer</option>
+              <option value="venmo">Venmo</option>
+              <option value="zelle">Zelle</option>
+              <option value="paypal">PayPal</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="report-param-group">
+        <div class="report-param-title">Due Date & Terms</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div><label>Payment Due Date</label><input type="date" id="pay_due_date" /></div>
+          <div>
+            <label>Payment Terms</label>
+            <select id="pay_terms" onchange="applyPayTerms(this.value)">
+              <option value="due_receipt">Due on Receipt</option>
+              <option value="net15">Net 15</option>
+              <option value="net30">Net 30</option>
+              <option value="deposit50">50% Deposit, 50% on Pickup</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div><label>Notes / Terms</label><textarea id="pay_notes" rows="2" placeholder="Payment notes or terms…"></textarea></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action bar -->
+    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
       <button class="btn-danger" id="deletePayBtn" onclick="deletePayment()" style="display:none;">🗑 DELETE</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn-secondary" onclick="closeAddPaymentModal()">CANCEL</button>
-        <button class="btn-primary" id="savePayBtn" onclick="savePayment()">SAVE INVOICE</button>
+        <button class="btn-primary" id="savePayBtn" onclick="savePayment()">💾 SAVE INVOICE</button>
       </div>
     </div>
+
   </div>
 </div>
 
@@ -8381,40 +8486,72 @@ function updatePaymentsBadge() {
 // ── Add / Edit modal ──────────────────────────────────
 function openAddPaymentModal() {
   _editPayId = null;
-  document.getElementById('payModalTitle').textContent = 'ADD INVOICE';
-  ['pay_customer','pay_invoice_num','pay_notes'].forEach(id => document.getElementById(id).value = '');
-  ['pay_amount','pay_received'].forEach(id => document.getElementById(id).value = '');
-  ['pay_sent_date','pay_due_date','pay_paid_date'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('pay_status').value = 'draft';
-  document.getElementById('pay_method').value = '';
-  document.getElementById('pay_job_id').value = '';
-  document.getElementById('payLinkedJob').innerHTML = 'No job linked — <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="togglePayJobSearch()">link a job</button>';
-  document.getElementById('payJobSearchWrap').style.display = 'none';
-  document.getElementById('deletePayBtn').style.display = 'none';
+  document.getElementById('payModalTitle').textContent = 'NEW INVOICE';
+  resetPayInvoiceModal();
   // Auto-generate invoice number
   const next = _allPayments.length + 1;
   document.getElementById('pay_invoice_num').value = 'INV-' + String(next).padStart(3,'0');
+  // Set today as invoice date
+  document.getElementById('pay_sent_date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('deletePayBtn').style.display = 'none';
   document.getElementById('addPaymentModal').classList.remove('hidden');
+}
+
+function resetPayInvoiceModal() {
+  ['pay_customer','pay_contact_email','pay_invoice_num','pay_notes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['pay_received'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['pay_sent_date','pay_due_date','pay_paid_date'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('pay_status').value  = 'draft';
+  document.getElementById('pay_method').value  = '';
+  document.getElementById('pay_terms').value   = 'due_receipt';
+  document.getElementById('pay_discount').value = '';
+  document.getElementById('pay_tax').value      = '';
+  document.getElementById('pay_discount_type').value = 'flat';
+  document.getElementById('pay_job_id').value  = '';
+  document.getElementById('pay_job_search_inline').value = '';
+  document.getElementById('payJobDropdown').style.display = 'none';
+  document.getElementById('payLinkedJobBadge').style.display = 'none';
+  document.getElementById('payLineItems').innerHTML = '';
+  recalcPayInvoice();
 }
 
 function openEditPaymentModal(p) {
   _editPayId = p.id;
   document.getElementById('payModalTitle').textContent = 'EDIT INVOICE';
-  document.getElementById('pay_customer').value = p.customer||'';
-  document.getElementById('pay_invoice_num').value = p.invoice_number||'';
-  document.getElementById('pay_status').value = p.status||'draft';
-  document.getElementById('pay_amount').value = p.amount_invoiced||'';
-  document.getElementById('pay_received').value = p.amount_received||'';
-  document.getElementById('pay_sent_date').value = p.sent_date||'';
-  document.getElementById('pay_due_date').value = p.due_date||'';
-  document.getElementById('pay_paid_date').value = p.paid_date||'';
-  document.getElementById('pay_method').value = p.payment_method||'';
-  document.getElementById('pay_notes').value = p.notes||'';
-  document.getElementById('pay_job_id').value = p.job_id||'';
-  document.getElementById('payLinkedJob').innerHTML = p.job_name
-    ? `<span style="color:var(--cyan);">↗ ${p.job_name}</span> <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="clearPayJob()">✕ remove</button>`
-    : 'No job linked — <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="togglePayJobSearch()">link a job</button>';
-  document.getElementById('payJobSearchWrap').style.display = 'none';
+  document.getElementById('pay_customer').value        = p.customer||'';
+  document.getElementById('pay_contact_email').value  = p.contact_email||'';
+  document.getElementById('pay_invoice_num').value    = p.invoice_number||'';
+  document.getElementById('pay_status').value         = p.status||'draft';
+  document.getElementById('pay_received').value       = p.amount_received||'';
+  document.getElementById('pay_sent_date').value      = p.sent_date||'';
+  document.getElementById('pay_due_date').value       = p.due_date||'';
+  document.getElementById('pay_paid_date').value      = p.paid_date||'';
+  document.getElementById('pay_method').value         = p.payment_method||'';
+  document.getElementById('pay_notes').value          = p.notes||'';
+  document.getElementById('pay_terms').value          = p.payment_terms||'due_receipt';
+  document.getElementById('pay_discount').value       = p.discount_value||'';
+  document.getElementById('pay_discount_type').value  = p.discount_type||'flat';
+  document.getElementById('pay_tax').value            = p.tax_pct||'';
+  document.getElementById('pay_job_id').value         = p.job_id||'';
+  document.getElementById('pay_job_search_inline').value = '';
+  document.getElementById('payJobDropdown').style.display = 'none';
+
+  // Restore linked job badge
+  const badge = document.getElementById('payLinkedJobBadge');
+  if (p.job_id && p.job_name) {
+    badge.style.display = 'flex';
+    document.getElementById('payLinkedJobName').textContent = '↗ ' + p.job_name + (p.invoice_number ? '  #'+p.invoice_number : '');
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Restore line items
+  document.getElementById('payLineItems').innerHTML = '';
+  (p.line_items||[]).forEach(l => addPayLineItem(l.type||'custom', l));
+  if (!(p.line_items||[]).length && p.amount_invoiced) {
+    addPayLineItem('custom', { desc: 'Print Services', qty:1, unit: p.amount_invoiced });
+  }
+  recalcPayInvoice();
   document.getElementById('deletePayBtn').style.display = 'inline-block';
   document.getElementById('addPaymentModal').classList.remove('hidden');
 }
@@ -8424,31 +8561,275 @@ function closeAddPaymentModal() {
   _editPayId = null;
 }
 
+// ── Job search dropdown ───────────────────────────────
+let _payJobSearchTimer = null;
+let _payAllJobs = [];
+
+async function searchPayJobInline(q) {
+  clearTimeout(_payJobSearchTimer);
+  const dd = document.getElementById('payJobDropdown');
+
+  if (!q || q.length < 1) {
+    // Show recent jobs
+    if (!_payAllJobs.length && sbClient) {
+      const { data } = await sbClient.from('print_setups')
+        .select('id,job_name,customer,order_number,job_date,quantity,shirt_types,due_date,email')
+        .order('job_date',{ascending:false}).limit(30);
+      _payAllJobs = data || [];
+    }
+    renderPayJobDropdown(_payAllJobs.slice(0,10), dd, q);
+    return;
+  }
+
+  _payJobSearchTimer = setTimeout(async () => {
+    if (!sbClient) return;
+    const { data } = await sbClient.from('print_setups')
+      .select('id,job_name,customer,order_number,job_date,quantity,shirt_types,due_date,email')
+      .or(`job_name.ilike.%${q}%,customer.ilike.%${q}%,order_number.ilike.%${q}%`)
+      .order('job_date',{ascending:false}).limit(20);
+    _payAllJobs = data || [];
+    renderPayJobDropdown(_payAllJobs, dd, q);
+  }, 200);
+}
+
+function renderPayJobDropdown(jobs, dd, q) {
+  if (!jobs.length) {
+    dd.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.68rem;color:var(--muted);padding:10px 12px;">No jobs found</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  dd.innerHTML = '';
+  jobs.forEach(job => {
+    const total = (job.shirt_types||[]).reduce((s,t)=>s+Object.values(t.sizes||{}).reduce((a,b)=>a+b,0),0) || job.quantity || 0;
+    const row = document.createElement('div');
+    row.style.cssText = 'padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(245,240,232,.06);transition:background .1s;';
+    row.onmouseenter = () => row.style.background = 'var(--flash-dim)';
+    row.onmouseleave = () => row.style.background = '';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.75rem;font-weight:600;color:var(--text);">${job.job_name}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);display:flex;gap:8px;margin-top:2px;">
+            ${job.order_number?`<span style="color:var(--flash);">#${job.order_number}</span>`:''}
+            ${job.customer?`<span>${job.customer}</span>`:''}
+            ${job.job_date?`<span>${fmtDate(job.job_date)}</span>`:''}
+            ${total?`<span>${total} pcs</span>`:''}
+          </div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--cyan);white-space:nowrap;">SELECT →</div>
+      </div>`;
+    row.onmousedown = (e) => { e.preventDefault(); selectPayJobInline(job); };
+    dd.appendChild(row);
+  });
+  dd.style.display = 'block';
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('mousedown', function closeDD(e) {
+      if (!dd.contains(e.target) && e.target.id !== 'pay_job_search_inline') {
+        dd.style.display = 'none';
+        document.removeEventListener('mousedown', closeDD);
+      }
+    });
+  }, 50);
+}
+
+function selectPayJobInline(job) {
+  // Hide dropdown + search input, show badge
+  document.getElementById('pay_job_search_inline').value = '';
+  document.getElementById('payJobDropdown').style.display = 'none';
+  document.getElementById('pay_job_id').value = job.id;
+  const badge = document.getElementById('payLinkedJobBadge');
+  badge.style.display = 'flex';
+  document.getElementById('payLinkedJobName').textContent = '↗ ' + job.job_name + (job.order_number ? '  #'+job.order_number : '');
+
+  // Auto-populate fields from job
+  const custEl = document.getElementById('pay_customer');
+  if (!custEl.value.trim() && job.customer) custEl.value = job.customer;
+
+  const emailEl = document.getElementById('pay_contact_email');
+  if (!emailEl.value.trim() && job.email) emailEl.value = job.email;
+
+  // Invoice number from order number
+  const invEl = document.getElementById('pay_invoice_num');
+  if (job.order_number) invEl.value = 'INV-' + job.order_number;
+
+  // Due date: job due date or today + 14 days
+  const dueEl = document.getElementById('pay_due_date');
+  if (!dueEl.value) {
+    if (job.due_date) {
+      dueEl.value = job.due_date;
+    } else {
+      const d = new Date(); d.setDate(d.getDate()+14);
+      dueEl.value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    }
+  }
+
+  // Build line items from shirt types
+  document.getElementById('payLineItems').innerHTML = '';
+  const types = job.shirt_types || [];
+  if (types.length) {
+    types.forEach(t => {
+      const qty = Object.values(t.sizes||{}).reduce((a,b)=>a+(parseInt(b)||0),0);
+      if (qty > 0) {
+        addPayLineItem('garment', {
+          desc: [t.style||'', t.color||''].filter(Boolean).join(' / ') || 'Garments',
+          qty,
+          unit: 0,
+        });
+      }
+    });
+  } else {
+    const totalQty = job.quantity || 0;
+    if (totalQty) addPayLineItem('garment', { desc:'Print Services', qty:totalQty, unit:0 });
+  }
+  addPayLineItem('screen', {});
+  recalcPayInvoice();
+}
+
+function clearPayJobInline() {
+  document.getElementById('pay_job_id').value = '';
+  document.getElementById('payLinkedJobBadge').style.display = 'none';
+  document.getElementById('pay_job_search_inline').value = '';
+}
+
+// ── Payment terms helper ──────────────────────────────
+function applyPayTerms(val) {
+  const sentDate = document.getElementById('pay_sent_date').value || new Date().toISOString().split('T')[0];
+  const base = new Date(sentDate+'T00:00:00');
+  const dueEl = document.getElementById('pay_due_date');
+  if (val === 'due_receipt') { dueEl.value = sentDate; }
+  else if (val === 'net15')  { base.setDate(base.getDate()+15); dueEl.value = base.toISOString().split('T')[0]; }
+  else if (val === 'net30')  { base.setDate(base.getDate()+30); dueEl.value = base.toISOString().split('T')[0]; }
+}
+
+// ── Invoice line items ────────────────────────────────
+let _payLiCount = 0;
+
+const PAY_LI_DEFAULTS = {
+  garment: { desc:'Garments', qty:1, unit:0 },
+  print:   { desc:'Print Cost Per Piece', qty:1, unit:0 },
+  screen:  { desc:'Screen Setup Fee', qty:1, unit:25 },
+  custom:  { desc:'', qty:1, unit:0 },
+};
+
+function addPayLineItem(type, existing) {
+  _payLiCount++;
+  const i = _payLiCount;
+  const def = PAY_LI_DEFAULTS[type] || PAY_LI_DEFAULTS.custom;
+  const container = document.getElementById('payLineItems');
+  const row = document.createElement('div');
+  row.id = 'pli-'+i;
+  row.dataset.type = type;
+  row.className = 'qli-row';
+  row.innerHTML = `
+    <div>
+      <input type="text" id="pli_desc_${i}" value="${existing?.desc||def.desc}" placeholder="Description" oninput="recalcPayInvoice()" />
+    </div>
+    <div>
+      <input type="number" id="pli_qty_${i}" value="${existing?.qty||def.qty||1}" min="0" step="1" style="text-align:center;" oninput="recalcPayInvoice()" />
+    </div>
+    <div>
+      <input type="number" id="pli_unit_${i}" value="${existing?.unit||def.unit||''}" min="0" step="0.01" placeholder="0.00" style="text-align:right;" oninput="recalcPayInvoice()" />
+    </div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);text-align:right;padding-top:8px;" id="pli_total_${i}">$0.00</div>
+    <div style="padding-top:6px;">
+      <button type="button" onclick="document.getElementById('pli-${i}').remove();recalcPayInvoice()"
+        style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
+    </div>`;
+  container.appendChild(row);
+  recalcPayInvoice();
+}
+
+function recalcPayInvoice() {
+  let subtotal = 0;
+  document.querySelectorAll('[id^="pli-"]').forEach(row => {
+    const i = row.id.split('-')[1];
+    const qty  = parseFloat(document.getElementById('pli_qty_'+i)?.value)||0;
+    const unit = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
+    const total = qty * unit;
+    subtotal += total;
+    const el = document.getElementById('pli_total_'+i);
+    if (el) el.textContent = '$'+total.toFixed(2);
+  });
+
+  const discVal  = parseFloat(document.getElementById('pay_discount')?.value)||0;
+  const discType = document.getElementById('pay_discount_type')?.value||'flat';
+  const discAmt  = discType==='pct' ? subtotal*(discVal/100) : discVal;
+  const taxPct   = parseFloat(document.getElementById('pay_tax')?.value)||0;
+  const taxAmt   = (subtotal - discAmt) * (taxPct/100);
+  const total    = Math.max(0, subtotal - discAmt + taxAmt);
+
+  const fmt = n => '$'+Math.max(0,n).toFixed(2);
+  const sub = document.getElementById('paySubtotal');    if(sub) sub.textContent = fmt(subtotal);
+  const disc = document.getElementById('payDiscountAmt'); if(disc) disc.textContent = discAmt>0?'-'+fmt(discAmt):'-$0.00';
+  const tax  = document.getElementById('payTaxAmt');     if(tax)  tax.textContent  = taxAmt>0?'+'+fmt(taxAmt):'+$0.00';
+  const tot  = document.getElementById('payTotal');      if(tot)  tot.textContent  = fmt(total);
+}
+
+function collectPayLineItems() {
+  const items = [];
+  document.querySelectorAll('[id^="pli-"]').forEach(row => {
+    const i    = row.id.split('-')[1];
+    const desc = document.getElementById('pli_desc_'+i)?.value.trim();
+    if (!desc) return;
+    const qty  = parseFloat(document.getElementById('pli_qty_'+i)?.value)||0;
+    const unit = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
+    items.push({ type: row.dataset.type||'custom', desc, qty, unit, total: qty*unit });
+  });
+  return items;
+}
+
+function previewInvoicePDF() { showToast('PDF preview — save first to generate.', 'success'); }
+
+// ── Remove old helpers no longer needed ──────────────
+function togglePayJobSearch() {}   // kept for compat, now unused
+function searchPaymentJobList() {} // kept for compat, now unused
+
+function clearPayJob() {
+  clearPayJobInline();
+}
+
 async function savePayment() {
   if (!sbClient) return;
   const btn = document.getElementById('savePayBtn');
   btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true;
 
+  const lineItems     = collectPayLineItems();
+  const subtotal      = lineItems.reduce((s,l)=>s+l.total,0);
+  const discVal       = parseFloat(document.getElementById('pay_discount')?.value)||0;
+  const discType      = document.getElementById('pay_discount_type')?.value||'flat';
+  const discAmt       = discType==='pct' ? subtotal*(discVal/100) : discVal;
+  const taxPct        = parseFloat(document.getElementById('pay_tax')?.value)||0;
+  const taxAmt        = (subtotal - discAmt)*(taxPct/100);
+  const totalInvoiced = Math.max(0, subtotal - discAmt + taxAmt);
+
   const record = {
     customer:        document.getElementById('pay_customer').value.trim(),
+    contact_email:   document.getElementById('pay_contact_email')?.value.trim()||null,
     invoice_number:  document.getElementById('pay_invoice_num').value.trim(),
     status:          document.getElementById('pay_status').value,
-    amount_invoiced: parseFloat(document.getElementById('pay_amount').value)||null,
+    amount_invoiced: totalInvoiced || null,
     amount_received: parseFloat(document.getElementById('pay_received').value)||null,
     sent_date:       document.getElementById('pay_sent_date').value||null,
     due_date:        document.getElementById('pay_due_date').value||null,
     paid_date:       document.getElementById('pay_paid_date').value||null,
     payment_method:  document.getElementById('pay_method').value||null,
+    payment_terms:   document.getElementById('pay_terms')?.value||null,
     notes:           document.getElementById('pay_notes').value.trim()||null,
     job_id:          document.getElementById('pay_job_id').value||null,
+    line_items:      lineItems,
+    discount_value:  discVal||null,
+    discount_type:   discType,
+    tax_pct:         taxPct||null,
   };
 
   if (!record.customer) {
     showToast('Customer name is required.', 'error');
-    btn.innerHTML = 'SAVE INVOICE'; btn.disabled = false; return;
+    btn.innerHTML = '💾 SAVE INVOICE'; btn.disabled = false; return;
   }
 
-  // Auto-set status based on dates
+  // Auto-set status based on dates/amounts
   if (record.status !== 'paid' && record.status !== 'cancelled' && record.status !== 'draft') {
     if (record.paid_date) record.status = 'paid';
     else if (record.due_date && new Date(record.due_date+'T00:00:00') < new Date()) record.status = 'overdue';
@@ -8462,9 +8843,9 @@ async function savePayment() {
     ({ error } = await sbClient.from('payments').insert([record]));
   }
 
-  btn.innerHTML = 'SAVE INVOICE'; btn.disabled = false;
+  btn.innerHTML = '💾 SAVE INVOICE'; btn.disabled = false;
   if (error) { showToast('Error: '+error.message, 'error'); return; }
-  showToast(_editPayId ? 'Invoice updated!' : 'Invoice added!', 'success');
+  showToast(_editPayId ? 'Invoice updated!' : 'Invoice saved!', 'success');
   closeAddPaymentModal();
   loadPayments();
 }
@@ -8478,50 +8859,8 @@ async function deletePayment() {
   closeAddPaymentModal(); loadPayments();
 }
 
-// ── Job link search ───────────────────────────────────
-function togglePayJobSearch() {
-  const wrap = document.getElementById('payJobSearchWrap');
-  wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
-  if (wrap.style.display === 'block') {
-    document.getElementById('pay_job_search').value = '';
-    searchPaymentJobList();
-    document.getElementById('pay_job_search').focus();
-  }
-}
 
-async function searchPaymentJobList() {
-  if (!sbClient) return;
-  const q = document.getElementById('pay_job_search').value.trim();
-  const list = document.getElementById('payJobSearchList');
-  let query = sbClient.from('print_setups').select('id,job_name,customer,order_number').order('job_date',{ascending:false}).limit(20);
-  if (q) query = query.ilike('job_name','%'+q+'%');
-  const { data } = await query;
-  if (!data||!data.length) { list.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.68rem;color:var(--muted);padding:8px;">No jobs found.</div>'; return; }
-  list.innerHTML = data.map(j => `
-    <div onclick="selectPayJob('${j.id}','${(j.job_name||'').replace(/'/g,"\\'")}','${(j.customer||'').replace(/'/g,"\\'")}','${j.order_number||''}')"
-      style="padding:7px 10px;cursor:pointer;border-bottom:1px solid rgba(245,240,232,.05);font-family:IBM Plex Mono,monospace;font-size:.68rem;"
-      onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
-      <span style="color:var(--text);">${j.job_name||'Unnamed'}</span>
-      <span style="color:var(--muted);"> — ${j.customer||''}</span>
-      ${j.order_number?`<span style="color:var(--cyan);"> #${j.order_number}</span>`:''}
-    </div>`).join('');
-}
 
-function selectPayJob(id, name, customer, orderNum) {
-  document.getElementById('pay_job_id').value = id;
-  document.getElementById('payLinkedJob').innerHTML =
-    `<span style="color:var(--cyan);">↗ ${name}${orderNum?' #'+orderNum:''}</span> <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="clearPayJob()">✕ remove</button>`;
-  // Auto-fill customer if empty
-  const custEl = document.getElementById('pay_customer');
-  if (!custEl.value.trim() && customer) custEl.value = customer;
-  document.getElementById('payJobSearchWrap').style.display = 'none';
-}
-
-function clearPayJob() {
-  document.getElementById('pay_job_id').value = '';
-  document.getElementById('payLinkedJob').innerHTML =
-    'No job linked — <button type="button" class="btn-ghost" style="font-size:.65rem;" onclick="togglePayJobSearch()">link a job</button>';
-}
 
 
 
