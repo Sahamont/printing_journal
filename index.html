@@ -1110,7 +1110,7 @@
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;">
         <button class="btn-ghost" onclick="loadTasks()">↺ REFRESH</button>
-        <button class="btn-secondary" onclick="exportTasksPDF()">📋 REPORT</button>
+        <button class="btn-secondary" id="taskReportBtn" onclick="exportTasksPDF()">📋 REPORT</button>
         <button class="btn-primary" onclick="openAddTaskModal()">+ NEW TASK</button>
       </div>
     </div>
@@ -2812,6 +2812,13 @@
     <div style="margin-bottom:16px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.08em;color:var(--cyan);margin-bottom:8px;">NEXT 7 DAYS</div>
       <div id="tdForecast" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+    </div>
+
+    <!-- Notes search -->
+    <div style="margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.08em;color:var(--yellow);margin-bottom:8px;">🔍 SEARCH NOTES</div>
+      <input type="text" id="tdNotesSearch" placeholder="Search completion notes…" style="width:100%;margin-bottom:8px;" oninput="filterTdHistory(this.value)" />
+      <div id="tdNotesResults" style="display:none;max-height:140px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px;"></div>
     </div>
 
     <!-- Completion history -->
@@ -14309,6 +14316,17 @@ function switchTaskTab(tab) {
     const btn = document.getElementById('task-tab-'+t);
     if (btn) btn.classList.toggle('active', t === tab);
   });
+  // Swap report button context
+  const reportBtn = document.getElementById('taskReportBtn');
+  if (reportBtn) {
+    if (tab === 'dashboard') {
+      reportBtn.textContent = '📊 DASHBOARD PDF';
+      reportBtn.setAttribute('onclick', 'exportTaskDashboardPDF()');
+    } else {
+      reportBtn.textContent = '📋 REPORT';
+      reportBtn.setAttribute('onclick', 'exportTasksPDF()');
+    }
+  }
   if (tab === 'dashboard') renderTaskDashboard();
 }
 
@@ -14330,6 +14348,98 @@ async function renderTaskDashboard() {
   }
 
   el.innerHTML = '';
+
+  // ── Weakest Tasks alert (3 lowest 30-day completion rates) ──
+  const taskRates = _allTasks
+    .map(t => {
+      const exp = getExpectedDays(t, 30);
+      if (exp === 0) return null;
+      const done = new Set(dashLogs.filter(l=>l.task_id===t.id).map(l=>l.completed_date)).size;
+      return { task: t, rate: Math.round(done/exp*100), done, exp };
+    })
+    .filter(Boolean)
+    .sort((a,b) => a.rate - b.rate);
+
+  const weakest = taskRates.filter(r => r.rate < 80).slice(0, 3);
+  if (weakest.length) {
+    const alertDiv = document.createElement('div');
+    alertDiv.style.cssText = 'background:rgba(232,80,10,.07);border:1px solid rgba(232,80,10,.3);border-radius:3px;padding:12px 14px;margin-bottom:16px;';
+    alertDiv.innerHTML = `
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.08em;color:var(--flash);margin-bottom:8px;">⚠ NEEDS ATTENTION — LOWEST 30-DAY COMPLETION</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">
+        ${weakest.map(r => {
+          const rColor = r.rate >= 50 ? 'var(--yellow)' : 'var(--flash)';
+          return `<div style="background:var(--bg);border:1px solid rgba(232,80,10,.2);border-radius:3px;padding:9px 11px;cursor:pointer;"
+            onclick="openTaskDetailModal(${JSON.stringify(r.task).replace(/"/g,'&quot;')}, [])">
+            <div style="font-weight:600;font-size:.82rem;margin-bottom:3px;">${r.task.name}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:5px;">${r.task.category} · ${RECUR_LABELS[r.task.recurrence]||r.task.recurrence}</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="flex:1;background:rgba(245,240,232,.08);border-radius:3px;height:5px;overflow:hidden;">
+                <div style="background:${rColor};height:100%;width:${r.rate}%;"></div>
+              </div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${rColor};">${r.rate}%</div>
+            </div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:2px;">${r.done} of ${r.exp} expected completions</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    el.appendChild(alertDiv);
+  }
+
+  // ── Operator Leaderboard ──
+  const assignedTasks = _allTasks.filter(t => t.assignee);
+  if (assignedTasks.length) {
+    const opStats = {};
+    assignedTasks.forEach(t => {
+      const op = t.assignee;
+      if (!opStats[op]) opStats[op] = { name: op, taskCount: 0, totalExp: 0, totalDone: 0, streak: 0 };
+      const exp  = getExpectedDays(t, 30);
+      const done = new Set(dashLogs.filter(l=>l.task_id===t.id).map(l=>l.completed_date)).size;
+      opStats[op].taskCount++;
+      opStats[op].totalExp  += exp;
+      opStats[op].totalDone += done;
+      opStats[op].streak = Math.max(opStats[op].streak, calcStreak(t, dashLogs.filter(l=>l.task_id===t.id)));
+    });
+
+    const ranked = Object.values(opStats)
+      .filter(o => o.totalExp > 0)
+      .map(o => ({ ...o, rate: Math.round(o.totalDone/o.totalExp*100) }))
+      .sort((a,b) => b.rate - a.rate);
+
+    if (ranked.length > 1) {
+      const lbDiv = document.createElement('div');
+      lbDiv.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px 14px;margin-bottom:16px;';
+      const medals = ['🥇','🥈','🥉'];
+      lbDiv.innerHTML = `
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:.08em;color:var(--cyan);margin-bottom:10px;">🏆 OPERATOR LEADERBOARD — LAST 30 DAYS</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          ${ranked.map((op, i) => {
+            const rColor = op.rate>=80?'var(--green)':op.rate>=50?'var(--yellow)':'var(--flash)';
+            return `<div style="display:grid;grid-template-columns:28px 1fr auto auto auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(245,240,232,.05);">
+              <div style="font-size:1rem;text-align:center;">${medals[i]||'#'+(i+1)}</div>
+              <div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.82rem;">${op.name}</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);">${op.taskCount} task${op.taskCount!==1?'s':''}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${rColor};">${op.rate}%</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--muted);">${op.totalDone}/${op.totalExp}</div>
+              </div>
+              <div style="text-align:right;min-width:60px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${op.streak>=5?'var(--green)':'var(--muted)'};">${op.streak}d</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;color:var(--muted);">streak</div>
+              </div>
+              <div style="min-width:80px;">
+                <div style="background:rgba(245,240,232,.08);border-radius:3px;height:6px;overflow:hidden;">
+                  <div style="background:${rColor};height:100%;width:${op.rate}%;"></div>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      el.appendChild(lbDiv);
+    }
+  }
 
   // Group tasks by category
   const groups = {};
@@ -14649,6 +14759,213 @@ function tdEditTask() {
   if (!_tdTask) return;
   closeTaskDetailModal();
   openEditTaskModal(_tdTask);
+}
+
+
+// ══════════════════════════════════════════════════════
+// TASK DASHBOARD — NOTES SEARCH + PDF EXPORT
+// ══════════════════════════════════════════════════════
+
+// ── Notes search inside task detail modal ────────────
+function filterTdHistory(q) {
+  const resultsEl = document.getElementById('tdNotesResults');
+  const histEl    = document.getElementById('tdHistory');
+  if (!resultsEl) return;
+
+  if (!q.trim()) {
+    resultsEl.style.display = 'none';
+    histEl.style.display = 'block';
+    return;
+  }
+
+  const lower   = q.toLowerCase();
+  const matches = _tdLogs.filter(l =>
+    (l.notes && l.notes.toLowerCase().includes(lower)) ||
+    (l.completed_by && l.completed_by.toLowerCase().includes(lower))
+  );
+
+  histEl.style.display = 'none';
+  resultsEl.style.display = 'block';
+
+  if (!matches.length) {
+    resultsEl.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.68rem;color:var(--muted);">No matching notes found.</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = matches.map(log => `
+    <div style="padding:6px 0;border-bottom:1px solid rgba(245,240,232,.05);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);">${fmtDate(log.completed_date)}</span>
+        ${log.completed_by?`<span style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--cyan);">👤 ${log.completed_by}</span>`:''}
+      </div>
+      ${log.notes?`<div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--text);">${log.notes.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')', 'gi'), '<mark style="background:rgba(245,200,0,.3);color:var(--text);border-radius:2px;padding:0 2px;">$1</mark>')}</div>`:''}
+    </div>`).join('');
+}
+
+// ── Dashboard PDF Export ──────────────────────────────
+async function exportTaskDashboardPDF() {
+  if (!_allTasks.length) { showToast('No tasks to export.', 'error'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc  = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const PW   = doc.internal.pageSize.getWidth();
+  const PH   = doc.internal.pageSize.getHeight();
+  const ML   = 44, MR = PW - 44, TW = MR - ML;
+  const _ac  = getPDFAccent();
+
+  // Fetch 30-day logs
+  const thirtyDaysAgo = (() => { const d=new Date(); d.setDate(d.getDate()-30); return d.toISOString().split('T')[0]; })();
+  const { data: allLogs } = await sbClient.from('task_logs').select('*').gte('completed_date', thirtyDaysAgo);
+  const dashLogs = allLogs || [];
+
+  const today = todayStr();
+  const totalTasks   = _allTasks.length;
+  const dueToday2    = _allTasks.filter(t => isTaskDueToday(t));
+  const doneToday2   = dueToday2.filter(t => isDoneToday(t.id));
+  const pct          = dueToday2.length > 0 ? Math.round(doneToday2.length/dueToday2.length*100) : 100;
+
+  let y = pdfHeader(doc, 'Task Dashboard', `${totalTasks} tasks  ·  ${doneToday2.length}/${dueToday2.length} done today  ·  ${pct}% complete  ·  ${fmtDate(today)}`, { ML, MR });
+
+  // ── Overall stats ──
+  const stats = [
+    ['Total Tasks', totalTasks],
+    ['Due Today',   dueToday2.length],
+    ['Done Today',  doneToday2.length],
+    ['Completion',  pct+'%'],
+  ];
+  const sw = TW / stats.length;
+  stats.forEach(([lbl, val], i) => {
+    const x = ML + i * sw + sw/2;
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(..._ac);
+    doc.text(String(val), x, y+12, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+    doc.text(lbl, x, y+22, {align:'center'});
+  });
+  y += 38;
+
+  // ── Weakest tasks ──
+  const taskRates = _allTasks
+    .map(t => {
+      const exp = getExpectedDays(t, 30);
+      if (exp === 0) return null;
+      const done = new Set(dashLogs.filter(l=>l.task_id===t.id).map(l=>l.completed_date)).size;
+      return { task: t, rate: Math.round(done/exp*100), done, exp };
+    }).filter(Boolean).sort((a,b) => a.rate - b.rate);
+
+  const weakest3 = taskRates.filter(r => r.rate < 80).slice(0, 3);
+  if (weakest3.length) {
+    y = pdfSection(doc, '⚠ NEEDS ATTENTION — LOWEST COMPLETION RATES', ML, MR, y);
+    weakest3.forEach((r, i) => {
+      if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+      if (i%2===0) { doc.setFillColor(255,248,244); doc.rect(ML, y-9, TW, 13, 'F'); }
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+      doc.text(r.task.name, ML+4, y);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(100,100,100);
+      doc.text(r.task.category+' · '+( RECUR_LABELS[r.task.recurrence]||r.task.recurrence), ML+4, y+9);
+      const rColor = r.rate >= 50 ? [180,140,0] : [200,70,10];
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...rColor);
+      doc.text(r.rate+'%', MR-4, y, {align:'right'});
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+      doc.text(r.done+' of '+r.exp+' expected', MR-4, y+9, {align:'right'});
+      // Progress bar
+      doc.setFillColor(230,230,230); doc.rect(ML+4, y+13, TW-8, 5, 'F');
+      doc.setFillColor(...rColor); doc.rect(ML+4, y+13, (TW-8)*(r.rate/100), 5, 'F');
+      y += 26;
+    });
+    y += 6;
+  }
+
+  // ── Leaderboard ──
+  const assignedTasks = _allTasks.filter(t => t.assignee);
+  if (assignedTasks.length > 0) {
+    const opStats = {};
+    assignedTasks.forEach(t => {
+      const op = t.assignee;
+      if (!opStats[op]) opStats[op] = { name:op, taskCount:0, totalExp:0, totalDone:0, streak:0 };
+      const exp  = getExpectedDays(t, 30);
+      const done = new Set(dashLogs.filter(l=>l.task_id===t.id).map(l=>l.completed_date)).size;
+      opStats[op].taskCount++;
+      opStats[op].totalExp  += exp;
+      opStats[op].totalDone += done;
+      opStats[op].streak = Math.max(opStats[op].streak, calcStreak(t, dashLogs.filter(l=>l.task_id===t.id)));
+    });
+    const ranked = Object.values(opStats).filter(o=>o.totalExp>0)
+      .map(o => ({...o, rate: Math.round(o.totalDone/o.totalExp*100)}))
+      .sort((a,b) => b.rate - a.rate);
+
+    if (ranked.length > 1) {
+      if (y > 620) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+      y = pdfSection(doc, '🏆 OPERATOR LEADERBOARD — LAST 30 DAYS', ML, MR, y);
+      y = pdfTableHeader(doc, ['RANK','OPERATOR','TASKS','RATE','STREAK','DONE/EXP'], ML, y, [36,140,55,55,55,TW-341]);
+      const medals = ['🥇','🥈','🥉'];
+      ranked.forEach((op, i) => {
+        if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+        if (i%2===0) { doc.setFillColor(248,248,248); doc.rect(ML,y-9,TW,13,'F'); }
+        const rColor = op.rate>=80?[0,160,60]:op.rate>=50?[160,120,0]:[180,60,10];
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+        doc.text(medals[i]||(i+1), ML+4, y);
+        doc.setFont('helvetica','bold');
+        doc.text(op.name, ML+40, y);
+        doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80);
+        doc.text(String(op.taskCount), ML+180, y);
+        doc.setTextColor(...rColor); doc.setFont('helvetica','bold');
+        doc.text(op.rate+'%', ML+235, y);
+        doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
+        doc.text(op.streak+'d', ML+290, y);
+        doc.text(op.totalDone+'/'+op.totalExp, ML+345, y);
+        y += 13;
+      });
+      y += 8;
+    }
+  }
+
+  // ── Per-category task breakdown ──
+  const catOrder2 = ['Press Maintenance','Screen Room','Ink Room','Housekeeping','Quality Control','Equipment','End of Day / Shutdown','End of Week','Admin'];
+  const groups2 = {};
+  _allTasks.forEach(t => { const c=t.category||'Other'; if(!groups2[c])groups2[c]=[]; groups2[c].push(t); });
+  const orderedCats2 = [...catOrder2.filter(c=>groups2[c]), ...Object.keys(groups2).filter(c=>!catOrder2.includes(c))];
+
+  orderedCats2.forEach(cat => {
+    const tasks = groups2[cat];
+    if (!tasks) return;
+    if (y > 660) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+    y = pdfSection(doc, cat.toUpperCase(), ML, MR, y);
+    y = pdfTableHeader(doc, ['TASK','RECURRENCE','ASSIGNEE','7D RATE','30D RATE','STREAK'], ML, y, [160,80,80,55,55,TW-430]);
+
+    tasks.forEach((t, i) => {
+      if (y > 700) { pdfFooter(doc, null); doc.addPage(); y = 44; }
+      const tLogs = dashLogs.filter(l=>l.task_id===t.id);
+      const exp7  = getExpectedDays(t, 7);
+      const exp30 = getExpectedDays(t, 30);
+      const done7  = exp7  > 0 ? new Set(tLogs.filter(l=>{const d=new Date(l.completed_date+'T00:00:00');const ago=new Date();ago.setDate(ago.getDate()-7);return d>=ago;}).map(l=>l.completed_date)).size : null;
+      const done30 = exp30 > 0 ? new Set(tLogs.map(l=>l.completed_date)).size : null;
+      const r7  = done7  !== null ? Math.round(done7/exp7*100)   : null;
+      const r30 = done30 !== null ? Math.round(done30/exp30*100) : null;
+      const streak = calcStreak(t, tLogs);
+      const doneNow = isDoneToday(t.id);
+
+      if (i%2===0) { doc.setFillColor(248,248,248); doc.rect(ML,y-9,TW,13,'F'); }
+      doc.setFont('helvetica', doneNow?'italic':'normal'); doc.setFontSize(8.5);
+      doc.setTextColor(doneNow?100:0, doneNow?100:0, doneNow?100:0);
+      doc.text((doneNow?'✓ ':'')+t.name, ML+4, y);
+      doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80);
+      doc.text(RECUR_LABELS[t.recurrence]||t.recurrence, ML+164, y);
+      doc.text(t.assignee||'—', ML+244, y);
+
+      const rc = r => r===null?[150,150,150]:r>=80?[0,160,60]:r>=50?[160,120,0]:[180,60,10];
+      doc.setFont('helvetica','bold');
+      doc.setTextColor(...rc(r7));  doc.text(r7!==null?r7+'%':'—', ML+324, y);
+      doc.setTextColor(...rc(r30)); doc.text(r30!==null?r30+'%':'—', ML+379, y);
+      doc.setTextColor(streak>=5?0:80, streak>=5?160:80, streak>=5?60:80);
+      doc.text(streak > 0 ? streak+'d' : '—', ML+434, y);
+      y += 13;
+    });
+    y += 6;
+  });
+
+  pdfFooter(doc, 1);
+  doc.save('task-dashboard-'+today+'.pdf');
+  showToast('Dashboard PDF exported!', 'success');
 }
 
 
