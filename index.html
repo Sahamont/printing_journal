@@ -509,6 +509,7 @@
           <div><label>Operator</label><input type="text" name="operator" placeholder="Your name" /></div>
           <div style="grid-column:1/-1"><label>Customer</label><input type="text" name="customer" placeholder="Customer name" /></div>
           <div><label>Email</label><input type="text" name="email" placeholder="customer@email.com" /></div>
+          <div><label>Phone</label><input type="text" name="phone" placeholder="(210) 555-0000" /></div>
           <div style="grid-column:1/-1">
             <label>Print Location</label>
             <div style="display:flex;gap:10px;flex-wrap:wrap;padding:4px 0 8px;">
@@ -3332,7 +3333,7 @@ async function submitForm(e){
 
   const record={
     job_name:d.job_name, order_number:d.order_number, job_date:d.job_date, due_date:d.due_date||null,
-    operator:d.operator, customer:d.customer, email:d.email||null, print_location: [
+    operator:d.operator, customer:d.customer, email:d.email||null, phone:d.phone||null, print_location: [
       document.getElementById('locFrontVal')?.value === 'on' ? 'Front' : '',
       document.getElementById('locBackVal')?.value  === 'on' ? 'Back'  : '',
       document.getElementById('locOtherVal')?.value === 'on' ? (document.getElementById('locOtherSpec')?.querySelector('input')?.value || 'Other') : '',
@@ -3408,7 +3409,7 @@ async function _doSearch(){
   const q=document.getElementById('searchQuery').value.trim();
   const status=document.getElementById('statusFilter').value;
   const sort=document.getElementById('sortBy').value;
-  let query=sbClient.from('print_setups').select('id,job_name,order_number,job_date,customer,status,quantity,image_url,shirt_types').order(sort,{ascending:false}).limit(60);
+  let query=sbClient.from('print_setups').select('id,job_name,order_number,job_date,customer,status,quantity,image_url,shirt_types,email,phone').order(sort,{ascending:false}).limit(60);
   if(q) query=query.or(`job_name.ilike.%${q}%,order_number.ilike.%${q}%,customer.ilike.%${q}%`);
   if(status) query=query.eq('status',status);
   const{data,error}=await query;
@@ -3482,7 +3483,7 @@ async function openJobDetail(id){
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px;">
-      ${[['CUSTOMER',data.customer],['EMAIL',data.email||'—'],['PRINT LOCATION',data.print_location],['QTY',data.quantity],['OPERATOR',data.operator],['JOB DATE',fmtDate(data.job_date)],['DUE DATE',fmtDate(data.due_date)]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${v||'—'}</div></div>`).join('')}
+      ${[['CUSTOMER',data.customer],['PHONE',data.phone||'—'],['EMAIL',data.email||'—'],['PRINT LOCATION',data.print_location],['QTY',data.quantity],['OPERATOR',data.operator],['JOB DATE',fmtDate(data.job_date)],['DUE DATE',fmtDate(data.due_date)]].map(([l,v])=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:9px;"><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:2px;">${l}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${v||'—'}</div></div>`).join('')}
     </div>
     ${data.image_url?`<img src="${data.image_url}" style="max-height:140px;border-radius:3px;border:1px solid var(--border);margin-bottom:14px;display:block;" />`:''}
     ${shirtHtml?`<div style="margin-bottom:14px;"><div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--flash);letter-spacing:.08em;border-bottom:1px solid rgba(232,80,10,.2);padding-bottom:3px;margin-bottom:7px;">SHIRT TYPES</div>${shirtHtml}</div>`:''}
@@ -3583,6 +3584,7 @@ async function editJob() {
   setVal('operator', data.operator);
   setVal('customer', data.customer);
   setVal('email', data.email);
+  setVal('phone', data.phone);
   setVal('print_location', data.print_location);
   setVal('status', data.status);
   setVal('notes', data.notes);
@@ -8605,7 +8607,7 @@ async function searchPayJobInline(q) {
     // Show recent jobs
     if (!_payAllJobs.length && sbClient) {
       const { data } = await sbClient.from('print_setups')
-        .select('id,job_name,customer,order_number,job_date,quantity,shirt_types,due_date,email')
+        .select('id,job_name,customer,order_number,job_date,quantity,shirt_types,due_date,email,phone')
         .order('job_date',{ascending:false}).limit(30);
       _payAllJobs = data || [];
     }
@@ -8616,7 +8618,7 @@ async function searchPayJobInline(q) {
   _payJobSearchTimer = setTimeout(async () => {
     if (!sbClient) return;
     const { data } = await sbClient.from('print_setups')
-      .select('id,job_name,customer,order_number,job_date,quantity,shirt_types,due_date,email')
+      .select('id,job_name,customer,order_number,job_date,quantity,shirt_types,due_date,email,phone')
       .or(`job_name.ilike.%${q}%,customer.ilike.%${q}%,order_number.ilike.%${q}%`)
       .order('job_date',{ascending:false}).limit(20);
     _payAllJobs = data || [];
@@ -8644,6 +8646,7 @@ function renderPayJobDropdown(jobs, dd, q) {
           <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);display:flex;gap:8px;margin-top:2px;">
             ${job.order_number?`<span style="color:var(--flash);">#${job.order_number}</span>`:''}
             ${job.customer?`<span>${job.customer}</span>`:''}
+            ${job.phone?`<span>📞 ${job.phone}</span>`:''}
             ${job.job_date?`<span>${fmtDate(job.job_date)}</span>`:''}
             ${total?`<span>${total} pcs</span>`:''}
           </div>
@@ -8680,7 +8683,9 @@ function selectPayJobInline(job) {
   if (!custEl.value.trim() && job.customer) custEl.value = job.customer;
 
   const emailEl = document.getElementById('pay_contact_email');
-  if (!emailEl.value.trim() && job.email) emailEl.value = job.email;
+  if (!emailEl.value.trim() && (job.email || job.phone)) {
+    emailEl.value = [job.email, job.phone].filter(Boolean).join('  |  ');
+  }
 
   // Invoice number from order number
   const invEl = document.getElementById('pay_invoice_num');
