@@ -447,7 +447,7 @@
 <body class="grid-bg">
 
 <!-- CONFIG MODAL -->
-<div id="configModal" class="modal" style="display:flex;align-items:center;">
+<div id="configModal" class="modal" style="display:none;align-items:center;">
   <div class="card modal-box" style="max-width:420px;padding:24px;">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:var(--flash);letter-spacing:.1em;" id="appNameConfig">PRESS SETUP DOC</div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-bottom:18px;">CONNECT YOUR SUPABASE PROJECT</div>
@@ -1806,6 +1806,13 @@
       </div>
     </div>
 
+    <!-- Supabase connection status -->
+    <div class="report-param-group" style="margin-top:12px;">
+      <div class="report-param-title">SUPABASE CONNECTION</div>
+      <div id="settingsConnStatus" style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;margin-bottom:8px;"></div>
+      <button class="btn-ghost" style="font-size:.72rem;" onclick="showConfigFromSettings()">🔗 CHANGE CONNECTION</button>
+    </div>
+
     <div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
       <button class="btn-ghost" onclick="resetAppSettings()">↩ RESET THEME</button>
       <div style="display:flex;gap:8px;">
@@ -3024,6 +3031,9 @@ window.addEventListener('DOMContentLoaded',()=>{
       const nb = document.getElementById('notifBtn');
       if (nb) { nb.textContent = '🔔 ALERTS ON'; nb.style.color = 'var(--green)'; nb.style.borderColor = 'rgba(0,200,83,.3)'; }
     }
+  } else {
+    // No saved credentials — show config modal
+    document.getElementById('configModal').style.display = 'flex';
   }
   initForm();
 });
@@ -7016,6 +7026,23 @@ function openAppSettings() {
   initTextSizeButtons(curSize);
 
   document.getElementById('appSettingsModal').classList.remove('hidden');
+
+  // Show Supabase connection status
+  const savedUrl = localStorage.getItem('sb_url') || '';
+  const savedKey = localStorage.getItem('sb_key') || '';
+  const connEl   = document.getElementById('settingsConnStatus');
+  if (connEl) {
+    if (savedUrl && savedKey) {
+      // Mask the key — show first 8 chars then dots
+      const maskedKey = savedKey.slice(0, 12) + '••••••••••••';
+      const urlShort  = savedUrl.replace('https://', '').split('.')[0];
+      connEl.innerHTML = `<span style="color:var(--green);">● Connected</span>
+        <div style="color:var(--muted);margin-top:4px;">Project: <span style="color:var(--cyan);">${urlShort}</span></div>
+        <div style="color:var(--muted);margin-top:2px;">Key: ${maskedKey}</div>`;
+    } else {
+      connEl.innerHTML = '<span style="color:#ff4444;">● Not connected — no credentials saved</span>';
+    }
+  }
 }
 
 function closeAppSettings() {
