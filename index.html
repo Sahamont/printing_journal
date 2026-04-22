@@ -442,6 +442,21 @@
     .ls-proposal{background:rgba(232,80,10,.15);color:var(--flash);border:1px solid rgba(232,80,10,.3);}
     .ls-won{background:rgba(0,200,83,.15);color:var(--green);border:1px solid rgba(0,200,83,.3);}
     .ls-lost,.ls-cold{background:rgba(245,240,232,.07);color:var(--muted);border:1px solid rgba(245,240,232,.12);}
+
+    /* Other location input — force dark theme, override autofill */
+    #locOtherText,
+    #locOtherText:focus,
+    #locOtherText:-webkit-autofill,
+    #locOtherText:-webkit-autofill:hover,
+    #locOtherText:-webkit-autofill:focus {
+      background: var(--bg) !important;
+      background-color: var(--bg) !important;
+      -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;
+      box-shadow: 0 0 0 1000px var(--bg) inset !important;
+      color: var(--text) !important;
+      -webkit-text-fill-color: var(--text) !important;
+      border-color: var(--dim) !important;
+    }
 </style>
 </head>
 <body class="grid-bg">
@@ -531,8 +546,7 @@
             <input type="hidden" name="loc_back"  id="locBackVal"  value="" />
             <input type="hidden" name="loc_other" id="locOtherVal" value="" />
             <div id="locOtherSpec" style="display:none;margin-bottom:8px;">
-              <input type="text" id="locOtherText" name="loc_spec" placeholder="Specify location (sleeve, hood, collar…)"
-                style="width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:.8rem;" />
+              <input type="text" id="locOtherText" name="loc_spec" placeholder="Specify location (sleeve, hood, collar…)" />
             </div>
           </div>
 
