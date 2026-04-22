@@ -9199,11 +9199,11 @@ function generateInvoicePDF(inv) {
     if (y > 680) { doc.addPage(); y = 50; }
     doc.setFont('helvetica', isBold?'bold':'normal');
     doc.setFontSize(isBold ? 10 : 9);
-    doc.setTextColor(isBold ? ..._ac : 80, 80, 80);
+    if(isBold) doc.setTextColor(..._ac); else doc.setTextColor(80,80,80);
     if (isBold) doc.setTextColor(..._ac);
     else doc.setTextColor(80,80,80);
     doc.text(lbl, totX, y);
-    doc.setTextColor(isBold ? ..._ac : 0, 0, 0);
+    if(isBold) doc.setTextColor(..._ac); else doc.setTextColor(0,0,0);
     if (isBold) doc.setTextColor(..._ac);
     else doc.setTextColor(0,0,0);
     doc.text(val, totVX, y, { align:'right' });
