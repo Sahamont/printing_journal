@@ -531,7 +531,8 @@
             <input type="hidden" name="loc_back"  id="locBackVal"  value="" />
             <input type="hidden" name="loc_other" id="locOtherVal" value="" />
             <div id="locOtherSpec" style="display:none;margin-bottom:8px;">
-              <input type="text" name="loc_spec" placeholder="Specify location (sleeve, hood, collar…)" />
+              <input type="text" id="locOtherText" name="loc_spec" placeholder="Specify location (sleeve, hood, collar…)"
+                style="width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:.8rem;" />
             </div>
           </div>
 
@@ -3336,7 +3337,7 @@ async function submitForm(e){
     operator:d.operator, customer:d.customer, email:d.email||null, phone:d.phone||null, print_location: [
       document.getElementById('locFrontVal')?.value === 'on' ? 'Front' : '',
       document.getElementById('locBackVal')?.value  === 'on' ? 'Back'  : '',
-      document.getElementById('locOtherVal')?.value === 'on' ? (document.getElementById('locOtherSpec')?.querySelector('input')?.value || 'Other') : '',
+      document.getElementById('locOtherVal')?.value === 'on' ? (document.getElementById('locOtherText')?.value.trim() || 'Other') : '',
     ].filter(Boolean).join(', ') || null,
     quantity:grandTotal||null, status:d.status, notes:d.notes,
     loc_data: collectAllLocData(),
@@ -7844,7 +7845,11 @@ async function startPrintSession(jobId) {
   const locations = [];
   if (locStr.includes('front')) locations.push('Front');
   if (locStr.includes('back'))  locations.push('Back');
-  if (locStr.includes('other')) locations.push('Other');
+  // For Other/custom location, extract the actual label from print_location string
+  // e.g. "Front, Sleeve" → push 'Sleeve'; "Front, Other" → push 'Other'
+  const locParts = (data.print_location || '').split(',').map(s => s.trim()).filter(Boolean);
+  const otherPart = locParts.find(p => !['front','back'].includes(p.toLowerCase()));
+  if (otherPart) locations.push(otherPart);
 
   // If no locations found, show a picker before starting
   if (!locations.length) {
@@ -8276,7 +8281,15 @@ function restoreLocButtons(printLocation, manualFlash) {
   const loc = (printLocation || '').toLowerCase();
   if (loc.includes('front')) toggleLocBtn('front');
   if (loc.includes('back'))  toggleLocBtn('back');
-  if (loc.includes('other')) toggleLocBtn('other');
+  // Restore Other/custom location — check for any non-front/back part
+  const parts = (printLocation || '').split(',').map(s => s.trim()).filter(Boolean);
+  const otherPart = parts.find(p => !['front','back'].includes(p.toLowerCase()));
+  if (otherPart) {
+    toggleLocBtn('other');
+    // Restore the custom label text
+    const otherInput = document.getElementById('locOtherText');
+    if (otherInput) otherInput.value = otherPart === 'Other' ? '' : otherPart;
+  }
   // manual flash is set in session tab, not here
 }
 
