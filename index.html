@@ -498,6 +498,7 @@
   <div class="tab" id="tab-showrooms" onclick="switchTab('showrooms')">SHOWROOMS</div>
   <div class="tab" id="tab-sops" onclick="switchTab('sops')">SOPs</div>
   <div class="tab" id="tab-marketing" onclick="switchTab('marketing')">MARKETING</div>
+  <div class="tab" id="tab-clients"   onclick="switchTab('clients')">CLIENTS</div>
   <div class="tab" id="tab-quotes" onclick="switchTab('quotes')">QUOTES <span id="quotesBadge" style="display:none;background:var(--cyan);color:#000;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-consumables" onclick="switchTab('consumables')">CONSUMABLES <span id="consumablesBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
   <div class="tab" id="tab-inventory" onclick="switchTab('inventory')">INVENTORY <span id="inventoryBadge" style="display:none;background:#ff4444;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.55rem;padding:1px 5px;border-radius:8px;margin-left:2px;vertical-align:middle;"></span></div>
@@ -522,9 +523,26 @@
           <div><label>Job Date</label><input type="date" name="job_date" /></div>
           <div><label>Due Date</label><input type="date" name="due_date" /></div>
           <div><label>Operator</label><input type="text" name="operator" placeholder="Your name" /></div>
-          <div style="grid-column:1/-1"><label>Customer</label><input type="text" name="customer" placeholder="Customer name" /></div>
-          <div><label>Email</label><input type="text" name="email" placeholder="customer@email.com" /></div>
-          <div><label>Phone</label><input type="text" name="phone" placeholder="(210) 555-0000" /></div>
+          <div style="grid-column:1/-1">
+            <label>Customer</label>
+            <div style="position:relative;">
+              <input type="text" id="customerSearchInput" name="customer" placeholder="Type to search clients or enter new name…"
+                oninput="searchClientWidget(this.value,'customerSearchInput','customerDropdown')"
+                onfocus="searchClientWidget(this.value,'customerSearchInput','customerDropdown')"
+                autocomplete="off" />
+              <div id="customerDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;
+                background:var(--surface);border:1px solid var(--flash-30);border-radius:0 0 4px 4px;
+                max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+            </div>
+            <input type="hidden" id="linkedClientId" name="client_id" value="" />
+            <div id="linkedClientBadge" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.65rem;
+              color:var(--cyan);margin-top:4px;">
+              ↗ Linked to client — <button type="button" onclick="clearLinkedClient()" style="background:none;border:none;
+              color:var(--muted);cursor:pointer;font-size:.75rem;text-decoration:underline;">unlink</button>
+            </div>
+          </div>
+          <div><label>Email</label><input type="text" id="jobEmailInput" name="email" placeholder="customer@email.com" /></div>
+          <div><label>Phone</label><input type="text" id="jobPhoneInput" name="phone" placeholder="(210) 555-0000" /></div>
           <div style="grid-column:1/-1">
             <label>Print Location</label>
             <div style="display:flex;gap:10px;flex-wrap:wrap;padding:4px 0 8px;">
@@ -619,6 +637,7 @@
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto;">
       <button class="mkt-tab active" id="srch-tab-jobs"     onclick="switchSearchTab('jobs')">🔍 JOBS</button>
       <button class="mkt-tab"        id="srch-tab-sessions" onclick="switchSearchTab('sessions')">▶ SESSION REVIEW</button>
+      <button class="mkt-tab"        id="srch-tab-clients"  onclick="switchSearchTab('clients')">👥 CLIENTS</button>
     </div>
 
     <!-- JOBS PANE -->
@@ -647,6 +666,18 @@
       </div>
       <div id="sessReviewStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:14px;"></div>
       <div id="sessReviewList"></div>
+    </div>
+
+    <!-- CLIENTS PANE (inside search) -->
+    <div id="srch-pane-clients" class="hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.08em;">CLIENT DIRECTORY</div>
+        <div style="display:flex;gap:7px;align-items:center;">
+          <input type="text" id="clientSearchInSearch" placeholder="Search clients…" style="width:180px;" oninput="renderClientList('srch')" />
+          <button class="btn-primary" onclick="openClientModal()">+ NEW CLIENT</button>
+        </div>
+      </div>
+      <div id="clientListInSearch"></div>
     </div>
 
   </div>
@@ -1410,6 +1441,45 @@
       </div>
       <div id="mktCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(80px,auto);gap:2px;"></div>
     </div>
+
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════ CLIENTS ═══ -->
+  <div id="pane-clients" class="hidden">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.1em;">CLIENT DIRECTORY</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);">All customers — auto-fills job forms, invoices & quotes</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="loadClients()">↺ REFRESH</button>
+        <button class="btn-primary" onclick="openClientModal()">+ NEW CLIENT</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div id="clientStatsBar" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:14px;"></div>
+
+    <!-- Search + filters -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+      <input type="text" id="clientSearch" placeholder="Search name, email, phone, tag…" style="flex:1;min-width:180px;" oninput="renderClientList('main')" />
+      <select id="clientTagFilter" style="width:140px;" onchange="renderClientList('main')">
+        <option value="">All Tags</option>
+        <option value="schools">Schools</option>
+        <option value="sports">Sports</option>
+        <option value="corporate">Corporate</option>
+        <option value="nonprofit">Non-profit</option>
+        <option value="events">Events</option>
+        <option value="retail">Retail</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <!-- Client list -->
+    <div id="clientList"></div>
 
   </div>
 
@@ -2960,6 +3030,61 @@
   </div>
 </div>
 
+
+<!-- CLIENT MODAL -->
+<div id="clientModal" class="modal hidden" style="align-items:flex-start;overflow-y:auto;">
+  <div class="card modal-box" style="max-width:560px;padding:20px;margin:8px auto;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.08em;" id="clientModalTitle">NEW CLIENT</div>
+      <button class="btn-ghost" onclick="closeClientModal()">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="grid-column:1/-1"><label>Client / Company Name</label><input type="text" id="cl_name" placeholder="Acme Sports" /></div>
+      <div><label>Contact Person</label><input type="text" id="cl_contact" placeholder="Jane Smith" /></div>
+      <div><label>Phone</label><input type="text" id="cl_phone" placeholder="(210) 555-0000" /></div>
+      <div style="grid-column:1/-1"><label>Email</label><input type="text" id="cl_email" placeholder="jane@acme.com" /></div>
+      <div style="grid-column:1/-1"><label>Address</label><input type="text" id="cl_address" placeholder="123 Main St, San Antonio TX 78201" /></div>
+      <div>
+        <label>Tag / Type</label>
+        <select id="cl_tag">
+          <option value="">— Select —</option>
+          <option value="schools">Schools</option>
+          <option value="sports">Sports</option>
+          <option value="corporate">Corporate</option>
+          <option value="nonprofit">Non-profit</option>
+          <option value="events">Events</option>
+          <option value="retail">Retail</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div><label>Preferred Payment</label>
+        <select id="cl_payment">
+          <option value="">—</option>
+          <option value="check">Check</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="venmo">Venmo</option>
+          <option value="zelle">Zelle</option>
+          <option value="net30">Net 30</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1"><label>Notes</label><textarea id="cl_notes" rows="3" placeholder="Any notes about this client — order preferences, special requirements, referral source…"></textarea></div>
+    </div>
+    <!-- Job history (shown only when editing) -->
+    <div id="cl_jobHistory" style="display:none;margin-top:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.08em;color:var(--flash);border-bottom:1px solid var(--flash-20);padding-bottom:3px;margin-bottom:8px;">JOB HISTORY</div>
+      <div id="cl_jobList" style="max-height:160px;overflow-y:auto;"></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;">
+      <button class="btn-danger" id="deleteClientBtn" onclick="deleteClient()" style="display:none;">🗑 DELETE</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn-secondary" onclick="closeClientModal()">CANCEL</button>
+        <button class="btn-primary" id="saveClientBtn" onclick="saveClient()">SAVE CLIENT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -3038,6 +3163,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(url&&key){
     initSupabase(url,key);
     document.getElementById('configModal').style.display='none';
+    setTimeout(()=>loadClients(), 1500); // pre-load clients for widget
     setTimeout(handleDeepLink, 600);
     setTimeout(checkSOPDeepLink, 800);
     startRealtime();
@@ -3056,7 +3182,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 // ── TABS ────────────────────────────────────────────────────
 function switchTab(tab){
-  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes','consumables','sops','marketing'].forEach(t=>{
+  ['new','search','pipeline','maint','screens','reports','showrooms','session','payments','tasks','inventory','quotes','consumables','sops','marketing','clients'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('hidden',tab!==t);
     document.getElementById('tab-'+t).classList.toggle('active',tab===t);
   });
@@ -3075,6 +3201,7 @@ function switchTab(tab){
   if(tab==='consumables') loadConsumables();
   if(tab==='quotes') loadQuotes();
   if(tab==='marketing') initMarketing();
+  if(tab==='clients') loadClients();
 }
 
 // ── SHIRT TYPES ─────────────────────────────────────────────
@@ -3348,7 +3475,7 @@ async function submitForm(e){
 
   const record={
     job_name:d.job_name, order_number:d.order_number, job_date:d.job_date, due_date:d.due_date||null,
-    operator:d.operator, customer:d.customer, email:d.email||null, phone:d.phone||null, print_location: [
+    operator:d.operator, customer:d.customer, email:d.email||null, phone:d.phone||null, client_id: document.getElementById('linkedClientId')?.value||null, print_location: [
       document.getElementById('locFrontVal')?.value === 'on' ? 'Front' : '',
       document.getElementById('locBackVal')?.value  === 'on' ? 'Back'  : '',
       document.getElementById('locOtherVal')?.value === 'on' ? (document.getElementById('locOtherText')?.value.trim() || 'Other') : '',
@@ -3381,6 +3508,9 @@ async function submitForm(e){
   if(error){showToast('Error: '+error.message,'error');console.error(error);}
   else{
     const wasEdit = !!window._editJobId;
+    // Auto-link/create client
+    const clientId = document.getElementById('linkedClientId')?.value || null;
+    await autoLinkClientOnSave(record.customer, record.email, record.phone, clientId);
     showToast(wasEdit ? 'Job updated!' : 'Setup saved!','success');
     window._editJobId = null;
     document.getElementById('submitBtn').textContent = 'SAVE SETUP';
@@ -3414,7 +3544,7 @@ async function initForm(){
     ordEl.value='ORD-'+String(nextNum).padStart(3,'0');
   }
 }
-function resetForm(){ document.getElementById('setupForm').reset(); document.getElementById('imagePreview').innerHTML=''; initForm(); }
+function resetForm(){ document.getElementById('setupForm').reset(); clearLinkedClient(); document.getElementById('imagePreview').innerHTML=''; initForm(); }
 
 // ── SEARCH ──────────────────────────────────────────────────
 let _st=null;
@@ -3600,6 +3730,17 @@ async function editJob() {
   setVal('customer', data.customer);
   setVal('email', data.email);
   setVal('phone', data.phone);
+  // Restore linked client
+  const lcId = document.getElementById('linkedClientId');
+  const lcBadge = document.getElementById('linkedClientBadge');
+  if (lcId) lcId.value = data.client_id || '';
+  if (lcBadge && data.client_id && data.customer) {
+    lcBadge.style.display = 'block';
+    lcBadge.innerHTML = `↗ Linked: <strong style="color:var(--cyan);">${data.customer}</strong>
+      <button type="button" onclick="clearLinkedClient()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;text-decoration:underline;margin-left:6px;">unlink</button>`;
+  } else if (lcBadge) {
+    lcBadge.style.display = 'none';
+  }
   setVal('print_location', data.print_location);
   setVal('status', data.status);
   setVal('notes', data.notes);
@@ -15800,6 +15941,377 @@ async function exportTaskDashboardPDF() {
   pdfFooter(doc, 1);
   doc.save('task-dashboard-'+today+'.pdf');
   showToast('Dashboard PDF exported!', 'success');
+}
+
+
+// ══════════════════════════════════════════════════════
+// CLIENT DIRECTORY
+// ══════════════════════════════════════════════════════
+let _allClients   = [];
+let _editClientId = null;
+const TAG_LABELS  = { schools:'Schools', sports:'Sports', corporate:'Corporate', nonprofit:'Non-profit', events:'Events', retail:'Retail', other:'Other' };
+const TAG_COLORS  = { schools:'var(--cyan)', sports:'var(--green)', corporate:'#b464ff', nonprofit:'var(--yellow)', events:'var(--flash)', retail:'#ff9500', other:'var(--muted)' };
+
+// ── Load & render ─────────────────────────────────────
+async function loadClients() {
+  if (!sbClient) return;
+  const { data } = await sbClient.from('clients').select('*').order('name');
+  _allClients = data || [];
+  renderClientStats();
+  renderClientList('main');
+  renderClientList('srch');
+}
+
+function renderClientStats() {
+  const el = document.getElementById('clientStatsBar');
+  if (!el) return;
+  const total    = _allClients.length;
+  const withJobs = _allClients.filter(c => c.job_count > 0).length;
+  const totalRev = _allClients.reduce((s,c) => s+(parseFloat(c.total_invoiced)||0), 0);
+  const recent   = _allClients.filter(c => {
+    if (!c.last_order_date) return false;
+    const d = new Date(c.last_order_date);
+    return (new Date() - d) < 90*24*60*60*1000;
+  }).length;
+  el.innerHTML = [
+    ['TOTAL CLIENTS', total,   'var(--text)'],
+    ['ACTIVE (90d)',  recent,  'var(--green)'],
+    ['WITH JOBS',     withJobs,'var(--cyan)'],
+    ['TOTAL BILLED',  '$'+totalRev.toLocaleString('en-US',{minimumFractionDigits:0}), 'var(--flash)'],
+  ].map(([l,v,c]) => `<div class="task-stat-card">
+    <div class="task-stat-val" style="color:${c};font-size:1.3rem;">${v}</div>
+    <div class="task-stat-lbl">${l}</div>
+  </div>`).join('');
+}
+
+function renderClientList(target) {
+  // target = 'main' (clients tab) or 'srch' (search tab)
+  const searchId = target === 'main' ? 'clientSearch' : 'clientSearchInSearch';
+  const listId   = target === 'main' ? 'clientList'   : 'clientListInSearch';
+  const tagId    = target === 'main' ? 'clientTagFilter' : null;
+
+  const el = document.getElementById(listId);
+  if (!el) return;
+  const q   = (document.getElementById(searchId)?.value||'').toLowerCase();
+  const tag = tagId ? (document.getElementById(tagId)?.value||'') : '';
+
+  let clients = _allClients;
+  if (q) clients = clients.filter(c =>
+    (c.name||'').toLowerCase().includes(q) ||
+    (c.email||'').toLowerCase().includes(q) ||
+    (c.phone||'').toLowerCase().includes(q) ||
+    (c.contact||'').toLowerCase().includes(q) ||
+    (c.tag||'').toLowerCase().includes(q)
+  );
+  if (tag) clients = clients.filter(c => c.tag === tag);
+
+  if (!clients.length) {
+    el.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;padding:28px 0;">
+      No clients found${q ? ' for "'+q+'"' : ''} — <button class="btn-ghost" style="font-size:.7rem;" onclick="openClientModal('${q}')">+ Add new client</button>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = '';
+  clients.forEach(c => {
+    const tagColor = TAG_COLORS[c.tag] || 'var(--muted)';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:13px 15px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;';
+    card.onmouseenter = () => card.style.borderColor = tagColor;
+    card.onmouseleave = () => card.style.borderColor = 'var(--border)';
+    card.onclick = () => openClientModal(null, c);
+
+    card.innerHTML = `
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+          <span style="font-weight:600;font-size:.92rem;">${c.name}</span>
+          ${c.tag ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;padding:2px 7px;border-radius:8px;background:${tagColor}22;color:${tagColor};border:1px solid ${tagColor}44;">${TAG_LABELS[c.tag]||c.tag}</span>` : ''}
+          ${c.preferred_payment ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);">${c.preferred_payment}</span>` : ''}
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;">
+          ${c.contact ? `<span>👤 ${c.contact}</span>` : ''}
+          ${c.phone   ? `<span>📞 ${c.phone}</span>` : ''}
+          ${c.email   ? `<span>📧 ${c.email}</span>` : ''}
+          ${c.last_order_date ? `<span>📅 Last order: ${fmtDate(c.last_order_date)}</span>` : ''}
+        </div>
+        ${c.notes ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:rgba(245,240,232,.35);margin-top:4px;">${c.notes.slice(0,100)}${c.notes.length>100?'…':''}</div>` : ''}
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        ${c.job_count > 0 ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--flash);line-height:1;">${c.job_count}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);">jobs</div>` : ''}
+        ${c.total_invoiced > 0 ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--green);margin-top:3px;">$${parseFloat(c.total_invoiced).toLocaleString()}</div>` : ''}
+      </div>`;
+    el.appendChild(card);
+  });
+}
+
+// ── Client modal ──────────────────────────────────────
+function openClientModal(prefillName, c) {
+  _editClientId = c?.id || null;
+  document.getElementById('clientModalTitle').textContent = c ? 'EDIT CLIENT' : 'NEW CLIENT';
+  document.getElementById('cl_name').value    = c?.name    || (typeof prefillName === 'string' ? prefillName : '') || '';
+  document.getElementById('cl_contact').value = c?.contact || '';
+  document.getElementById('cl_phone').value   = c?.phone   || '';
+  document.getElementById('cl_email').value   = c?.email   || '';
+  document.getElementById('cl_address').value = c?.address || '';
+  document.getElementById('cl_tag').value     = c?.tag     || '';
+  document.getElementById('cl_payment').value = c?.preferred_payment || '';
+  document.getElementById('cl_notes').value   = c?.notes   || '';
+  document.getElementById('deleteClientBtn').style.display = c ? 'inline-block' : 'none';
+
+  // Job history
+  const histEl = document.getElementById('cl_jobHistory');
+  const listEl = document.getElementById('cl_jobList');
+  if (c?.id && histEl && listEl) {
+    histEl.style.display = 'block';
+    loadClientJobs(c.id, listEl);
+  } else if (histEl) {
+    histEl.style.display = 'none';
+  }
+
+  document.getElementById('clientModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('cl_name').focus(), 100);
+}
+
+function closeClientModal() {
+  document.getElementById('clientModal').classList.add('hidden');
+  _editClientId = null;
+}
+
+async function loadClientJobs(clientId, el) {
+  el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);">Loading…</div>';
+  const { data } = await sbClient.from('print_setups')
+    .select('id,job_name,order_number,job_date,quantity,pipeline_stage')
+    .eq('client_id', clientId)
+    .order('job_date', { ascending: false })
+    .limit(20);
+  if (!data?.length) {
+    el.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);">No jobs linked yet.</div>';
+    return;
+  }
+  el.innerHTML = data.map(j => `
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(245,240,232,.05);font-family:'IBM Plex Mono',monospace;font-size:.65rem;">
+      <span style="color:var(--text);">${j.job_name}</span>
+      <span style="color:var(--muted);">${j.order_number ? '#'+j.order_number+' · ' : ''}${j.job_date ? fmtDate(j.job_date) : ''}</span>
+    </div>`).join('');
+}
+
+async function saveClient() {
+  if (!sbClient) return;
+  const btn = document.getElementById('saveClientBtn');
+  btn.innerHTML = '<span class="loader"></span>'; btn.disabled = true;
+
+  const record = {
+    name:              document.getElementById('cl_name').value.trim(),
+    contact:           document.getElementById('cl_contact').value.trim()||null,
+    phone:             document.getElementById('cl_phone').value.trim()||null,
+    email:             document.getElementById('cl_email').value.trim()||null,
+    address:           document.getElementById('cl_address').value.trim()||null,
+    tag:               document.getElementById('cl_tag').value||null,
+    preferred_payment: document.getElementById('cl_payment').value||null,
+    notes:             document.getElementById('cl_notes').value.trim()||null,
+    updated_at:        new Date().toISOString(),
+  };
+
+  if (!record.name) { showToast('Client name required.','error'); btn.innerHTML='SAVE CLIENT'; btn.disabled=false; return; }
+
+  let error, savedId = _editClientId;
+  if (_editClientId) {
+    ({ error } = await sbClient.from('clients').update(record).eq('id', _editClientId));
+  } else {
+    record.created_at = new Date().toISOString();
+    const { data, error: insErr } = await sbClient.from('clients').insert([record]).select('id').single();
+    error = insErr;
+    if (data) savedId = data.id;
+  }
+
+  btn.innerHTML = 'SAVE CLIENT'; btn.disabled = false;
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  showToast(_editClientId ? 'Client updated!' : 'Client saved!','success');
+  closeClientModal();
+  await loadClients();
+
+  // If we just saved a new client and the form has this client linked, update the hidden field
+  if (savedId && !_editClientId) {
+    const badge = document.getElementById('linkedClientBadge');
+    if (badge) {
+      document.getElementById('linkedClientId').value = savedId;
+      badge.style.display = 'block';
+      badge.innerHTML = `↗ Linked: ${record.name} <button type="button" onclick="clearLinkedClient()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;text-decoration:underline;">unlink</button>`;
+    }
+  }
+}
+
+async function deleteClient() {
+  if (!sbClient||!_editClientId) return;
+  if (!confirm("Delete this client? This won't delete their jobs.")) return;
+  await sbClient.from('clients').delete().eq('id', _editClientId);
+  showToast('Client deleted.','success');
+  closeClientModal(); loadClients();
+}
+
+// ── Smart client search widget ────────────────────────
+let _clientSearchTimer = null;
+
+async function searchClientWidget(q, inputId, dropdownId) {
+  clearTimeout(_clientSearchTimer);
+  const dd = document.getElementById(dropdownId);
+  if (!dd) return;
+
+  // If empty, show recent clients
+  if (!q || q.length < 1) {
+    const recent = _allClients.slice(0, 8);
+    renderClientDropdown(recent, q, dd, inputId);
+    return;
+  }
+
+  _clientSearchTimer = setTimeout(() => {
+    const lower = q.toLowerCase();
+    const matches = _allClients.filter(c =>
+      (c.name||'').toLowerCase().includes(lower) ||
+      (c.email||'').toLowerCase().includes(lower) ||
+      (c.phone||'').toLowerCase().includes(lower) ||
+      (c.contact||'').toLowerCase().includes(lower)
+    );
+    renderClientDropdown(matches, q, dd, inputId);
+  }, 150);
+}
+
+function renderClientDropdown(clients, q, dd, inputId) {
+  dd.innerHTML = '';
+
+  // Existing matches
+  clients.slice(0, 8).forEach(c => {
+    const row = document.createElement('div');
+    row.style.cssText = 'padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(245,240,232,.06);transition:background .1s;';
+    row.onmouseenter = () => row.style.background = 'rgba(232,80,10,.08)';
+    row.onmouseleave = () => row.style.background = '';
+    const tagColor = TAG_COLORS[c.tag] || 'var(--muted)';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.75rem;font-weight:600;color:var(--text);">${c.name}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);display:flex;gap:8px;margin-top:2px;">
+            ${c.phone ? `<span>📞 ${c.phone}</span>` : ''}
+            ${c.email ? `<span>📧 ${c.email}</span>` : ''}
+            ${c.tag   ? `<span style="color:${tagColor};">${TAG_LABELS[c.tag]||c.tag}</span>` : ''}
+          </div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--cyan);white-space:nowrap;">SELECT →</div>
+      </div>`;
+    row.onmousedown = (e) => { e.preventDefault(); selectClientFromWidget(c, inputId, dd); };
+    dd.appendChild(row);
+  });
+
+  // Create new option if no exact match
+  const exactMatch = clients.find(c => c.name.toLowerCase() === (q||'').toLowerCase());
+  if (q && !exactMatch) {
+    const createRow = document.createElement('div');
+    createRow.style.cssText = 'padding:9px 12px;cursor:pointer;border-top:1px solid rgba(232,80,10,.2);background:rgba(232,80,10,.04);';
+    createRow.onmouseenter = () => createRow.style.background = 'rgba(232,80,10,.12)';
+    createRow.onmouseleave = () => createRow.style.background = 'rgba(232,80,10,.04)';
+    createRow.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--flash);">➕ Create new client: <strong>${q}</strong></div>`;
+    createRow.onmousedown = (e) => { e.preventDefault(); dd.style.display='none'; openClientModal(q); };
+    dd.appendChild(createRow);
+  }
+
+  dd.style.display = clients.length || q ? 'block' : 'none';
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('mousedown', function closeDD(e) {
+      if (!dd.contains(e.target) && e.target.id !== inputId) {
+        dd.style.display = 'none';
+        document.removeEventListener('mousedown', closeDD);
+      }
+    });
+  }, 50);
+}
+
+function selectClientFromWidget(client, inputId, dd) {
+  dd.style.display = 'none';
+
+  // Fill the input with the client name
+  const input = document.getElementById(inputId);
+  if (input) input.value = client.name;
+
+  // Auto-fill email and phone
+  const emailEl = document.getElementById('jobEmailInput');
+  const phoneEl = document.getElementById('jobPhoneInput');
+  if (emailEl && client.email) emailEl.value = client.email;
+  if (phoneEl && client.phone) phoneEl.value = client.phone;
+
+  // Store linked client ID
+  const hiddenId = document.getElementById('linkedClientId');
+  if (hiddenId) hiddenId.value = client.id;
+
+  // Show badge
+  const badge = document.getElementById('linkedClientBadge');
+  if (badge) {
+    badge.style.display = 'block';
+    badge.innerHTML = `↗ Linked: <strong style="color:var(--cyan);">${client.name}</strong>
+      ${client.phone ? ' · '+client.phone : ''}
+      ${client.email ? ' · '+client.email : ''}
+      <button type="button" onclick="clearLinkedClient()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;text-decoration:underline;margin-left:6px;">unlink</button>`;
+  }
+}
+
+function clearLinkedClient() {
+  const hiddenId = document.getElementById('linkedClientId');
+  if (hiddenId) hiddenId.value = '';
+  const badge = document.getElementById('linkedClientBadge');
+  if (badge) badge.style.display = 'none';
+}
+
+// ── Auto-create / link client on job save ─────────────
+async function autoLinkClientOnSave(customerName, email, phone, clientId) {
+  if (!sbClient || !customerName) return null;
+
+  // If already linked, just update last_order_date
+  if (clientId) {
+    await sbClient.from('clients').update({
+      last_order_date: new Date().toISOString().split('T')[0],
+      updated_at: new Date().toISOString(),
+    }).eq('id', clientId);
+    return clientId;
+  }
+
+  // Check if client with this name already exists
+  const { data: existing } = await sbClient.from('clients')
+    .select('id').ilike('name', customerName).single();
+
+  if (existing) {
+    // Update their info if we have newer data
+    const updates = { last_order_date: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() };
+    if (email) updates.email = email;
+    if (phone) updates.phone = phone;
+    await sbClient.from('clients').update(updates).eq('id', existing.id);
+    return existing.id;
+  }
+
+  // Create new client
+  const { data: newClient } = await sbClient.from('clients').insert([{
+    name:            customerName,
+    email:           email || null,
+    phone:           phone || null,
+    created_at:      new Date().toISOString(),
+    updated_at:      new Date().toISOString(),
+    last_order_date: new Date().toISOString().split('T')[0],
+  }]).select('id').single();
+
+  return newClient?.id || null;
+}
+
+// ── Update switchSearchTab to handle clients ──────────
+const _origSwitchSearchTab = switchSearchTab;
+function switchSearchTab(tab) {
+  ['jobs','sessions','clients'].forEach(t => {
+    document.getElementById('srch-pane-'+t)?.classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById('srch-tab-'+t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'jobs')     searchJobs();
+  if (tab === 'sessions') loadSessionReview();
+  if (tab === 'clients')  { loadClients(); renderClientList('srch'); }
 }
 
 
