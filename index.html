@@ -8665,23 +8665,30 @@ function selectPayJobInline(job) {
     }
   }
 
-  // Build line items from shirt types
+  // Build line items from shirt types with full size breakdown
   document.getElementById('payLineItems').innerHTML = '';
   const types = job.shirt_types || [];
   if (types.length) {
     types.forEach(t => {
-      const qty = Object.values(t.sizes||{}).reduce((a,b)=>a+(parseInt(b)||0),0);
+      const sizes = t.sizes || {};
+      const qty   = Object.values(sizes).reduce((a,b)=>a+(parseInt(b)||0),0);
       if (qty > 0) {
         addPayLineItem('garment', {
-          desc: [t.style||'', t.color||''].filter(Boolean).join(' / ') || 'Garments',
-          qty,
-          unit: 0,
+          style:    t.style || '',
+          color:    t.color || '',
+          desc:     t.style ? '' : 'Garments',
+          sizes,
+          unit:     0,
+          upcharge: 0,
         });
       }
     });
+    if (!types.length) {
+      addPayLineItem('garment', { desc:'Garments', qty: job.quantity||0, unit:0 });
+    }
   } else {
     const totalQty = job.quantity || 0;
-    if (totalQty) addPayLineItem('garment', { desc:'Print Services', qty:totalQty, unit:0 });
+    addPayLineItem('garment', { desc:'Print Services', sizes:{}, unit:0, upcharge:0 });
   }
   addPayLineItem('screen', {});
   recalcPayInvoice();
@@ -8713,6 +8720,9 @@ const PAY_LI_DEFAULTS = {
   custom:  { desc:'', qty:1, unit:0 },
 };
 
+const STANDARD_SIZES_PAY = ['XS','S','M','L','XL'];
+const OVERSIZE_SIZES_PAY = ['2XL','3XL','4XL','5XL'];
+
 function addPayLineItem(type, existing) {
   _payLiCount++;
   const i = _payLiCount;
@@ -8721,36 +8731,134 @@ function addPayLineItem(type, existing) {
   const row = document.createElement('div');
   row.id = 'pli-'+i;
   row.dataset.type = type;
-  row.className = 'qli-row';
-  row.innerHTML = `
-    <div>
-      <input type="text" id="pli_desc_${i}" value="${existing?.desc||def.desc}" placeholder="Description" oninput="recalcPayInvoice()" />
-    </div>
-    <div>
-      <input type="number" id="pli_qty_${i}" value="${existing?.qty||def.qty||1}" min="0" step="1" style="text-align:center;" oninput="recalcPayInvoice()" />
-    </div>
-    <div>
-      <input type="number" id="pli_unit_${i}" value="${existing?.unit||def.unit||''}" min="0" step="0.01" placeholder="0.00" style="text-align:right;" oninput="recalcPayInvoice()" />
-    </div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);text-align:right;padding-top:8px;" id="pli_total_${i}">$0.00</div>
-    <div style="padding-top:6px;">
-      <button type="button" onclick="document.getElementById('pli-${i}').remove();recalcPayInvoice()"
-        style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
-    </div>`;
+
+  if (type === 'garment') {
+    row.style.cssText = 'width:100%;margin-bottom:8px;';
+    const sizes    = existing?.sizes    || {};
+    const upcharge = existing?.upcharge || 0;
+    const basePx   = existing?.unit     || 0;
+    row.innerHTML = `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:6px;">
+        <!-- Description row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div style="flex:1;min-width:160px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <input type="text" id="pli_style_${i}" value="${existing?.style||''}" placeholder="Style (Gildan 5000…)" oninput="recalcPayInvoice()" style="width:100%;" />
+            <input type="text" id="pli_color_${i}" value="${existing?.color||''}" placeholder="Color" oninput="recalcPayInvoice()" style="width:100%;" />
+            <div style="grid-column:1/-1;">
+              <input type="text" id="pli_desc_${i}" value="${existing?.desc||def.desc}" placeholder="Description (optional)" oninput="recalcPayInvoice()" style="width:100%;font-size:.7rem;" />
+            </div>
+          </div>
+          <button type="button" onclick="document.getElementById('pli-${i}').remove();recalcPayInvoice()"
+            style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
+        </div>
+
+        <!-- Standard sizes -->
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Standard Sizes</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px;margin-bottom:10px;">
+          ${STANDARD_SIZES_PAY.map(sz => `<div style="text-align:center;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:3px;">${sz}</div>
+            <input type="number" id="pli_sz_${i}_${sz}" min="0" placeholder="0" value="${sizes[sz]||''}"
+              style="text-align:center;padding:.3rem .2rem;" oninput="recalcPayInvoice()" />
+          </div>`).join('')}
+        </div>
+
+        <!-- Oversize -->
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--flash);text-transform:uppercase;margin-bottom:5px;display:flex;align-items:center;gap:6px;">
+          <span>⬆ Oversize (2XL+)</span>
+          <span style="color:var(--muted);font-size:.58rem;">add upcharge per unit below</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px;margin-bottom:10px;">
+          ${OVERSIZE_SIZES_PAY.map(sz => `<div style="text-align:center;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--flash);margin-bottom:3px;">${sz}</div>
+            <input type="number" id="pli_sz_${i}_${sz}" min="0" placeholder="0" value="${sizes[sz]||''}"
+              style="text-align:center;padding:.3rem .2rem;border-color:var(--flash-30);" oninput="recalcPayInvoice()" />
+          </div>`).join('')}
+        </div>
+
+        <!-- Pricing row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;">
+          <div>
+            <div class="qli-label">Base Price / Unit</div>
+            <input type="number" id="pli_unit_${i}" min="0" step="0.01" placeholder="0.00"
+              value="${basePx||''}" style="text-align:right;" oninput="recalcPayInvoice()" />
+          </div>
+          <div>
+            <div class="qli-label">Oversize Upcharge / Unit</div>
+            <input type="number" id="pli_upcharge_${i}" min="0" step="0.01" placeholder="0.00"
+              value="${upcharge||''}" style="text-align:right;border-color:var(--flash-30);" oninput="recalcPayInvoice()" />
+          </div>
+          <div>
+            <div class="qli-label">Total Qty</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--cyan);padding-top:4px;" id="pli_qty_${i}">0</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="qli-label">Line Total</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--flash);" id="pli_total_${i}">$0.00</div>
+          </div>
+        </div>
+      </div>`;
+
+  } else {
+    // Non-garment: simple row
+    row.className = 'qli-row';
+    row.innerHTML = `
+      <div>
+        <input type="text" id="pli_desc_${i}" value="${existing?.desc||def.desc}" placeholder="Description" oninput="recalcPayInvoice()" />
+      </div>
+      <div>
+        <input type="number" id="pli_qty_${i}" value="${existing?.qty||def.qty||1}" min="0" step="1" style="text-align:center;" oninput="recalcPayInvoice()" />
+      </div>
+      <div>
+        <input type="number" id="pli_unit_${i}" value="${existing?.unit||def.unit||''}" min="0" step="0.01" placeholder="0.00" style="text-align:right;" oninput="recalcPayInvoice()" />
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);text-align:right;padding-top:8px;" id="pli_total_${i}">$0.00</div>
+      <div style="padding-top:6px;">
+        <button type="button" onclick="document.getElementById('pli-${i}').remove();recalcPayInvoice()"
+          style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:4px;">✕</button>
+      </div>`;
+  }
+
   container.appendChild(row);
   recalcPayInvoice();
 }
 
 function recalcPayInvoice() {
   let subtotal = 0;
+  const ALL_SIZES_PAY = [...STANDARD_SIZES_PAY, ...OVERSIZE_SIZES_PAY];
+
   document.querySelectorAll('[id^="pli-"]').forEach(row => {
-    const i = row.id.split('-')[1];
-    const qty  = parseFloat(document.getElementById('pli_qty_'+i)?.value)||0;
-    const unit = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
-    const total = qty * unit;
-    subtotal += total;
-    const el = document.getElementById('pli_total_'+i);
-    if (el) el.textContent = '$'+total.toFixed(2);
+    const i    = row.id.split('-')[1];
+    const type = row.dataset.type;
+
+    if (type === 'garment') {
+      const basePx   = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
+      const upcharge = parseFloat(document.getElementById('pli_upcharge_'+i)?.value)||0;
+
+      let stdQty = 0, overQty = 0;
+      STANDARD_SIZES_PAY.forEach(sz => {
+        stdQty += parseInt(document.getElementById('pli_sz_'+i+'_'+sz)?.value)||0;
+      });
+      OVERSIZE_SIZES_PAY.forEach(sz => {
+        overQty += parseInt(document.getElementById('pli_sz_'+i+'_'+sz)?.value)||0;
+      });
+
+      const totalQty  = stdQty + overQty;
+      const lineTotal = stdQty * basePx + overQty * (basePx + upcharge);
+      subtotal += lineTotal;
+
+      const qtyEl = document.getElementById('pli_qty_'+i);
+      if (qtyEl) qtyEl.textContent = totalQty;
+      const totEl = document.getElementById('pli_total_'+i);
+      if (totEl) totEl.textContent = '$'+lineTotal.toFixed(2);
+
+    } else {
+      const qty   = parseFloat(document.getElementById('pli_qty_'+i)?.value)||0;
+      const unit  = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
+      const total = qty * unit;
+      subtotal += total;
+      const el = document.getElementById('pli_total_'+i);
+      if (el) el.textContent = '$'+total.toFixed(2);
+    }
   });
 
   const discVal  = parseFloat(document.getElementById('pay_discount')?.value)||0;
@@ -8761,21 +8869,42 @@ function recalcPayInvoice() {
   const total    = Math.max(0, subtotal - discAmt + taxAmt);
 
   const fmt = n => '$'+Math.max(0,n).toFixed(2);
-  const sub = document.getElementById('paySubtotal');    if(sub) sub.textContent = fmt(subtotal);
+  const sub  = document.getElementById('paySubtotal');    if(sub)  sub.textContent  = fmt(subtotal);
   const disc = document.getElementById('payDiscountAmt'); if(disc) disc.textContent = discAmt>0?'-'+fmt(discAmt):'-$0.00';
-  const tax  = document.getElementById('payTaxAmt');     if(tax)  tax.textContent  = taxAmt>0?'+'+fmt(taxAmt):'+$0.00';
-  const tot  = document.getElementById('payTotal');      if(tot)  tot.textContent  = fmt(total);
+  const tax  = document.getElementById('payTaxAmt');      if(tax)  tax.textContent  = taxAmt>0?'+'+fmt(taxAmt):'+$0.00';
+  const tot  = document.getElementById('payTotal');       if(tot)  tot.textContent  = fmt(total);
 }
 
 function collectPayLineItems() {
   const items = [];
   document.querySelectorAll('[id^="pli-"]').forEach(row => {
     const i    = row.id.split('-')[1];
-    const desc = document.getElementById('pli_desc_'+i)?.value.trim();
-    if (!desc) return;
-    const qty  = parseFloat(document.getElementById('pli_qty_'+i)?.value)||0;
-    const unit = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
-    items.push({ type: row.dataset.type||'custom', desc, qty, unit, total: qty*unit });
+    const type = row.dataset.type || 'custom';
+
+    if (type === 'garment') {
+      const desc     = document.getElementById('pli_desc_'+i)?.value.trim() || 'Garments';
+      const style    = document.getElementById('pli_style_'+i)?.value.trim() || '';
+      const color    = document.getElementById('pli_color_'+i)?.value.trim() || '';
+      const basePx   = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
+      const upcharge = parseFloat(document.getElementById('pli_upcharge_'+i)?.value)||0;
+      const sizes = {};
+      [...STANDARD_SIZES_PAY, ...OVERSIZE_SIZES_PAY].forEach(sz => {
+        const val = parseInt(document.getElementById('pli_sz_'+i+'_'+sz)?.value)||0;
+        if (val > 0) sizes[sz] = val;
+      });
+      const stdQty  = STANDARD_SIZES_PAY.reduce((s,sz)=>s+(sizes[sz]||0),0);
+      const overQty = OVERSIZE_SIZES_PAY.reduce((s,sz)=>s+(sizes[sz]||0),0);
+      const total   = stdQty * basePx + overQty * (basePx + upcharge);
+      if (stdQty + overQty === 0 && !basePx) return;
+      items.push({ type, desc, style, color, sizes, unit: basePx, upcharge, qty: stdQty+overQty, total });
+
+    } else {
+      const desc = document.getElementById('pli_desc_'+i)?.value.trim();
+      if (!desc) return;
+      const qty  = parseFloat(document.getElementById('pli_qty_'+i)?.value)||0;
+      const unit = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
+      items.push({ type, desc, qty, unit, total: qty*unit });
+    }
   });
   return items;
 }
