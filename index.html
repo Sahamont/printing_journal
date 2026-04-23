@@ -8967,30 +8967,35 @@ function addPayLineItem(type, existing) {
           </div>`).join('')}
         </div>
 
-        <!-- Oversize -->
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--flash);text-transform:uppercase;margin-bottom:5px;display:flex;align-items:center;gap:6px;">
+        <!-- Oversize — qty + individual upcharge per size -->
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--flash);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
           <span>⬆ Oversize (2XL+)</span>
-          <span style="color:var(--muted);font-size:.58rem;">add upcharge per unit below</span>
+          <span style="color:var(--muted);font-size:.58rem;">qty + upcharge per size</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px;margin-bottom:10px;">
-          ${OVERSIZE_SIZES_PAY.map(sz => `<div style="text-align:center;">
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--flash);margin-bottom:3px;">${sz}</div>
-            <input type="number" id="pli_sz_${i}_${sz}" min="0" placeholder="0" value="${sizes[sz]||''}"
-              style="text-align:center;padding:.3rem .2rem;border-color:var(--flash-30);" oninput="recalcPayInvoice()" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;margin-bottom:10px;">
+          ${OVERSIZE_SIZES_PAY.map(sz => `<div style="background:rgba(232,80,10,.04);border:1px solid var(--flash-30);border-radius:3px;padding:6px 6px 4px;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--flash);font-weight:600;margin-bottom:4px;text-align:center;">${sz}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+              <div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--muted);margin-bottom:2px;text-align:center;">QTY</div>
+                <input type="number" id="pli_sz_${i}_${sz}" min="0" placeholder="0" value="${sizes[sz]||''}"
+                  style="text-align:center;padding:.25rem .2rem;border-color:var(--flash-30);" oninput="recalcPayInvoice()" />
+              </div>
+              <div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--muted);margin-bottom:2px;text-align:center;">+$UP</div>
+                <input type="number" id="pli_up_${i}_${sz}" min="0" step="0.01" placeholder="0" value="${(existing?.upcharges||{})[sz]||''}"
+                  style="text-align:center;padding:.25rem .2rem;border-color:rgba(232,80,10,.4);" oninput="recalcPayInvoice()" />
+              </div>
+            </div>
           </div>`).join('')}
         </div>
 
         <!-- Pricing row -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
           <div>
-            <div class="qli-label">Base Price / Unit</div>
+            <div class="qli-label">Base Price / Unit (all sizes)</div>
             <input type="number" id="pli_unit_${i}" min="0" step="0.01" placeholder="0.00"
               value="${basePx||''}" style="text-align:right;" oninput="recalcPayInvoice()" />
-          </div>
-          <div>
-            <div class="qli-label">Oversize Upcharge / Unit</div>
-            <input type="number" id="pli_upcharge_${i}" min="0" step="0.01" placeholder="0.00"
-              value="${upcharge||''}" style="text-align:right;border-color:var(--flash-30);" oninput="recalcPayInvoice()" />
           </div>
           <div>
             <div class="qli-label">Total Qty</div>
@@ -9036,19 +9041,21 @@ function recalcPayInvoice() {
     const type = row.dataset.type;
 
     if (type === 'garment') {
-      const basePx   = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
-      const upcharge = parseFloat(document.getElementById('pli_upcharge_'+i)?.value)||0;
+      const basePx = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
 
-      let stdQty = 0, overQty = 0;
+      let stdQty = 0, overTotal = 0, overQty = 0;
       STANDARD_SIZES_PAY.forEach(sz => {
         stdQty += parseInt(document.getElementById('pli_sz_'+i+'_'+sz)?.value)||0;
       });
       OVERSIZE_SIZES_PAY.forEach(sz => {
-        overQty += parseInt(document.getElementById('pli_sz_'+i+'_'+sz)?.value)||0;
+        const qty = parseInt(document.getElementById('pli_sz_'+i+'_'+sz)?.value)||0;
+        const up  = parseFloat(document.getElementById('pli_up_'+i+'_'+sz)?.value)||0;
+        overQty   += qty;
+        overTotal += qty * (basePx + up);
       });
 
       const totalQty  = stdQty + overQty;
-      const lineTotal = stdQty * basePx + overQty * (basePx + upcharge);
+      const lineTotal = stdQty * basePx + overTotal;
       subtotal += lineTotal;
 
       const qtyEl = document.getElementById('pli_qty_'+i);
@@ -9090,18 +9097,25 @@ function collectPayLineItems() {
       const desc     = document.getElementById('pli_desc_'+i)?.value.trim() || 'Garments';
       const style    = document.getElementById('pli_style_'+i)?.value.trim() || '';
       const color    = document.getElementById('pli_color_'+i)?.value.trim() || '';
-      const basePx   = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
-      const upcharge = parseFloat(document.getElementById('pli_upcharge_'+i)?.value)||0;
-      const sizes = {};
-      [...STANDARD_SIZES_PAY, ...OVERSIZE_SIZES_PAY].forEach(sz => {
+      const basePx    = parseFloat(document.getElementById('pli_unit_'+i)?.value)||0;
+      const sizes     = {};
+      const upcharges = {};
+      STANDARD_SIZES_PAY.forEach(sz => {
         const val = parseInt(document.getElementById('pli_sz_'+i+'_'+sz)?.value)||0;
         if (val > 0) sizes[sz] = val;
       });
+      OVERSIZE_SIZES_PAY.forEach(sz => {
+        const val = parseInt(document.getElementById('pli_sz_'+i+'_'+sz)?.value)||0;
+        const up  = parseFloat(document.getElementById('pli_up_'+i+'_'+sz)?.value)||0;
+        if (val > 0) sizes[sz] = val;
+        if (up  > 0) upcharges[sz] = up;
+      });
       const stdQty  = STANDARD_SIZES_PAY.reduce((s,sz)=>s+(sizes[sz]||0),0);
       const overQty = OVERSIZE_SIZES_PAY.reduce((s,sz)=>s+(sizes[sz]||0),0);
-      const total   = stdQty * basePx + overQty * (basePx + upcharge);
+      const overTotal = OVERSIZE_SIZES_PAY.reduce((s,sz)=> s + (sizes[sz]||0) * (basePx + (upcharges[sz]||0)), 0);
+      const total   = stdQty * basePx + overTotal;
       if (stdQty + overQty === 0 && !basePx) return;
-      items.push({ type, desc, style, color, sizes, unit: basePx, upcharge, qty: stdQty+overQty, total });
+      items.push({ type, desc, style, color, sizes, upcharges, unit: basePx, qty: stdQty+overQty, total });
 
     } else {
       const desc = document.getElementById('pli_desc_'+i)?.value.trim();
@@ -9325,7 +9339,13 @@ function generateInvoicePDF(inv) {
         }
         if (ovEntries.length) {
           doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(..._ac);
-          doc.text('Oversize (+$'+upcharge.toFixed(2)+'): '+ovEntries.join('  '), ML+8, y); y += 9;
+          // Show per-size upcharges if they vary
+          const upcharges = l.upcharges || {};
+          const ovStr = ovSizes.filter(sz=>(l.sizes?.[sz]||0)>0).map(sz => {
+            const up = upcharges[sz] || upcharge || 0;
+            return sz+': '+l.sizes[sz]+(up>0?' (+$'+up.toFixed(2)+')':'');
+          }).join('  ');
+          doc.text('Oversize: '+ovStr, ML+8, y); y += 9;
         }
         doc.setTextColor(0,0,0);
       }
