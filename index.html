@@ -9280,15 +9280,7 @@ function generateInvoicePDF(inv) {
       doc.setDrawColor(..._ac); doc.setLineWidth(0.3);
       doc.line(ML, y, MR, y); y += 8;
       doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(..._ac);
-      doc.text('SERVICES & FEES', ML+4, y); y += 14;
-      // Mini column header for services section
-      doc.setFillColor(245,245,245); doc.rect(ML, y-10, TW, 12, 'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
-      doc.text('DESCRIPTION', ML+4, y-1);
-      doc.text('QTY',   MR-160, y-1, {align:'right'});
-      doc.text('UNIT',  MR-80,  y-1, {align:'right'});
-      doc.text('TOTAL', MR,     y-1, {align:'right'});
-      y += 6;
+      doc.text('SERVICES & FEES', ML+4, y); y += 18;
       doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(0,0,0);
       doc.setDrawColor(220,220,220); doc.setLineWidth(0.5);
     }
