@@ -5212,9 +5212,10 @@ async function loadScreens() {
   (data||[]).forEach(s => { if (counts[s.state] !== undefined) counts[s.state]++; });
   const stateColors = {clean:'rgba(0,200,83,.2)',dirty:'rgba(245,200,0,.2)',burned:'rgba(0,180,216,.2)',onpress:'rgba(232,80,10,.2)',reclaiming:'rgba(180,100,255,.2)',retired:'rgba(245,240,232,.08)'};
   const stateText = {clean:'var(--green)',dirty:'var(--yellow)',burned:'var(--cyan)',onpress:'var(--flash)',reclaiming:'#b464ff',retired:'var(--muted)'};
+  const stateBorders = {clean:'rgba(0,200,83,.3)',dirty:'rgba(245,200,0,.3)',burned:'rgba(0,180,216,.3)',onpress:'rgba(232,80,10,.3)',reclaiming:'rgba(180,100,255,.3)',retired:'rgba(245,240,232,.1)'};
   summary.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--muted);padding:4px 8px;align-self:center;">TOTAL: '+(data||[]).length+'</div>'
     + SCREEN_STATES.map(s => counts[s] > 0
-      ? '<span class="summary-pill" style="background:'+stateColors[s]+';color:'+stateText[s]+';border:1px solid '+stateText[s].replace(')',', .3)').replace('var(','rgba(')+';">'
+      ? '<span class="summary-pill" style="background:'+stateColors[s]+';color:'+stateText[s]+';border:1px solid '+stateBorders[s]+';">'
         + STATE_LABELS[s]+': '+counts[s]+'</span>'
       : ''
     ).join('');
