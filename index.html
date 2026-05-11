@@ -846,7 +846,6 @@
       </div>
     </div>
 
-  </div>
     <!-- INK INVENTORY -->
     <div id="spane-ink" class="hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
@@ -873,7 +872,7 @@
       <div id="squegeeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;"></div>
     </div>
 
-
+  </div>
 
   <!-- ═══ REPORTS ═══ -->
   <div id="pane-reports" class="hidden">
@@ -3189,7 +3188,7 @@ function switchTab(tab){
   if(tab==='search') { switchSearchTab('jobs'); }
   if(tab==='pipeline') loadPipeline();
   if(tab==='maint') loadMachines();
-  if(tab==='screens') loadScreens();
+  if(tab==='screens') { switchScrTab('inventory'); loadScreens(); }
   if(tab==='reports') initReports();
   if(tab==='showrooms') initShowrooms();
   if(tab==='session') renderSessionTab();
